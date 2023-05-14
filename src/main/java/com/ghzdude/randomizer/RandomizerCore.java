@@ -57,6 +57,8 @@ public class RandomizerCore
     {
         IEventBus modEventBus = FMLJavaModLoadingContext.get().getModEventBus();
 
+        ModLoadingContext.get().registerConfig(ModConfig.Type.COMMON, RandomizerConfig.RandomizerConfigPair.getRight());
+
         // Register the commonSetup method for modloading
         modEventBus.addListener(this::commonSetup);
 
