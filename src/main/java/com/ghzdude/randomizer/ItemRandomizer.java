@@ -16,6 +16,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraftforge.common.Tags;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.LogicalSide;
@@ -104,13 +105,15 @@ public class ItemRandomizer {
                 Items.STRUCTURE_BLOCK,
                 Items.STRUCTURE_VOID,
                 Items.WRITTEN_BOOK,
-                Items.KNOWLEDGE_BOOK
+                Items.KNOWLEDGE_BOOK,
+                Items.JIGSAW
         ));
 
         /* create special logic for...
          * Written Book
          * Tipped Arrow
          * potions
+         * sus stew
          */
 
 
