@@ -30,6 +30,7 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
 
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 
 // The value here should match an entry in the META-INF/mods.toml file
@@ -50,7 +51,7 @@ public class RandomizerCore
     // Creates a new BlockItem with the id "examplemod:example_block", combining the namespace and path
     // public static final RegistryObject<Item> EXAMPLE_BLOCK_ITEM = ITEMS.register("example_block", () -> new BlockItem(EXAMPLE_BLOCK.get(), new Item.Properties().tab(CreativeModeTab.TAB_BUILDING_BLOCKS)));
 
-    public static final ForgeRegistry<Item> REGISTERED_ITEMS = (ForgeRegistry<Item>) ForgeRegistries.ITEMS;
+
 
 
     public RandomizerCore()
@@ -63,20 +64,21 @@ public class RandomizerCore
         modEventBus.addListener(this::commonSetup);
 
         // Register the Deferred Register to the mod event bus so blocks get registered
-        BLOCKS.register(modEventBus);
+        // BLOCKS.register(modEventBus);
         // Register the Deferred Register to the mod event bus so items get registered
-        ITEMS.register(modEventBus);
+        // ITEMS.register(modEventBus);
 
         // Register ourselves for server and other game events we are interested in
         MinecraftForge.EVENT_BUS.register(this);
-        MinecraftForge.EVENT_BUS.register(new ItemRandomizer());
     }
 
-    private void commonSetup(final FMLCommonSetupEvent event)
-    {
-        // Some common setup code
-        LOGGER.info("HELLO FROM COMMON SETUP");
-        LOGGER.info("DIRT BLOCK >> {}", ForgeRegistries.BLOCKS.getKey(Blocks.DIRT));
+    private void commonSetup(final FMLCommonSetupEvent event) {
+        ArrayList<ItemRandomizer.SpecialItem> REGISTERED_ITEMS = new ArrayList<>();
+        for (Item item : ForgeRegistries.ITEMS.getValues()) {
+            REGISTERED_ITEMS.add(new ItemRandomizer.SpecialItem(item));
+
+        }
+        MinecraftForge.EVENT_BUS.register(new ItemRandomizer(REGISTERED_ITEMS));
     }
 
     // You can use SubscribeEvent and let the Event Bus discover methods to call
