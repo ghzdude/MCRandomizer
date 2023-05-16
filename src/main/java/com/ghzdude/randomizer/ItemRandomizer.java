@@ -19,6 +19,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Random;
 
 /* Item Randomizer Description
  * Goal is to give the player a random item every so often DONE
@@ -32,8 +33,6 @@ public class ItemRandomizer {
     private int points;
     private int pointMax;
     private int amtItemsGiven;
-
-    private RandomizerSavedData data;
     private int offset = 0;
     protected final ArrayList<SpecialItem> validItems;
 
@@ -139,7 +138,7 @@ public class ItemRandomizer {
 
     @SubscribeEvent
     public void onLogin (ServerStartedEvent event) {
-        data = RandomizerSavedData.getInstance(event.getServer());
+        RandomizerSavedData data = RandomizerSavedData.getInstance(event.getServer());
         this.points = data.points;
         this.pointMax = data.pointMax;
         this.amtItemsGiven = data.amtItemsGiven;
@@ -147,6 +146,7 @@ public class ItemRandomizer {
 
     @SubscribeEvent
     public void onLogout (ServerStoppedEvent event) {
+        RandomizerSavedData data = RandomizerSavedData.getInstance(event.getServer());
         data.points = this.points;
         data.pointMax = this.pointMax;
         data.amtItemsGiven = this.amtItemsGiven;
