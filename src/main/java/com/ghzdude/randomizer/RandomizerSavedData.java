@@ -2,6 +2,7 @@ package com.ghzdude.randomizer;
 
 import net.minecraft.client.server.IntegratedServer;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.IntTag;
 import net.minecraft.nbt.NbtIo;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.Container;
@@ -16,49 +17,37 @@ import java.io.IOException;
 
 public class RandomizerSavedData extends SavedData {
     public static CompoundTag SAVE_DATA = new CompoundTag();
+    public int points;
+    public int pointMax;
+    public int amtItemsGiven;
 
-    RandomizerSavedData (CompoundTag tag) {
-        SAVE_DATA = tag;
+    RandomizerSavedData () {
+        // SAVE_DATA = tag;
+        this.points = 0;
+        this.pointMax = 1;
+        this.amtItemsGiven = 0;
     }
 
-    public RandomizerSavedData create () {
-        return new RandomizerSavedData(new CompoundTag());
+    public static RandomizerSavedData create () {
+        return new RandomizerSavedData();
     }
 
-    public RandomizerSavedData load (CompoundTag tag) {
-        RandomizerSavedData data = this.create();
-        data.save(tag);
+    public static RandomizerSavedData load (CompoundTag tag) {
+        RandomizerSavedData data = create();
+        data.points = tag.getInt("points");
+        data.pointMax = tag.getInt("point_max");
+        data.amtItemsGiven = tag.getInt("amount_items_given");
         return data;
     }
     @Override
     public @NotNull CompoundTag save(@NotNull CompoundTag tag) {
-        SAVE_DATA = tag;
+        tag.put("points", IntTag.valueOf(this.points));
+        tag.put("point_max", IntTag.valueOf(this.pointMax));
+        tag.put("amount_items_given", IntTag.valueOf(this.amtItemsGiven));
         return tag;
     }
 
-    public RandomizerSavedData computeIfAbsent (MinecraftServer server) {
-        return server.overworld().getDataStorage().computeIfAbsent(this::load, this::create, RandomizerCore.MODID);
-    }
-
-    public static File getFile (IntegratedServer server) {
-
-        File file = new File(server.getServerDirectory(), "/overworld/DIM-0/data/example.dat");
-
-        if (file.canWrite() && file.canRead()) {
-            return file;
-        } else {
-            try {
-                NbtIo.write(new CompoundTag(), file);
-                return file;
-            } catch (IOException e) {
-                RandomizerCore.LOGGER.warn("file " + file.getAbsolutePath() + " does not exist!");
-            }
-        }
-        return null;
-    }
-
-    @Override
-    public boolean isDirty() {
-        return true;
+    public static RandomizerSavedData getInstance(MinecraftServer server) {
+        return server.overworld().getDataStorage().computeIfAbsent(RandomizerSavedData::load, RandomizerSavedData::create, RandomizerCore.MODID);
     }
 }

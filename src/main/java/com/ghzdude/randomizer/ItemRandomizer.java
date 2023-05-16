@@ -1,5 +1,6 @@
 package com.ghzdude.randomizer;
 
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.server.IntegratedServer;
 import net.minecraft.nbt.*;
 import net.minecraft.network.chat.Component;
@@ -30,19 +31,15 @@ import java.util.Arrays;
 public class ItemRandomizer {
     private int points;
     private int pointMax;
-    private int offset;
     private int amtItemsGiven;
+
+    private RandomizerSavedData data;
+    private int offset = 0;
     protected final ArrayList<SpecialItem> validItems;
 
     ItemRandomizer (ArrayList<SpecialItem> validItems) {
-        this.points = 0;
-        this.pointMax = 1;
-        this.offset = 0;
-        this.amtItemsGiven = 0;
-        this.validItems = validItems;
 
         int lastMatch = -1;
-
         validItems.removeIf(specialItem -> SpecialItems.BLACKLISTED_ITEMS.contains(specialItem.item));
         for (int i = 0; i < validItems.size(); i++) {
             SpecialItem toUpdate = validItems.get(i);
@@ -55,6 +52,8 @@ public class ItemRandomizer {
                 validItems.get(i).value = SpecialItems.SPECIAL_ITEMS.get(lastMatch).value;
             }
         }
+
+        this.validItems = validItems;
     }
 
     @SubscribeEvent
@@ -140,37 +139,17 @@ public class ItemRandomizer {
 
     @SubscribeEvent
     public void onLogin (ServerStartedEvent event) {
-        CompoundTag tag = new CompoundTag();
-        File file = RandomizerSavedData.getFile((IntegratedServer) event.getServer());
-        assert file != null;
-
-        try {
-            tag = NbtIo.read(file);
-        } catch (IOException ignored){
-
-        }
-
-        assert tag != null;
-        this.points = tag.getInt("points");
-        this.pointMax = Math.max(tag.getInt("point_max"), 1);
-        this.amtItemsGiven = tag.getInt("amount_items_given");
+        data = RandomizerSavedData.getInstance(event.getServer());
+        this.points = data.points;
+        this.pointMax = data.pointMax;
+        this.amtItemsGiven = data.amtItemsGiven;
     }
 
     @SubscribeEvent
     public void onLogout (ServerStoppedEvent event) {
-        CompoundTag tag = new CompoundTag();
-        tag.put("points", IntTag.valueOf(this.points));
-        tag.put("point_max", IntTag.valueOf(this.pointMax));
-        tag.put("amount_items_given", IntTag.valueOf(this.amtItemsGiven));
-
-        File file = RandomizerSavedData.getFile((IntegratedServer) event.getServer());
-        assert file != null;
-
-        try {
-            NbtIo.write(tag, file);
-        } catch (IOException ignored) {
-
-        }
+        data.points = this.points;
+        data.pointMax = this.pointMax;
+        data.amtItemsGiven = this.amtItemsGiven;
     }
 
     protected static class SpecialItems {
