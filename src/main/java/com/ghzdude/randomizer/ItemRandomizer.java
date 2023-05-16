@@ -136,7 +136,6 @@ public class ItemRandomizer {
             inventory.player.sendSystemMessage(Component.translatable("Point max has gone up! Amount of items given is " + amtItemsGiven));
             pointMax++;
         }
-        return getRandomItem();
     }
 
     @SubscribeEvent
