@@ -1,5 +1,24 @@
 package com.ghzdude.randomizer;
 
+import net.minecraft.client.server.IntegratedServer;
+import net.minecraft.nbt.*;
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraftforge.event.TickEvent;
+import net.minecraftforge.event.server.ServerStartedEvent;
+import net.minecraftforge.event.server.ServerStoppedEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.LogicalSide;
+
+import java.io.File;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
+
 /* Item Randomizer Description
  * Goal is to give the player a random item every so often DONE
  * Every so often, points are added to a counter DONE
@@ -77,7 +96,6 @@ public class ItemRandomizer {
                 pointsToUse -= stack.getCount() * selectedItem.value;
                 addStackToPlayer(stack, player.getInventory());
                 tries++;
-
             }
         }
     }
@@ -119,6 +137,41 @@ public class ItemRandomizer {
             pointMax++;
         }
         return getRandomItem();
+    }
+
+    @SubscribeEvent
+    public void onLogin (ServerStartedEvent event) {
+        CompoundTag tag = new CompoundTag();
+        File file = RandomizerSavedData.getFile((IntegratedServer) event.getServer());
+        assert file != null;
+
+        try {
+            tag = NbtIo.read(file);
+        } catch (IOException ignored){
+
+        }
+
+        assert tag != null;
+        this.points = tag.getInt("points");
+        this.pointMax = Math.max(tag.getInt("point_max"), 1);
+        this.amtItemsGiven = tag.getInt("amount_items_given");
+    }
+
+    @SubscribeEvent
+    public void onLogout (ServerStoppedEvent event) {
+        CompoundTag tag = new CompoundTag();
+        tag.put("points", IntTag.valueOf(this.points));
+        tag.put("point_max", IntTag.valueOf(this.pointMax));
+        tag.put("amount_items_given", IntTag.valueOf(this.amtItemsGiven));
+
+        File file = RandomizerSavedData.getFile((IntegratedServer) event.getServer());
+        assert file != null;
+
+        try {
+            NbtIo.write(tag, file);
+        } catch (IOException ignored) {
+
+        }
     }
 
     protected static class SpecialItems {
