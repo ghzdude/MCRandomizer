@@ -4,14 +4,22 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.server.IntegratedServer;
 import net.minecraft.nbt.*;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.ServerScoreboard;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.scores.Objective;
+import net.minecraft.world.scores.criteria.ObjectiveCriteria;
+import net.minecraftforge.common.capabilities.Capability;
+import net.minecraftforge.common.capabilities.CapabilityProvider;
+import net.minecraftforge.common.capabilities.ForgeCapabilities;
 import net.minecraftforge.event.TickEvent;
+import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.event.server.ServerStartedEvent;
 import net.minecraftforge.event.server.ServerStoppedEvent;
+import net.minecraftforge.event.server.ServerStoppingEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.LogicalSide;
 
@@ -138,18 +146,24 @@ public class ItemRandomizer {
 
     @SubscribeEvent
     public void onLogin (ServerStartedEvent event) {
-        RandomizerSavedData data = RandomizerSavedData.getInstance(event.getServer());
-        this.points = data.points;
-        this.pointMax = data.pointMax;
-        this.amtItemsGiven = data.amtItemsGiven;
+        ServerScoreboard scoreboard = event.getServer().getScoreboard();
+        try {
+            this.points = Integer.parseInt(scoreboard.getOrCreateObjective("points").getDisplayName().getString());
+            this.pointMax = Integer.parseInt(scoreboard.getOrCreateObjective("point_max").getDisplayName().getString());
+            this.amtItemsGiven = Integer.parseInt(scoreboard.getOrCreateObjective("amount_items_given").getDisplayName().getString());
+        } catch (NumberFormatException ignored) { }
+
+        this.points = Math.max(this.points, 0);
+        this.pointMax = Math.max(this.pointMax, 1);
+        this.amtItemsGiven = Math.max(this.amtItemsGiven, 0);
     }
 
     @SubscribeEvent
-    public void onLogout (ServerStoppedEvent event) {
-        RandomizerSavedData data = RandomizerSavedData.getInstance(event.getServer());
-        data.points = this.points;
-        data.pointMax = this.pointMax;
-        data.amtItemsGiven = this.amtItemsGiven;
+    public void onLogout (ServerStoppingEvent event) {
+        ServerScoreboard scoreboard = event.getServer().getScoreboard();
+        scoreboard.getOrCreateObjective("points").setDisplayName(Component.literal(String.valueOf(this.points)));
+        scoreboard.getOrCreateObjective("point_max").setDisplayName(Component.literal(String.valueOf(this.pointMax)));
+        scoreboard.getOrCreateObjective("amount_items_given").setDisplayName(Component.literal(String.valueOf(this.amtItemsGiven)));
     }
 
     protected static class SpecialItems {
