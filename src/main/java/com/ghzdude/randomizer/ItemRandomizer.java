@@ -8,22 +8,6 @@ package com.ghzdude.randomizer;
  * more points give bigger stacksize of item at once DONE
  * items have a defined value, otherwise stacksize is used
  */
-
-
-import net.minecraft.network.chat.Component;
-import net.minecraft.world.entity.player.Inventory;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
-import net.minecraftforge.event.TickEvent;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.fml.LogicalSide;
-
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-
 public class ItemRandomizer {
     private int points;
     private int pointMax;
@@ -62,7 +46,7 @@ public class ItemRandomizer {
         offset++;
 
         if (offset % RandomizerConfig.getCooldown() == 0) {
-            points += pointMax;
+            points = pointMax;
 
             Player player = event.player;
             if (player.getInventory().getFreeSlot() == -1) return;
@@ -72,35 +56,26 @@ public class ItemRandomizer {
             points -= pointsToUse;
 
             // try to give up to five items while there are points to use
-            SpecialItem selectedItem = getRandomItem();
             while (tries < 5 && pointsToUse > 0) {
+                SpecialItem selectedItem = getRandomItem();
 
-                if (selectedItem.value > pointsToUse) {
-                    continue;
-                }
+                if (selectedItem.value > pointsToUse) continue;
+
+                int amtToGive = Math.floorDiv(pointsToUse, selectedItem.value);
+                ItemStack stack = new ItemStack(selectedItem.item);
+
+                stack.setCount(Math.min(amtToGive, stack.getMaxStackSize()));
 
                 if (selectedItem.isWrittenBook){
-                    addStackToPlayer(getRandomBook(selectedItem), player.getInventory());
-                    break;
+                    getRandomBook(stack);
                 }
 
                 if (selectedItem.isPotion) {
                     // do potion stuff
                 }
 
-                int amtToGive = Math.floorDiv(pointsToUse, selectedItem.value);
-                ItemStack stack = new ItemStack(selectedItem.item);
-                pointsToUse -= pointsToUse * amtToGive;
-
-                if (amtToGive > stack.getMaxStackSize()) {
-                    stack.setCount(stack.getMaxStackSize());
-                    amtToGive -= stack.getMaxStackSize();
-                } else {
-                    stack.setCount(amtToGive);
-                    break;
-                }
-
-                selectedItem = addStackToPlayer(stack, player.getInventory());
+                pointsToUse -= stack.getCount() * selectedItem.value;
+                addStackToPlayer(stack, player.getInventory());
                 tries++;
 
             }
@@ -108,23 +83,34 @@ public class ItemRandomizer {
     }
 
     private SpecialItem getRandomItem() {
-        SpecialItem selectedItem;
-
-        do {
-            int id = (int) (Math.random() * validItems.size());
-            selectedItem = validItems.get(id);
-        } while (SpecialItems.BLACKLISTED_ITEMS.contains(selectedItem.item));
-
-        return selectedItem;
+        int id = (int) (Math.random() * validItems.size());
+        return validItems.get(id);
     }
 
-    private ItemStack getRandomBook(SpecialItem item) {
-        ItemStack stack = new ItemStack(item.item);
-        stack.setCount(1);
-        return stack;
+    private void getRandomBook(ItemStack stack) {
+        // pages -> {ListTag@23688}  size = 1
+        //      '{"text":"proper book"}'
+        // author -> {StringTag@23690} ""Dev""
+        // filtered_title -> {StringTag@23692} ""krk""
+        // title -> {StringTag@23694} ""krk""
+
+        // player.getInventory().getItem(5).getTag().put("pages", new ListTag(){{add(StringTag.valueOf("{\"text\":\"improper book\"}"));}})
+
+        CompoundTag tag = new CompoundTag();
+        ListTag pages = new ListTag();
+        StringTag author = StringTag.valueOf("\"Amonga\"");
+        StringTag filteredTitle = StringTag.valueOf("\"The Book of Sus\"");
+        StringTag title = StringTag.valueOf("\"The Book of Sus\"");
+
+        pages.add(0, StringTag.valueOf("{\"text\":\"they are among us\"}"));
+        tag.put("pages", pages);
+        tag.put("author", author);
+        tag.put("filtered_title", filteredTitle);
+        tag.put("title", title);
+        stack.setTag(tag);
     }
 
-    private SpecialItem addStackToPlayer(ItemStack stack, Inventory inventory) {
+    private void addStackToPlayer(ItemStack stack, Inventory inventory) {
         inventory.player.sendSystemMessage(Component.translatable("Given " + inventory.player.getDisplayName().getString() + " " + stack));
         inventory.add(stack);
         amtItemsGiven++;
