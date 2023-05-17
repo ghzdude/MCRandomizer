@@ -78,7 +78,9 @@ public class ItemRandomizer {
             if (player.getInventory().getFreeSlot() == -1) return;
 
             int tries = 0;
-            int pointsToUse = (int) Math.max(Math.round(Math.random() * points), 1);
+
+            // use a random amount of points
+            int pointsToUse = random.nextIntBetweenInclusive(1, points);
             points -= pointsToUse;
 
             // try to give up to five items while there are points to use
@@ -99,6 +101,7 @@ public class ItemRandomizer {
                 if (SpecialItems.EFFECT_ITEMS.contains(selectedItem)) {
                     applyEffect(stack);
                 }
+                int pointsUsed = stack.getCount() * selectedItem.value;
 
                 pointsToUse -= pointsUsed;
                 addStackToPlayer(stack, player.getInventory(), pointsUsed);
@@ -127,6 +130,8 @@ public class ItemRandomizer {
         StringTag filteredTitle = StringTag.valueOf("\"The Book of Sus\"");
         StringTag title = StringTag.valueOf("\"The Book of Sus\"");
 
+        // each page has a max of 798 characters
+        // each book has a max of 100 pages in JE
         pages.add(0, StringTag.valueOf("{\"text\":\"they are among us\"}"));
         tag.put("pages", pages);
         tag.put("author", author);
