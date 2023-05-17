@@ -1,0 +1,5 @@
+{
+  "player.recieved.item": "Given %s to %s, %d points used.",
+  "player.points.increased": "Points per cycle increased! Total given items is %s",
+  "random.potion": "Random Potion"
+}

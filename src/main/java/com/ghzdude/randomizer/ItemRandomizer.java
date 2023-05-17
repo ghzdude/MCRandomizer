@@ -1,35 +1,26 @@
 package com.ghzdude.randomizer;
 
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.server.IntegratedServer;
 import net.minecraft.nbt.*;
 import net.minecraft.network.chat.Component;
-import net.minecraft.server.ServerScoreboard;
+import net.minecraft.util.RandomSource;
+import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.storage.LevelData;
-import net.minecraft.world.scores.Objective;
-import net.minecraft.world.scores.criteria.ObjectiveCriteria;
-import net.minecraftforge.common.capabilities.Capability;
-import net.minecraftforge.common.capabilities.CapabilityProvider;
-import net.minecraftforge.common.capabilities.ForgeCapabilities;
+import net.minecraft.world.item.alchemy.Potion;
+import net.minecraft.world.item.alchemy.Potions;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
-import net.minecraftforge.event.server.ServerStartedEvent;
-import net.minecraftforge.event.server.ServerStoppedEvent;
-import net.minecraftforge.event.server.ServerStoppingEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.LogicalSide;
+import net.minecraftforge.registries.ForgeRegistries;
 
-import java.io.File;
-import java.io.IOException;
+
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Random;
+import java.util.HexFormat;
 
 /* Item Randomizer Description
  * Goal is to give the player a random item every so often DONE
@@ -101,23 +92,23 @@ public class ItemRandomizer {
 
                 stack.setCount(Math.min(amtToGive, stack.getMaxStackSize()));
 
-                if (selectedItem.isWrittenBook){
+                if (selectedItem.item == Items.WRITTEN_BOOK){
                     getRandomBook(stack);
                 }
 
-                if (selectedItem.isPotion) {
-                    // do potion stuff
+                if (SpecialItems.EFFECT_ITEMS.contains(selectedItem)) {
+                    applyEffect(stack);
                 }
 
-                pointsToUse -= stack.getCount() * selectedItem.value;
-                addStackToPlayer(stack, player.getInventory());
+                pointsToUse -= pointsUsed;
+                addStackToPlayer(stack, player.getInventory(), pointsUsed);
                 tries++;
             }
         }
     }
 
     private SpecialItem getRandomItem() {
-        int id = (int) (Math.random() * validItems.size());
+        int id = random.nextInt(validItems.size());
         return validItems.get(id);
     }
 
@@ -144,12 +135,72 @@ public class ItemRandomizer {
         stack.setTag(tag);
     }
 
-    private void addStackToPlayer(ItemStack stack, Inventory inventory) {
-        inventory.player.sendSystemMessage(Component.translatable("Given " + inventory.player.getDisplayName().getString() + " " + stack));
+    private void applyEffect(ItemStack stack) {
+        // Potion -> {StringTag@24140} ""minecraft:swiftness""
+
+        // Effects -> {ListTag@24241}  size = 1
+        //      Compound Tag ->
+        //          "EffectDuration" -> {IntTag@24252} "120"
+        //          "forge:effect_id" -> {StringTag@24254} ""minecraft:jump_boost""
+        //          "EffectId" -> {IntTag@24256} "8"
+
+        ArrayList<Potion> potions = new ArrayList<>(ForgeRegistries.POTIONS.getValues());
+        ArrayList<MobEffect> mobEffects = new ArrayList<>(ForgeRegistries.MOB_EFFECTS.getValues());
+        potions.removeIf(potion -> potion == Potions.EMPTY);
+
+        int id = random.nextInt(potions.size());
+        int numOfEffects = random.nextInt(3) + 1;
+
+        CompoundTag baseTag = new CompoundTag();
+
+        if (stack.getItem() == Items.SUSPICIOUS_STEW) {
+            ListTag effects = new ListTag();
+            CompoundTag effect = new CompoundTag();
+
+            for (int i = 1; i <= numOfEffects; i++) {
+                effect.putInt("EffectDuration", random.nextIntBetweenInclusive(100, 2000));
+                effect.putString("forge:effect_id", potions.get(id).getName("minecraft:"));
+                effects.add(effect);
+            }
+
+            baseTag.put("Effects", effects);
+
+        } else {
+            ListTag effects = new ListTag();
+
+            for (int i = 1; i <= numOfEffects; i++) {
+                CompoundTag effect = new CompoundTag();
+                effect.putInt("Id", random.nextInt(mobEffects.size()));
+                effect.putInt("Amplifier", random.nextInt(4) + 1);
+                effect.putInt("Duration",random.nextIntBetweenInclusive(100, 2000));
+                effect.putBoolean("ShowIcon", true);
+                effects.add(effect);
+            }
+            baseTag.put("CustomPotionEffects", effects);
+            baseTag.putString("Potion", "minecraft:water");
+
+            baseTag.putInt("CustomPotionColor", random.nextInt(HexFormat.fromHexDigits("00FFFFFF")));
+
+            CompoundTag displayTag = new CompoundTag();
+
+            String itemType = stack.getItem() == Items.TIPPED_ARROW ? "Arrow" : "Potion";
+            displayTag.putString("Name", String.format("\"Randomly Generated %s\"", itemType));
+
+            ListTag lore = new ListTag();
+            lore.add(StringTag.valueOf(String.format("\"A randomly generated %s from the Gods\"", itemType)));
+            displayTag.put("Lore", lore);
+            baseTag.put("display", displayTag);
+
+        }
+        stack.setTag(baseTag);
+    }
+
+    private void addStackToPlayer(ItemStack stack, Inventory inventory, int pointsUsed) {
+        inventory.player.sendSystemMessage(Component.translatable("player.recieved.item",  stack.copy(), inventory.player.getDisplayName().getString(), pointsUsed));
         inventory.add(stack);
         amtItemsGiven++;
         if (amtItemsGiven % 20 == 0) {
-            inventory.player.sendSystemMessage(Component.translatable("Point max has gone up! Amount of items given is " + amtItemsGiven));
+            inventory.player.sendSystemMessage(Component.translatable("player.points.increased", amtItemsGiven));
             pointMax++;
         }
     }
@@ -173,28 +224,6 @@ public class ItemRandomizer {
         tag.putInt("point_max", this.pointMax);
         tag.putInt("amount_items_given", this.amtItemsGiven);
     }
-/*
-    @SubscribeEvent
-    public void onLogin (ServerStartedEvent event) {
-        ServerScoreboard scoreboard = event.getServer().getScoreboard();
-        try {
-            this.points = Integer.parseInt(scoreboard.getOrCreateObjective("points").getDisplayName().getString());
-            this.pointMax = Integer.parseInt(scoreboard.getOrCreateObjective("point_max").getDisplayName().getString());
-            this.amtItemsGiven = Integer.parseInt(scoreboard.getOrCreateObjective("amount_items_given").getDisplayName().getString());
-        } catch (NumberFormatException ignored) { }
-
-        this.points = Math.max(this.points, 0);
-        this.pointMax = Math.max(this.pointMax, 1);
-        this.amtItemsGiven = Math.max(this.amtItemsGiven, 0);
-    }
-
-    @SubscribeEvent
-    public void onLogout (ServerStoppingEvent event) {
-        ServerScoreboard scoreboard = event.getServer().getScoreboard();
-        scoreboard.getOrCreateObjective("points").setDisplayName(Component.literal(String.valueOf(this.points)));
-        scoreboard.getOrCreateObjective("point_max").setDisplayName(Component.literal(String.valueOf(this.pointMax)));
-        scoreboard.getOrCreateObjective("amount_items_given").setDisplayName(Component.literal(String.valueOf(this.amtItemsGiven)));
-    }*/
 
     protected static class SpecialItems {
         protected static final ArrayList<Item> BLACKLISTED_ITEMS = new ArrayList<>(Arrays.asList(
