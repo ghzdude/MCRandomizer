@@ -44,7 +44,8 @@ public class ItemRandomizer {
     private int pointMax;
     private int amtItemsGiven;
     private int offset = 0;
-    protected final ArrayList<SpecialItem> validItems;
+    private static final RandomSource random = RandomSource.create();
+    protected final SpecialItemList validItems;
 
     ItemRandomizer (ArrayList<SpecialItem> validItems) {
 
@@ -52,17 +53,24 @@ public class ItemRandomizer {
         validItems.removeIf(specialItem -> SpecialItems.BLACKLISTED_ITEMS.contains(specialItem.item));
         for (int i = 0; i < validItems.size(); i++) {
             SpecialItem toUpdate = validItems.get(i);
-            int match = SpecialItems.SPECIAL_ITEMS.indexOf(toUpdate);
+            int match;
 
-            if (match != -1) {
+            if (SpecialItems.SPECIAL_ITEMS.contains(toUpdate)) {
+                match = SpecialItems.SPECIAL_ITEMS.indexOf(toUpdate);
                 lastMatch = match;
                 validItems.set(i, SpecialItems.SPECIAL_ITEMS.get(match));
-            } else if (toUpdate.item.toString().contains("shulker_box")){
+            } else if (SpecialItems.EFFECT_ITEMS.contains(toUpdate)) {
+                match = SpecialItems.EFFECT_ITEMS.indexOf(toUpdate);
+                lastMatch = match;
+                validItems.set(i, SpecialItems.EFFECT_ITEMS.get(match));
+            }
+
+            if (toUpdate.item.toString().contains("shulker_box")){
                 validItems.get(i).value = SpecialItems.SPECIAL_ITEMS.get(lastMatch).value;
             }
         }
 
-        this.validItems = validItems;
+        this.validItems = new SpecialItemList(validItems);
     }
 
     @SubscribeEvent
@@ -233,7 +241,15 @@ public class ItemRandomizer {
          * im fucking tired lol
          */
 
-        protected static final ArrayList<SpecialItem> SPECIAL_ITEMS = new ArrayList<>(Arrays.asList(
+        protected static final SpecialItemList EFFECT_ITEMS = new SpecialItemList(Arrays.asList(
+                new SpecialItem(Items.POTION, 4),
+                new SpecialItem(Items.SPLASH_POTION, 6),
+                new SpecialItem(Items.LINGERING_POTION, 6),
+                new SpecialItem(Items.TIPPED_ARROW, 6),
+                new SpecialItem(Items.SUSPICIOUS_STEW, 4)
+        ));
+
+        protected static final SpecialItemList SPECIAL_ITEMS = new SpecialItemList(Arrays.asList(
             new SpecialItem(Items.WOODEN_PICKAXE),
             new SpecialItem(Items.WOODEN_AXE),
             new SpecialItem(Items.WOODEN_HOE),
@@ -275,12 +291,7 @@ public class ItemRandomizer {
             new SpecialItem(Items.TRAPPED_CHEST, 3),
             new SpecialItem(Items.SHULKER_BOX, 6),
             new SpecialItem(Items.BUNDLE, 6),
-            new SpecialItem(Items.WRITTEN_BOOK, 4, false, true),
-            new SpecialItem(Items.POTION, 4, true,false),
-            new SpecialItem(Items.SPLASH_POTION, 6, true,false),
-            new SpecialItem(Items.LINGERING_POTION, 6, true, false),
-            new SpecialItem(Items.TIPPED_ARROW, 6, true, false),
-            new SpecialItem(Items.SUSPICIOUS_STEW, 4, true, false),
+            new SpecialItem(Items.WRITTEN_BOOK, 4),
 
             // villager stations
             new SpecialItem(Items.GRINDSTONE, 6),
@@ -295,40 +306,16 @@ public class ItemRandomizer {
 
             new SpecialItem(Items.CAMPFIRE, 2),
             new SpecialItem(Items.SOUL_CAMPFIRE, 2)
-        )){
-            @Override
-            public boolean contains(Object o) {
-                if (!(o instanceof SpecialItem)) return false;
-                for (SpecialItem item : this) {
-                    return item.item.equals(((SpecialItem) o).item);
-                }
-                return false;
-            }
-
-            @Override
-            public int indexOf(Object o) {
-                for (int i = 0; i < this.size(); i++) {
-                    if (this.get(i).item == ((SpecialItem) o).item) return i;
-                }
-                return -1;
-            }
-        };
+        ));
     }
 
     protected static class SpecialItem {
         public Item item;
         public int value;
-        public boolean isPotion, isWrittenBook;
-
-        SpecialItem(Item item, int value, boolean isPotion, boolean isWrittenBook) {
-            this.item = item;
-            this.value = value;
-            this.isPotion = isPotion;
-            this.isWrittenBook = isWrittenBook;
-        }
 
         SpecialItem(Item item, int value) {
-            this(item, value, false, false);
+            this.item = item;
+            this.value = value;
         }
 
         SpecialItem(Item item) {
