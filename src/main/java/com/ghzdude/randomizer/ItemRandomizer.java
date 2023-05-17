@@ -10,6 +10,8 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.storage.LevelData;
 import net.minecraft.world.scores.Objective;
 import net.minecraft.world.scores.criteria.ObjectiveCriteria;
 import net.minecraftforge.common.capabilities.Capability;
@@ -145,6 +147,26 @@ public class ItemRandomizer {
     }
 
     @SubscribeEvent
+    public void onLogin (PlayerEvent.PlayerLoggedInEvent player) {
+        CompoundTag tag = player.getEntity().getPersistentData();
+        this.points = tag.getInt("points");
+        this.pointMax = tag.getInt("point_max");
+        this.amtItemsGiven = tag.getInt("amount_items_given");
+
+        this.points = Math.max(this.points, 0);
+        this.pointMax = Math.max(this.pointMax, 1);
+        this.amtItemsGiven = Math.max(this.amtItemsGiven, 0);
+    }
+    
+    @SubscribeEvent
+    public void onLogout (PlayerEvent.PlayerLoggedOutEvent player) {
+        CompoundTag tag = player.getEntity().getPersistentData();
+        tag.putInt("points", this.points);
+        tag.putInt("point_max", this.pointMax);
+        tag.putInt("amount_items_given", this.amtItemsGiven);
+    }
+/*
+    @SubscribeEvent
     public void onLogin (ServerStartedEvent event) {
         ServerScoreboard scoreboard = event.getServer().getScoreboard();
         try {
@@ -164,7 +186,7 @@ public class ItemRandomizer {
         scoreboard.getOrCreateObjective("points").setDisplayName(Component.literal(String.valueOf(this.points)));
         scoreboard.getOrCreateObjective("point_max").setDisplayName(Component.literal(String.valueOf(this.pointMax)));
         scoreboard.getOrCreateObjective("amount_items_given").setDisplayName(Component.literal(String.valueOf(this.amtItemsGiven)));
-    }
+    }*/
 
     protected static class SpecialItems {
         protected static final ArrayList<Item> BLACKLISTED_ITEMS = new ArrayList<>(Arrays.asList(
