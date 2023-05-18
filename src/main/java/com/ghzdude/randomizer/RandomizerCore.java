@@ -93,15 +93,16 @@ public class RandomizerCore
             POINTS -= pointsToUse;
 
             int selection = RANDOM.nextInt(100);
-            if (selection < 100) {
+            if (selection < 100) { // config for percentage
                 MinecraftServer server = event.player.getServer();
                 if (server == null) return;
                 ServerLevel level = server.getLevel(event.player.getLevel().dimension());
                 if (level == null) return;
-                pointsToUse -= StructureRandomizer.placeStructure(pointsToUse, level);
-            } else {
-                pointsToUse -= ITEM_RANDOMIZER.GiveRandomItem(pointsToUse, player.getInventory());
+                pointsToUse = StructureRandomizer.placeStructure(pointsToUse, level, player);
             }
+
+            player.displayClientMessage(Component.literal("Giving Item..."), true);
+            pointsToUse = ITEM_RANDOMIZER.GiveRandomItem(pointsToUse, player.getInventory());
 
             if (AMT_ITEMS_GIVEN % 20 == 0) {
                 player.sendSystemMessage(Component.translatable("player.point_max.increased", POINT_MAX));
