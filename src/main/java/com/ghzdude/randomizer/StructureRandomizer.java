@@ -49,9 +49,8 @@ public class StructureRandomizer {
         }
 
         RandomizerCore.LOGGER.warn(String.format("Attempting to generate a structure! (%s)", structure.key().location()));
-                // RegistryAccess registryAccess, ChunkGenerator chunkGenerator, BiomeSource biomeSource,
-                // RandomState randomState, StructureTemplateManager structureTemplateManager,
-                // \WorldgenRandom random, long seed, ChunkPos chunkPos, LevelHeightAccessor heightAccessor, Predicate<Holder<Biome>> validBiome
+
+        // attempt to make my own Structure.GenerationStub to make StructureStart
         Optional<Structure.GenerationStub> stub = structure.get().findGenerationPoint(
                 new Structure.GenerationContext(
                         level.registryAccess(), generator, generator.getBiomeSource(), level.getChunkSource().randomState(),
@@ -63,25 +62,27 @@ public class StructureRandomizer {
             StructurePiecesBuilder piecesBuilder = stub.get().getPiecesBuilder();
             StructureStart start = new StructureStart(structure.get(), pos, 0, piecesBuilder.build());
 
-
-        /*StructureStart start = structure.get().generate(
-                level.registryAccess(), generator,
-                generator.getBiomeSource(),
-                level.getChunkSource().randomState(),
-                level.getStructureManager(),
-                level.getSeed(),
-                pos, 0, level,
-                holder -> true
-            );
-        */
+            // previous attempt at using structure.generate(). may be issue, but unlikely.
+            /*StructureStart start = structure.get().generate(
+                    level.registryAccess(), generator,
+                    generator.getBiomeSource(),
+                    level.getChunkSource().randomState(),
+                    level.getStructureManager(),
+                    level.getSeed(),
+                    pos, 0, level,
+                    holder -> true
+                );
+            */
             BoundingBox boundingBox = start.getBoundingBox(); // unable to generate bb without pieces
 
             ChunkPos pos1 = new ChunkPos(SectionPos.blockToSectionCoord(boundingBox.minX()), SectionPos.blockToSectionCoord(boundingBox.minZ()));
             ChunkPos pos2 = new ChunkPos(SectionPos.blockToSectionCoord(boundingBox.maxX()), SectionPos.blockToSectionCoord(boundingBox.maxZ()));
-        /*if (ChunkPos.rangeClosed(pos1, pos2).anyMatch(chunkPos -> !level.isLoaded(chunkPos.getWorldPosition()))){
+
+            // if this is uncommented, checking for if chunk exists at position returns true. Could this cause problems?
+            /*if (ChunkPos.rangeClosed(pos1, pos2).anyMatch(chunkPos -> !level.isLoaded(chunkPos.getWorldPosition()))){
             RandomizerCore.LOGGER.warn(String.format("Failed to generate structure! Chunk not loaded! \n(%s)", structure.key().location()));
             return pointsToUse;
-        }*/
+            }*/
 
 
             ChunkPos.rangeClosed(pos1, pos2).forEach(chunkPos ->
@@ -93,6 +94,7 @@ public class StructureRandomizer {
                     )
             );
 
+            // this doesn't make sense, it also doesn't work
             generator.createStructures(
                     level.registryAccess(), level.getChunkSource().randomState(), level.structureManager(),
                     level.getChunk(player.getBlockX(), player.getBlockZ()), level.getStructureManager(), level.getSeed()
