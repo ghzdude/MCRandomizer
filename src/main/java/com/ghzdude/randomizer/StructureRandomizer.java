@@ -37,8 +37,8 @@ public class StructureRandomizer {
         int offsetX = 0; // level.getRandom().nextIntBetweenInclusive(32, 48);
         int offsetZ = 0; // level.getRandom().nextIntBetweenInclusive(32, 46);
 
-        ChunkPos pos;
-        if (level.getRandom().nextBoolean()) {
+        ChunkPos pos = new ChunkPos(player.getBlockX(), player.getBlockZ());
+        /*if (level.getRandom().nextBoolean()) {
             pos = new ChunkPos((int) (player.getX() + offsetX), (int) (player.getZ() + offsetZ));
         } else if (level.getRandom().nextBoolean()) {
             pos = new ChunkPos((int) (player.getX() - offsetX), (int) (player.getZ() + offsetZ));
@@ -46,7 +46,7 @@ public class StructureRandomizer {
             pos = new ChunkPos((int) (player.getX() - offsetX), (int) (player.getZ() - offsetZ));
         } else {
             pos = new ChunkPos((int) (player.getX() + offsetX), (int) (player.getZ() - offsetZ));
-        }
+        }*/
 
         RandomizerCore.LOGGER.warn(String.format("Attempting to generate a structure! (%s)", structure.key().location()));
 
@@ -70,7 +70,7 @@ public class StructureRandomizer {
                     level.getStructureManager(),
                     level.getSeed(),
                     pos, 0, level,
-                    holder -> true
+                    (holder) -> true
                 );
 
             BoundingBox boundingBox = start.getBoundingBox();
