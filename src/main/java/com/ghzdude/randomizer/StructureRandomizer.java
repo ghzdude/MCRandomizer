@@ -50,7 +50,7 @@ public class StructureRandomizer {
 
         RandomizerCore.LOGGER.warn(String.format("Attempting to generate a structure! (%s)", structure.key().location()));
 
-        // attempt to make my own Structure.GenerationStub to make StructureStart
+        /*// attempt to make my own Structure.GenerationStub to make StructureStart
         Optional<Structure.GenerationStub> stub = structure.get().findGenerationPoint(
                 new Structure.GenerationContext(
                         level.registryAccess(), generator, generator.getBiomeSource(), level.getChunkSource().randomState(),
@@ -59,11 +59,11 @@ public class StructureRandomizer {
                     )
         );
         if (stub.isPresent()) {
-            StructurePiecesBuilder piecesBuilder = stub.get().getPiecesBuilder();
-            StructureStart start = new StructureStart(structure.get(), pos, 0, piecesBuilder.build());
-
+            //StructurePiecesBuilder piecesBuilder = stub.get().getPiecesBuilder();
+            //StructureStart start = new StructureStart(structure.get(), pos, 0, piecesBuilder.build());
+*/
             // previous attempt at using structure.generate(). may be issue, but unlikely.
-            /*StructureStart start = structure.get().generate(
+            StructureStart start = structure.get().generate(
                     level.registryAccess(), generator,
                     generator.getBiomeSource(),
                     level.getChunkSource().randomState(),
@@ -72,21 +72,21 @@ public class StructureRandomizer {
                     pos, 0, level,
                     holder -> true
                 );
-            */
-            BoundingBox boundingBox = start.getBoundingBox(); // unable to generate bb without pieces
+
+            BoundingBox boundingBox = start.getBoundingBox();
 
             ChunkPos pos1 = new ChunkPos(SectionPos.blockToSectionCoord(boundingBox.minX()), SectionPos.blockToSectionCoord(boundingBox.minZ()));
             ChunkPos pos2 = new ChunkPos(SectionPos.blockToSectionCoord(boundingBox.maxX()), SectionPos.blockToSectionCoord(boundingBox.maxZ()));
 
             // if this is uncommented, checking for if chunk exists at position returns true. Could this cause problems?
             /*if (ChunkPos.rangeClosed(pos1, pos2).anyMatch(chunkPos -> !level.isLoaded(chunkPos.getWorldPosition()))){
-            RandomizerCore.LOGGER.warn(String.format("Failed to generate structure! Chunk not loaded! \n(%s)", structure.key().location()));
-            return pointsToUse;
+                RandomizerCore.LOGGER.warn(String.format("Failed to generate structure! Chunk not loaded! \n(%s)", structure.key().location()));
+                return pointsToUse;
             }*/
 
 
             ChunkPos.rangeClosed(pos1, pos2).forEach(chunkPos ->
-                    start.placeInChunk(level, level.structureManager(), generator, RandomizerCore.RANDOM,
+                    start.placeInChunk(level, level.structureManager(), generator, level.getRandom(),
                             new BoundingBox(
                                     chunkPos.getMinBlockX(), level.getMinBuildHeight(), chunkPos.getMinBlockZ(),
                                     chunkPos.getMaxBlockX(), level.getMaxBuildHeight(), chunkPos.getMaxBlockZ()
@@ -101,9 +101,7 @@ public class StructureRandomizer {
             );*/
 
             RandomizerCore.LOGGER.warn("Structure Generated... maybe");
-        } else {
-            RandomizerCore.LOGGER.warn("Structure failed to generate...");
-        }
+
         return pointsToUse;
     }
 }
