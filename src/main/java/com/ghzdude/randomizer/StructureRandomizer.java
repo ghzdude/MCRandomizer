@@ -95,10 +95,10 @@ public class StructureRandomizer {
             );
 
             // this doesn't make sense, it also doesn't work
-            generator.createStructures(
+            /*generator.createStructures(
                     level.registryAccess(), level.getChunkSource().randomState(), level.structureManager(),
                     level.getChunk(player.getBlockX(), player.getBlockZ()), level.getStructureManager(), level.getSeed()
-            );
+            );*/
 
             RandomizerCore.LOGGER.warn("Structure Generated... maybe");
         } else {
