@@ -1,25 +1,24 @@
 package com.ghzdude.randomizer;
 
-import net.minecraft.nbt.*;
+import com.ghzdude.randomizer.special.SpecialItem;
+import com.ghzdude.randomizer.special.SpecialItemList;
+import com.ghzdude.randomizer.special.SpecialItems;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.StringTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.entity.player.Inventory;
-import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.alchemy.Potion;
 import net.minecraft.world.item.alchemy.Potions;
-import net.minecraftforge.event.TickEvent;
-import net.minecraftforge.event.entity.player.PlayerEvent;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.fml.LogicalSide;
 import net.minecraftforge.registries.ForgeRegistries;
 
-
 import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.Collection;
 import java.util.HexFormat;
 
 /* Item Randomizer Description
@@ -31,88 +30,72 @@ import java.util.HexFormat;
  * items have a defined value, otherwise stacksize is used
  */
 public class ItemRandomizer {
-    private int points;
-    private int pointMax;
-    private int amtItemsGiven;
-    private int offset = 0;
-    private static final RandomSource random = RandomSource.create();
-    protected final SpecialItemList validItems;
+    private final SpecialItemList VALID_ITEMS;
 
-    ItemRandomizer (ArrayList<SpecialItem> validItems) {
-
-        int lastMatch = -1;
-        validItems.removeIf(specialItem -> SpecialItems.BLACKLISTED_ITEMS.contains(specialItem.item));
-        for (int i = 0; i < validItems.size(); i++) {
-            SpecialItem toUpdate = validItems.get(i);
-            int match;
-
-            if (SpecialItems.SPECIAL_ITEMS.contains(toUpdate)) {
-                match = SpecialItems.SPECIAL_ITEMS.indexOf(toUpdate);
-                lastMatch = match;
-                validItems.set(i, SpecialItems.SPECIAL_ITEMS.get(match));
-            } else if (SpecialItems.EFFECT_ITEMS.contains(toUpdate)) {
-                match = SpecialItems.EFFECT_ITEMS.indexOf(toUpdate);
-                lastMatch = match;
-                validItems.set(i, SpecialItems.EFFECT_ITEMS.get(match));
-            }
-
-            if (toUpdate.item.toString().contains("shulker_box")){
-                validItems.get(i).value = SpecialItems.SPECIAL_ITEMS.get(lastMatch).value;
-            }
-        }
-
-        this.validItems = new SpecialItemList(validItems);
+    ItemRandomizer () {
+        VALID_ITEMS = new SpecialItemList(configureValidItem());
     }
 
-    @SubscribeEvent
-    public void onPlayerTick(TickEvent.PlayerTickEvent event){
-        if (event.side == LogicalSide.CLIENT) return;
-        if (event.phase == TickEvent.Phase.END) return;
-        if (offset < 0) offset = 0;
-        offset++;
+    private Collection<SpecialItem> configureValidItem() {
+        int lastMatch;
+        ArrayList<SpecialItem> validItems = new ArrayList<>();
 
-        if (offset % RandomizerConfig.getCooldown() == 0) {
-            points = pointMax;
+        for (Item item : ForgeRegistries.ITEMS.getValues()) {
+            if (SpecialItems.BLACKLISTED_ITEMS.contains(item)) continue;
+            SpecialItem toUpdate = new SpecialItem(item);
 
-            Player player = event.player;
-            if (player.getInventory().getFreeSlot() == -1) return;
-
-            int tries = 0;
-
-            // use a random amount of points
-            int pointsToUse = random.nextIntBetweenInclusive(1, points);
-            points -= pointsToUse;
-
-            // try to give up to five items while there are points to use
-            while (tries < 5 && pointsToUse > 0) {
-                SpecialItem selectedItem = getRandomItem();
-
-                if (selectedItem.value > pointsToUse) continue;
-
-                int amtToGive = Math.floorDiv(pointsToUse, selectedItem.value);
-                ItemStack stack = new ItemStack(selectedItem.item);
-
-                stack.setCount(Math.min(amtToGive, stack.getMaxStackSize()));
-
-                if (selectedItem.item == Items.WRITTEN_BOOK){
-                    getRandomBook(stack);
-                }
-
-                if (SpecialItems.EFFECT_ITEMS.contains(selectedItem)) {
-                    applyEffect(stack);
-                }
-                int pointsUsed = stack.getCount() * selectedItem.value;
-
-                pointsToUse -= pointsUsed;
-                addStackToPlayer(stack, player.getInventory(), pointsUsed);
-                tries++;
+            int match = -1;
+            if (SpecialItems.SPECIAL_ITEMS.contains(toUpdate)) {
+                match = SpecialItems.SPECIAL_ITEMS.indexOf(toUpdate);
+                toUpdate = SpecialItems.SPECIAL_ITEMS.get(match);
+            } else if (SpecialItems.EFFECT_ITEMS.contains(toUpdate)) {
+                match = SpecialItems.EFFECT_ITEMS.indexOf(toUpdate);
+                toUpdate = SpecialItems.EFFECT_ITEMS.get(match);
             }
+
+            lastMatch = match;
+            if (lastMatch != -1 && toUpdate.item.toString().contains("shulker_box")) {
+                toUpdate.value = SpecialItems.SPECIAL_ITEMS.get(lastMatch).value;
+            }
+
+            validItems.add(toUpdate);
         }
+        return validItems;
+    }
+
+    public int GiveRandomItem(int pointsToUse, Inventory inventory){
+        int tries = 0;
+
+        // try to give up to five items while there are points to use
+        while (tries < 5 && pointsToUse > 0) {
+            SpecialItem selectedItem = getRandomItem();
+
+            if (selectedItem.value > pointsToUse) continue;
+
+            int amtToGive = Math.floorDiv(pointsToUse, selectedItem.value);
+            ItemStack stack = new ItemStack(selectedItem.item);
+
+            stack.setCount(Math.min(amtToGive, stack.getMaxStackSize()));
+
+            if (selectedItem.item == Items.WRITTEN_BOOK){
+                getRandomBook(stack);
+            }
+
+            if (SpecialItems.EFFECT_ITEMS.contains(selectedItem)) {
+                applyEffect(stack);
+            }
+            int pointsUsed = stack.getCount() * selectedItem.value;
+
+            pointsToUse -= pointsUsed;
+            addStackToPlayer(stack, inventory, pointsUsed);
+            tries++;
+        }
+        return pointsToUse;
     }
 
     private SpecialItem getRandomItem() {
-        int id = random.nextInt(validItems.size());
-        return validItems.get(id);
+        int id = RandomizerCore.RANDOM.nextInt(VALID_ITEMS.size());
+        return VALID_ITEMS.get(id);
     }
 
     private void getRandomBook(ItemStack stack) {
@@ -152,6 +135,8 @@ public class ItemRandomizer {
         ArrayList<Potion> potions = new ArrayList<>(ForgeRegistries.POTIONS.getValues());
         ArrayList<MobEffect> mobEffects = new ArrayList<>(ForgeRegistries.MOB_EFFECTS.getValues());
         potions.removeIf(potion -> potion == Potions.EMPTY);
+
+        final RandomSource random = RandomizerCore.RANDOM;
 
         int id = random.nextInt(potions.size());
         int numOfEffects = random.nextInt(3) + 1;
@@ -203,157 +188,6 @@ public class ItemRandomizer {
     private void addStackToPlayer(ItemStack stack, Inventory inventory, int pointsUsed) {
         inventory.player.sendSystemMessage(Component.translatable("player.recieved.item",  stack.copy(), inventory.player.getDisplayName().getString(), pointsUsed));
         inventory.add(stack);
-        amtItemsGiven++;
-        if (amtItemsGiven % 20 == 0) {
-            inventory.player.sendSystemMessage(Component.translatable("player.points.increased", amtItemsGiven));
-            pointMax++;
-        }
-    }
-
-    @SubscribeEvent
-    public void onLogin (PlayerEvent.PlayerLoggedInEvent player) {
-        CompoundTag tag = player.getEntity().getPersistentData();
-        this.points = tag.getInt("points");
-        this.pointMax = tag.getInt("point_max");
-        this.amtItemsGiven = tag.getInt("amount_items_given");
-
-        this.points = Math.max(this.points, 0);
-        this.pointMax = Math.max(this.pointMax, 1);
-        this.amtItemsGiven = Math.max(this.amtItemsGiven, 0);
-    }
-    
-    @SubscribeEvent
-    public void onLogout (PlayerEvent.PlayerLoggedOutEvent player) {
-        CompoundTag tag = player.getEntity().getPersistentData();
-        tag.putInt("points", this.points);
-        tag.putInt("point_max", this.pointMax);
-        tag.putInt("amount_items_given", this.amtItemsGiven);
-    }
-
-    protected static class SpecialItems {
-        protected static final ArrayList<Item> BLACKLISTED_ITEMS = new ArrayList<>(Arrays.asList(
-                Items.AIR,
-                Items.COMMAND_BLOCK,
-                Items.COMMAND_BLOCK_MINECART,
-                Items.CHAIN_COMMAND_BLOCK,
-                Items.REPEATING_COMMAND_BLOCK,
-                Items.BARRIER,
-                Items.LIGHT,
-                Items.STRUCTURE_BLOCK,
-                Items.STRUCTURE_VOID,
-                Items.WRITTEN_BOOK,
-                Items.KNOWLEDGE_BOOK,
-                Items.JIGSAW
-        ));
-
-        /* create special logic for...
-         * Written Book
-         * Tipped Arrow
-         * potions
-         * sus stew
-         */
-
-        /* give point values to
-         * wodden tools - 1 point
-         * stone tools - 2 point
-         * iron tools - 3 point
-         * diamond tools - 5 point
-         * netherite tools - 9 point
-         * nether star - 15 points
-         * shulker boxes 6 points
-         * chest 3 points
-         * bundle 6 points
-         * written book 4 points
-         * potions 4 points
-         * splash/lingering potions 6 points
-         * tipped arrows 6 points
-         * villager stations 6-15
-         * furnace 2 points
-         * blast furnace 5 points
-         * cooker 4 points
-         * campfire 2 points
-         * im fucking tired lol
-         */
-
-        protected static final SpecialItemList EFFECT_ITEMS = new SpecialItemList(Arrays.asList(
-                new SpecialItem(Items.POTION, 4),
-                new SpecialItem(Items.SPLASH_POTION, 6),
-                new SpecialItem(Items.LINGERING_POTION, 6),
-                new SpecialItem(Items.TIPPED_ARROW, 6),
-                new SpecialItem(Items.SUSPICIOUS_STEW, 4)
-        ));
-
-        protected static final SpecialItemList SPECIAL_ITEMS = new SpecialItemList(Arrays.asList(
-            new SpecialItem(Items.WOODEN_PICKAXE),
-            new SpecialItem(Items.WOODEN_AXE),
-            new SpecialItem(Items.WOODEN_HOE),
-            new SpecialItem(Items.WOODEN_SHOVEL),
-            new SpecialItem(Items.WOODEN_SWORD),
-
-            new SpecialItem(Items.GOLDEN_PICKAXE, 2),
-            new SpecialItem(Items.GOLDEN_AXE, 2),
-            new SpecialItem(Items.GOLDEN_HOE, 2),
-            new SpecialItem(Items.GOLDEN_SHOVEL, 2),
-            new SpecialItem(Items.GOLDEN_SWORD, 2),
-
-            new SpecialItem(Items.STONE_PICKAXE, 2),
-            new SpecialItem(Items.STONE_AXE, 2),
-            new SpecialItem(Items.STONE_HOE, 2),
-            new SpecialItem(Items.STONE_SHOVEL, 2),
-            new SpecialItem(Items.STONE_SWORD, 2),
-
-            new SpecialItem(Items.IRON_PICKAXE, 3),
-            new SpecialItem(Items.IRON_AXE, 3),
-            new SpecialItem(Items.IRON_HOE, 3),
-            new SpecialItem(Items.IRON_SHOVEL, 3),
-            new SpecialItem(Items.IRON_SWORD, 3),
-
-            new SpecialItem(Items.DIAMOND_PICKAXE, 5),
-            new SpecialItem(Items.DIAMOND_AXE, 5),
-            new SpecialItem(Items.DIAMOND_HOE, 5),
-            new SpecialItem(Items.DIAMOND_SHOVEL, 5),
-            new SpecialItem(Items.DIAMOND_SWORD, 5),
-
-            new SpecialItem(Items.NETHERITE_PICKAXE, 9),
-            new SpecialItem(Items.NETHERITE_AXE, 9),
-            new SpecialItem(Items.NETHERITE_HOE, 9),
-            new SpecialItem(Items.NETHERITE_SHOVEL, 9),
-            new SpecialItem(Items.NETHERITE_SWORD, 9),
-
-            new SpecialItem(Items.NETHER_STAR, 15),
-            new SpecialItem(Items.CHEST, 3),
-            new SpecialItem(Items.TRAPPED_CHEST, 3),
-            new SpecialItem(Items.SHULKER_BOX, 6),
-            new SpecialItem(Items.BUNDLE, 6),
-            new SpecialItem(Items.WRITTEN_BOOK, 4),
-
-            // villager stations
-            new SpecialItem(Items.GRINDSTONE, 6),
-            new SpecialItem(Items.FLETCHING_TABLE, 3),
-            new SpecialItem(Items.ANVIL, 6),
-            new SpecialItem(Items.CHIPPED_ANVIL, 4),
-            new SpecialItem(Items.DAMAGED_ANVIL, 2),
-            new SpecialItem(Items.COMPOSTER, 8),
-            new SpecialItem(Items.STONECUTTER, 6),
-            new SpecialItem(Items.BLAST_FURNACE, 3),
-            new SpecialItem(Items.SMOKER, 3),
-
-            new SpecialItem(Items.CAMPFIRE, 2),
-            new SpecialItem(Items.SOUL_CAMPFIRE, 2)
-        ));
-    }
-
-    protected static class SpecialItem {
-        public Item item;
-        public int value;
-
-        SpecialItem(Item item, int value) {
-            this.item = item;
-            this.value = value;
-        }
-
-        SpecialItem(Item item) {
-            this(item, 1);
-        }
+        RandomizerCore.incrementAmtItemsGiven();
     }
 }
