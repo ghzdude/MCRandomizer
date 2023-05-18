@@ -104,7 +104,7 @@ public class RandomizerCore
             }
 
             if (AMT_ITEMS_GIVEN % 20 == 0) {
-                player.sendSystemMessage(Component.translatable("player.points.increased", AMT_ITEMS_GIVEN));
+                player.sendSystemMessage(Component.translatable("player.point_max.increased", POINT_MAX));
                 POINT_MAX++;
             }
 
