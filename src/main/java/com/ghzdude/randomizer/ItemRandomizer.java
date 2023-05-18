@@ -81,6 +81,8 @@ public class ItemRandomizer {
                 getRandomBook(stack);
             }
 
+            // do something about goat horns and fireworks
+
             if (SpecialItems.EFFECT_ITEMS.contains(selectedItem)) {
                 applyEffect(stack);
             }
@@ -186,7 +188,7 @@ public class ItemRandomizer {
     }
 
     private void addStackToPlayer(ItemStack stack, Inventory inventory, int pointsUsed) {
-        inventory.player.sendSystemMessage(Component.translatable("player.recieved.item",  stack.copy(), inventory.player.getDisplayName().getString(), pointsUsed));
+        RandomizerCore.LOGGER.warn(String.format("Given %s to %s, %d points used.",  stack.copy(), inventory.player.getDisplayName().getString(), pointsUsed).toString());
         inventory.add(stack);
         RandomizerCore.incrementAmtItemsGiven();
     }
