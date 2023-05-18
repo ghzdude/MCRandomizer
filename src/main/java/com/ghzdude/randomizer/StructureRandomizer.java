@@ -1,20 +1,19 @@
 package com.ghzdude.randomizer;
 
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
 import net.minecraft.core.SectionPos;
 import net.minecraft.data.BuiltinRegistries;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.chunk.ChunkGenerator;
-import net.minecraft.world.level.levelgen.WorldgenRandom;
 import net.minecraft.world.level.levelgen.structure.BoundingBox;
 import net.minecraft.world.level.levelgen.structure.Structure;
 import net.minecraft.world.level.levelgen.structure.StructureStart;
-import net.minecraft.world.level.levelgen.structure.pieces.StructurePiecesBuilder;
 
 import java.util.List;
-import java.util.Optional;
 
 /* Structure Randomizer description
  * every so often, generate a structure at some random x, z coordinate near the player
@@ -23,85 +22,54 @@ public class StructureRandomizer {
 
     private static final List<Holder.Reference<Structure>> STRUCTURES = BuiltinRegistries.STRUCTURES.holders().toList();
 
-    public static int placeStructure(int pointsToUse, ServerLevel level) {
-        // if (pointsToUse < 50) return pointsToUse;
-        Player player = level.getRandomPlayer();
-        if (player == null) return pointsToUse;
-        ChunkGenerator generator = level.getChunkSource().getGenerator();
-
+    public static int placeStructure(int pointsToUse, ServerLevel level, Player player) {
+        if (pointsToUse < 50) return pointsToUse;
 
         int id = level.getRandom().nextInt(STRUCTURES.size());
 
         Holder.Reference<Structure> structure = STRUCTURES.get(id);
 
-        int offsetX = 0; // level.getRandom().nextIntBetweenInclusive(32, 48);
-        int offsetZ = 0; // level.getRandom().nextIntBetweenInclusive(32, 46);
+        int offsetX = level.getRandom().nextIntBetweenInclusive(32, 64);
+        int offsetZ = level.getRandom().nextIntBetweenInclusive(32, 64);
 
-        ChunkPos pos = new ChunkPos(player.getBlockX(), player.getBlockZ());
-        /*if (level.getRandom().nextBoolean()) {
-            pos = new ChunkPos((int) (player.getX() + offsetX), (int) (player.getZ() + offsetZ));
+        BlockPos blockPos = new BlockPos(player.getBlockX(), player.getBlockY(), player.getBlockZ());
+
+        // ChunkPos pos = new ChunkPos(player.getBlockX(), player.getBlockZ());
+        if (level.getRandom().nextBoolean()) {
+            blockPos = blockPos.offset(offsetX, 0, offsetZ);
         } else if (level.getRandom().nextBoolean()) {
-            pos = new ChunkPos((int) (player.getX() - offsetX), (int) (player.getZ() + offsetZ));
+            blockPos = blockPos.offset(-offsetX, 0, offsetZ);
         } else if (level.getRandom().nextBoolean()) {
-            pos = new ChunkPos((int) (player.getX() - offsetX), (int) (player.getZ() - offsetZ));
+            blockPos = blockPos.offset(-offsetX, 0, -offsetZ);
         } else {
-            pos = new ChunkPos((int) (player.getX() + offsetX), (int) (player.getZ() - offsetZ));
-        }*/
+            blockPos = blockPos.offset(offsetX, 0, -offsetZ);
+        }
 
-        RandomizerCore.LOGGER.warn(String.format("Attempting to generate a structure! (%s)", structure.key().location()));
+        RandomizerCore.LOGGER.warn(String.format("Attempting to generate a structure! (%s AT %s)", structure.key().location(), blockPos));
+        player.sendSystemMessage(Component.literal(String.format("Attempting to generate a %s! The game may lag for a while!", structure.key().location(), blockPos)));
 
-        /*// attempt to make my own Structure.GenerationStub to make StructureStart
-        Optional<Structure.GenerationStub> stub = structure.get().findGenerationPoint(
-                new Structure.GenerationContext(
-                        level.registryAccess(), generator, generator.getBiomeSource(), level.getChunkSource().randomState(),
-                        level.getStructureManager(), new WorldgenRandom(RandomizerCore.RANDOM), level.getSeed(), pos,
-                        level, holder -> true
-                    )
-        );
-        if (stub.isPresent()) {
-            //StructurePiecesBuilder piecesBuilder = stub.get().getPiecesBuilder();
-            //StructureStart start = new StructureStart(structure.get(), pos, 0, piecesBuilder.build());
-*/
-            // previous attempt at using structure.generate(). may be issue, but unlikely.
-            StructureStart start = structure.get().generate(
-                    level.registryAccess(), generator,
-                    generator.getBiomeSource(),
-                    level.getChunkSource().randomState(),
-                    level.getStructureManager(),
-                    level.getSeed(),
-                    pos, 0, level,
-                    (holder) -> true
-                );
+        boolean success = tryPlaceStructure(level, structure, blockPos);
+        if (!success) return pointsToUse;
 
-            BoundingBox boundingBox = start.getBoundingBox();
+        return pointsToUse - 50;
+    }
 
-            ChunkPos pos1 = new ChunkPos(SectionPos.blockToSectionCoord(boundingBox.minX()), SectionPos.blockToSectionCoord(boundingBox.minZ()));
-            ChunkPos pos2 = new ChunkPos(SectionPos.blockToSectionCoord(boundingBox.maxX()), SectionPos.blockToSectionCoord(boundingBox.maxZ()));
+    public static boolean tryPlaceStructure(ServerLevel serverLevel, Holder<Structure> structureHolder, BlockPos blockPos) {
+        Structure structure = structureHolder.value();
+        ChunkGenerator chunkgenerator = serverLevel.getChunkSource().getGenerator();
+        StructureStart structurestart = structure.generate(serverLevel.registryAccess(), chunkgenerator, chunkgenerator.getBiomeSource(), serverLevel.getChunkSource().randomState(), serverLevel.getStructureManager(), serverLevel.getSeed(), new ChunkPos(blockPos), 0, serverLevel, (p_214580_) -> true);
+        if (!structurestart.isValid()) {
+            RandomizerCore.LOGGER.warn("Invalid Structure Start!");
+            return false;
+        }
 
-            // if this is uncommented, checking for if chunk exists at position returns true. Could this cause problems?
-            /*if (ChunkPos.rangeClosed(pos1, pos2).anyMatch(chunkPos -> !level.isLoaded(chunkPos.getWorldPosition()))){
-                RandomizerCore.LOGGER.warn(String.format("Failed to generate structure! Chunk not loaded! \n(%s)", structure.key().location()));
-                return pointsToUse;
-            }*/
-
-
-            ChunkPos.rangeClosed(pos1, pos2).forEach(chunkPos ->
-                    start.placeInChunk(level, level.structureManager(), generator, level.getRandom(),
-                            new BoundingBox(
-                                    chunkPos.getMinBlockX(), level.getMinBuildHeight(), chunkPos.getMinBlockZ(),
-                                    chunkPos.getMaxBlockX(), level.getMaxBuildHeight(), chunkPos.getMaxBlockZ()
-                            ), chunkPos
-                    )
-            );
-
-            // this doesn't make sense, it also doesn't work
-            /*generator.createStructures(
-                    level.registryAccess(), level.getChunkSource().randomState(), level.structureManager(),
-                    level.getChunk(player.getBlockX(), player.getBlockZ()), level.getStructureManager(), level.getSeed()
-            );*/
-
-            RandomizerCore.LOGGER.warn("Structure Generated... maybe");
-
-        return pointsToUse;
+        BoundingBox boundingbox = structurestart.getBoundingBox();
+        ChunkPos chunkpos = new ChunkPos(SectionPos.blockToSectionCoord(boundingbox.minX()), SectionPos.blockToSectionCoord(boundingbox.minZ()));
+        ChunkPos chunkpos1 = new ChunkPos(SectionPos.blockToSectionCoord(boundingbox.maxX()), SectionPos.blockToSectionCoord(boundingbox.maxZ()));
+        ChunkPos.rangeClosed(chunkpos, chunkpos1).forEach((p_214558_) -> {
+            structurestart.placeInChunk(serverLevel, serverLevel.structureManager(), chunkgenerator, serverLevel.getRandom(), new BoundingBox(p_214558_.getMinBlockX(), serverLevel.getMinBuildHeight(), p_214558_.getMinBlockZ(), p_214558_.getMaxBlockX(), serverLevel.getMaxBuildHeight(), p_214558_.getMaxBlockZ()), p_214558_);
+        });
+        RandomizerCore.LOGGER.warn("Structure Generated!");
+        return true;
     }
 }
