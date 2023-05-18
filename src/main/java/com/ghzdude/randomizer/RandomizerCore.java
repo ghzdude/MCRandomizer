@@ -1,37 +1,28 @@
 package com.ghzdude.randomizer;
 
 import com.mojang.logging.LogUtils;
-import net.minecraft.client.Minecraft;
-import net.minecraft.world.item.BlockItem;
-import net.minecraft.world.item.CreativeModeTab;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.chat.Component;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.util.RandomSource;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
-import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.state.BlockBehaviour;
-import net.minecraft.world.level.material.Material;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.common.ForgeConfigSpec;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.TickEvent;
-import net.minecraftforge.eventbus.api.Event;
-import net.minecraftforge.eventbus.api.EventPriority;
+import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.LogicalSide;
 import net.minecraftforge.fml.ModLoadingContext;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.config.ModConfig;
-import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent;
 import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
-import net.minecraftforge.event.server.ServerStartingEvent;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
-import net.minecraftforge.registries.*;
-import org.apache.commons.lang3.tuple.Pair;
+import net.minecraftforge.registries.DeferredRegister;
+import net.minecraftforge.registries.ForgeRegistries;
 import org.slf4j.Logger;
-
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
 
 // The value here should match an entry in the META-INF/mods.toml file
 @Mod(RandomizerCore.MODID)
@@ -51,8 +42,12 @@ public class RandomizerCore
     // Creates a new BlockItem with the id "examplemod:example_block", combining the namespace and path
     // public static final RegistryObject<Item> EXAMPLE_BLOCK_ITEM = ITEMS.register("example_block", () -> new BlockItem(EXAMPLE_BLOCK.get(), new Item.Properties().tab(CreativeModeTab.TAB_BUILDING_BLOCKS)));
 
-
-
+    private static int OFFSET = 0;
+    private static int POINTS = 0;
+    private static int POINT_MAX = 1;
+    private static int AMT_ITEMS_GIVEN = 0;
+    private static final ItemRandomizer ITEM_RANDOMIZER = new ItemRandomizer();
+    public static final RandomSource RANDOM = RandomSource.create();
 
     public RandomizerCore()
     {
@@ -73,33 +68,67 @@ public class RandomizerCore
     }
 
     private void commonSetup(final FMLCommonSetupEvent event) {
-        ArrayList<ItemRandomizer.SpecialItem> REGISTERED_ITEMS = new ArrayList<>();
-        for (Item item : ForgeRegistries.ITEMS.getValues()) {
-            REGISTERED_ITEMS.add(new ItemRandomizer.SpecialItem(item));
 
-        }
-        MinecraftForge.EVENT_BUS.register(new ItemRandomizer(REGISTERED_ITEMS));
     }
 
-    // You can use SubscribeEvent and let the Event Bus discover methods to call
+    public static void incrementAmtItemsGiven() {
+        AMT_ITEMS_GIVEN++;
+    }
+
     @SubscribeEvent
-    public void onServerStarting(ServerStartingEvent event)
-    {
-        // Do something when the server starts
-        LOGGER.info("HELLO from server starting");
+    public void update(TickEvent.PlayerTickEvent event) {
+        if (event.side == LogicalSide.CLIENT) return;
+        if (event.phase == TickEvent.Phase.END) return;
+        if (OFFSET < 0) OFFSET = 0;
+        OFFSET++;
+
+        if (OFFSET % RandomizerConfig.getCooldown() == 0) {
+
+            POINTS = POINT_MAX;
+
+            Player player = event.player;
+            if (player.getInventory().getFreeSlot() == -1) return;
+
+            int pointsToUse = RANDOM.nextIntBetweenInclusive(1, POINTS);
+            POINTS -= pointsToUse;
+
+            int selection = RANDOM.nextInt(100);
+            if (selection < 100) {
+                MinecraftServer server = event.player.getServer();
+                if (server == null) return;
+                ServerLevel level = server.getLevel(event.player.getLevel().dimension());
+                if (level == null) return;
+                pointsToUse -= StructureRandomizer.placeStructure(pointsToUse, level);
+            } else {
+                pointsToUse -= ITEM_RANDOMIZER.GiveRandomItem(pointsToUse, player.getInventory());
+            }
+
+            if (AMT_ITEMS_GIVEN % 20 == 0) {
+                player.sendSystemMessage(Component.translatable("player.points.increased", AMT_ITEMS_GIVEN));
+                POINT_MAX++;
+            }
+
+            POINTS += pointsToUse;
+        }
     }
 
-    // You can use EventBusSubscriber to automatically register all static methods in the class annotated with @SubscribeEvent
-    @Mod.EventBusSubscriber(modid = MODID, bus = Mod.EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
-    public static class ClientModEvents
-    {
-        @SubscribeEvent
-        public static void onClientSetup(FMLClientSetupEvent event)
-        {
-            // Some client setup code
-            LOGGER.info("HELLO FROM CLIENT SETUP");
-            LOGGER.info("MINECRAFT NAME >> {}", Minecraft.getInstance().getUser().getName());
+    @SubscribeEvent
+    public void onLogin (PlayerEvent.PlayerLoggedInEvent player) {
+        CompoundTag tag = player.getEntity().getPersistentData();
+        POINTS = tag.getInt("points");
+        POINT_MAX = tag.getInt("point_max");
+        AMT_ITEMS_GIVEN = tag.getInt("amount_items_given");
 
-        }
+        POINTS = Math.max(POINTS, 0);
+        POINT_MAX = Math.max(POINT_MAX, 1);
+        AMT_ITEMS_GIVEN = Math.max(AMT_ITEMS_GIVEN, 0);
+    }
+
+    @SubscribeEvent
+    public void onLogout (PlayerEvent.PlayerLoggedOutEvent player) {
+        CompoundTag tag = player.getEntity().getPersistentData();
+        tag.putInt("points", POINTS);
+        tag.putInt("point_max", POINT_MAX);
+        tag.putInt("amount_items_given", AMT_ITEMS_GIVEN);
     }
 }
