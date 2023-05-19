@@ -95,7 +95,7 @@ public class ItemRandomizer {
         return pointsToUse;
     }
 
-    private SpecialItem getRandomItem() {
+    public SpecialItem getRandomItem() {
         int id = RandomizerCore.RANDOM.nextInt(VALID_ITEMS.size());
         return VALID_ITEMS.get(id);
     }
