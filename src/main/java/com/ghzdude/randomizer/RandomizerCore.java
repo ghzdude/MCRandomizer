@@ -66,6 +66,7 @@ public class RandomizerCore
         // Register ourselves for server and other game events we are interested in
         MinecraftForge.EVENT_BUS.register(this);
         MinecraftForge.EVENT_BUS.register(new RecipeRandomizer());
+        MinecraftForge.EVENT_BUS.register(new LootRandomizer());
     }
 
     private void commonSetup(final FMLCommonSetupEvent event) {
@@ -94,7 +95,7 @@ public class RandomizerCore
             POINTS -= pointsToUse;
 
             int selection = RANDOM.nextInt(100);
-            if (selection < 100) { // config for percentage
+            if (selection < 100 && RandomizerConfig.structureRandomizerEnabled()) { // config for percentage
                 MinecraftServer server = event.player.getServer();
                 if (server == null) return;
                 ServerLevel level = server.getLevel(event.player.getLevel().dimension());
@@ -102,12 +103,14 @@ public class RandomizerCore
                 pointsToUse = StructureRandomizer.placeStructure(pointsToUse, level, player);
             }
 
-            player.displayClientMessage(Component.literal("Giving Item..."), true);
-            pointsToUse = ITEM_RANDOMIZER.GiveRandomItem(pointsToUse, player.getInventory());
+            if (RandomizerConfig.itemRandomizerEnabled()) {
+                player.displayClientMessage(Component.literal("Giving Item..."), true);
+                pointsToUse = ITEM_RANDOMIZER.GiveRandomItem(pointsToUse, player.getInventory());
 
-            if (AMT_ITEMS_GIVEN % 20 == 0) {
-                player.sendSystemMessage(Component.translatable("player.point_max.increased", POINT_MAX));
-                POINT_MAX++;
+                if (AMT_ITEMS_GIVEN % 20 == 0) {
+                    player.sendSystemMessage(Component.translatable("player.point_max.increased", POINT_MAX));
+                    POINT_MAX++;
+                }
             }
 
             POINTS += pointsToUse;
