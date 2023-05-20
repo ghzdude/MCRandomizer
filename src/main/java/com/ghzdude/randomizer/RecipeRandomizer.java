@@ -1,37 +1,38 @@
 package com.ghzdude.randomizer;
 
-import com.ghzdude.randomizer.saveddata.RandomizerData;
+import it.unimi.dsi.fastutil.objects.Object2ObjectArrayMap;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.Tag;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.*;
+import net.minecraft.world.level.saveddata.SavedData;
+import net.minecraft.world.level.storage.DimensionDataStorage;
 import net.minecraftforge.event.server.ServerStartedEvent;
-import net.minecraftforge.event.server.ServerStoppingEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
+import org.jetbrains.annotations.NotNull;
 
 import java.lang.reflect.Field;
-import java.util.ArrayList;
+import java.util.Map;
 
 /* Recipe Randomizer Description
  * on resource re/load, randomize every recipe
  * each world would have a unique set of randomized recipes
  */
 public class RecipeRandomizer {
-    public boolean hasChanged = false;
-    private ArrayList<ItemStack> newResults = new ArrayList<>();
+    private RecipeData data;
 
-    public void randomizeRecipe(Recipe<?> recipe, int index) {
+    public void randomizeRecipe(Recipe<?> recipe) {
 
         ItemStack newResult;
-
-        if (!this.hasChanged) {
-            newResult = new ItemStack(ItemRandomizer.getRandomItem().item);
-            newResult.setCount(recipe.getResultItem().getCount());
-            newResults.add(newResult);
+        if (data.changedRecipes.get(recipe.getId()) != null) {
+            newResult = data.changedRecipes.get(recipe.getId());
         } else {
-            newResult = newResults.get(index);
+            newResult = new ItemStack(ItemRandomizer.getRandomItem().item);
+            newResult.setCount(Math.min(recipe.getResultItem().getCount(), newResult.getMaxStackSize()));
         }
 
-        //access recipe result directly somehow
-        // recipe.getResultItem() = new ItemStack(newResult.item);
         if (recipe instanceof ShapedRecipe) {
             setField(ShapedRecipe.class, (ShapedRecipe) recipe, 5, newResult);
         }
@@ -41,40 +42,75 @@ public class RecipeRandomizer {
         if (recipe instanceof AbstractCookingRecipe) {
             setField(AbstractCookingRecipe.class, (AbstractCookingRecipe) recipe, 4, newResult);
         }
+        if (recipe instanceof SingleItemRecipe) {
+            setField(SingleItemRecipe.class, (SingleItemRecipe) recipe, 1, newResult);
+        }
     }
 
-    private <T, R> void setField(Class<T> clz, T inst, int index, ItemStack replace) {
-        Field fld = clz.getDeclaredFields()[index];
+    private <T> void setField(Class<T> clazz, T instance, int index, ItemStack newResult) {
+        Field fld = clazz.getDeclaredFields()[index];
         fld.setAccessible(true);
         try {
-            fld.set(inst, replace);
+            fld.set(instance, newResult);
         } catch (IllegalArgumentException | IllegalAccessException e) {
             throw new RuntimeException(e);
         }
+        data.changedRecipes.put(((Recipe<?>) instance).getId(), newResult);
     }
 
     @SubscribeEvent
     public void start(ServerStartedEvent event) {
-        RandomizerData data = RandomizerData.get(event.getServer().overworld().getDataStorage());
-        this.hasChanged = data.recipesChanged;
+        if (!RandomizerConfig.recipeRandomizerEnabled()) return;
+
+        data = get(event.getServer().overworld().getDataStorage());
         // load state here
-        RecipeManager manager = event.getServer().getRecipeManager();
-
         RandomizerCore.LOGGER.warn("Randomizing Recipes!");
-        int index = 0;
-        for (Recipe<?> recipe : manager.getRecipes()) {
-            randomizeRecipe(recipe, index);
-            index++;
+        for (Recipe<?> recipe : event.getServer().getRecipeManager().getRecipes()) {
+            randomizeRecipe(recipe);
         }
-
-        this.hasChanged = true;
+        data.setDirty();
     }
 
-    @SubscribeEvent
-    public void stop(ServerStoppingEvent event) {
-        RandomizerData data = RandomizerData.get(event.getServer().overworld().getDataStorage());
-        data.recipesChanged = this.hasChanged;
-        data.setDirty();
-        // save state here
+    public static RecipeData get(DimensionDataStorage storage){
+        return storage.computeIfAbsent(RecipeData::load, RecipeData::create, RandomizerCore.MODID + "_recipes");
+    }
+
+    protected static class RecipeData extends SavedData {
+
+        public final Map<ResourceLocation, ItemStack> changedRecipes = new Object2ObjectArrayMap<>();
+
+        @Override
+        public @NotNull CompoundTag save(CompoundTag tag) {
+            RandomizerCore.LOGGER.warn("Saving changed recipes to world data!");
+            ListTag changedRecipesTag = new ListTag();
+
+            changedRecipes.forEach((key, value) -> {
+                CompoundTag kvPair = new CompoundTag();
+                kvPair.putString("recipe_id", key.toString());
+                kvPair.put("item", value.serializeNBT());
+                changedRecipesTag.add(kvPair);
+            });
+
+            tag.put("changed_recipes", changedRecipesTag);
+            return tag;
+        }
+
+        public static RecipeData create() {
+            return new RecipeData();
+        }
+
+        public static RecipeData load(CompoundTag tag) {
+            RandomizerCore.LOGGER.warn("Loading changed recipes to world data!");
+            RecipeData data = create();
+            ListTag listTag = tag.getList("changed_recipes", Tag.TAG_COMPOUND);
+            for (int i = 0; i < listTag.size(); i++) {
+                CompoundTag kvPair = listTag.getCompound(i);
+                data.changedRecipes.put(
+                        ResourceLocation.tryParse(kvPair.getString("recipe_id")),
+                        ItemStack.of(kvPair.getCompound("item"))
+                );
+            }
+            return data;
+        }
     }
 }
