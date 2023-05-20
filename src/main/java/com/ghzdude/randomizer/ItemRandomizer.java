@@ -30,13 +30,9 @@ import java.util.HexFormat;
  * items have a defined value, otherwise stacksize is used
  */
 public class ItemRandomizer {
-    private final SpecialItemList VALID_ITEMS;
+    private static final SpecialItemList VALID_ITEMS = new SpecialItemList(configureValidItem());
 
-    ItemRandomizer () {
-        VALID_ITEMS = new SpecialItemList(configureValidItem());
-    }
-
-    private Collection<SpecialItem> configureValidItem() {
+    private static Collection<SpecialItem> configureValidItem() {
         int lastMatch;
         ArrayList<SpecialItem> validItems = new ArrayList<>();
 
@@ -95,7 +91,7 @@ public class ItemRandomizer {
         return pointsToUse;
     }
 
-    public SpecialItem getRandomItem() {
+    public static SpecialItem getRandomItem() {
         int id = RandomizerCore.RANDOM.nextInt(VALID_ITEMS.size());
         return VALID_ITEMS.get(id);
     }
