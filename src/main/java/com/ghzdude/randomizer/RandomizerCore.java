@@ -65,7 +65,7 @@ public class RandomizerCore
 
         // Register ourselves for server and other game events we are interested in
         MinecraftForge.EVENT_BUS.register(this);
-        // MinecraftForge.EVENT_BUS.register(new RecipeRandomizer());
+        MinecraftForge.EVENT_BUS.register(new RecipeRandomizer());
     }
 
     private void commonSetup(final FMLCommonSetupEvent event) {
