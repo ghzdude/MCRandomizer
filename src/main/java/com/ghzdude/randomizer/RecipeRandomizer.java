@@ -81,6 +81,8 @@ public class RecipeRandomizer {
 
         @Override
         public @NotNull CompoundTag save(CompoundTag tag) {
+            if (!RandomizerConfig.recipeRandomizerEnabled()) return tag;
+
             RandomizerCore.LOGGER.warn("Saving changed recipes to world data!");
             ListTag changedRecipesTag = new ListTag();
 
@@ -100,8 +102,10 @@ public class RecipeRandomizer {
         }
 
         public static RecipeData load(CompoundTag tag) {
-            RandomizerCore.LOGGER.warn("Loading changed recipes to world data!");
             RecipeData data = create();
+            if (!RandomizerConfig.recipeRandomizerEnabled()) return data;
+
+            RandomizerCore.LOGGER.warn("Loading changed recipes to world data!");
             ListTag listTag = tag.getList("changed_recipes", Tag.TAG_COMPOUND);
             for (int i = 0; i < listTag.size(); i++) {
                 CompoundTag kvPair = listTag.getCompound(i);
