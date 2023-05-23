@@ -6,10 +6,11 @@ import com.ghzdude.randomizer.special.SpecialItems;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.StringTag;
-import net.minecraft.network.chat.Component;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.effect.MobEffect;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -59,8 +60,9 @@ public class ItemRandomizer {
         return validItems;
     }
 
-    public int GiveRandomItem(int pointsToUse, Inventory inventory){
+    public static int GiveRandomItem(int pointsToUse, Player player){
         int tries = 0;
+        Inventory playerInventory = player.getInventory();
 
         // try to give up to five items while there are points to use
         while (tries < 5 && pointsToUse > 0) {
@@ -76,7 +78,15 @@ public class ItemRandomizer {
             int pointsUsed = stack.getCount() * selectedItem.value;
 
             pointsToUse -= pointsUsed;
-            addStackToPlayer(stack, inventory, pointsUsed);
+            if (playerInventory.getFreeSlot() == -1) {
+                Entity itemEnt = stack.getEntityRepresentation();
+                if (itemEnt != null) {
+                    itemEnt.setPos(playerInventory.player.position());
+                    playerInventory.player.getLevel().addFreshEntity(itemEnt);
+                }
+            } else {
+                addStackToPlayer(stack, playerInventory, pointsUsed);
+            }
             tries++;
         }
         return pointsToUse;
@@ -197,8 +207,8 @@ public class ItemRandomizer {
         stack.setTag(baseTag);
     }
 
-    private void addStackToPlayer(ItemStack stack, Inventory inventory, int pointsUsed) {
-        RandomizerCore.LOGGER.warn(String.format("Given %s to %s, %d points used.",  stack.copy(), inventory.player.getDisplayName().getString(), pointsUsed).toString());
+    private static void addStackToPlayer(ItemStack stack, Inventory inventory, int pointsUsed) {
+        RandomizerCore.LOGGER.warn(String.format("Given %s to %s, %d points used.",  stack.copy(), inventory.player.getDisplayName().getString(), pointsUsed));
         // deal with inventory being full, maybe drop item to ground?
 
         inventory.add(stack);
