@@ -43,15 +43,19 @@ public class StructureRandomizer {
         }
 
         RandomizerCore.LOGGER.warn(String.format("Attempting to generate a structure! (%s AT %s)", structure.location, blockPos));
-        player.sendSystemMessage(Component.literal(String.format("Attempting to generate a %s! The game may lag for a while!", structure.location)));
+        player.sendSystemMessage(Component.translatable("structure.spawning", structure.location));
 
         boolean success = tryPlaceStructure(level, structure.structure, blockPos);
-        if (!success) return pointsToUse;
+        if (!success) {
+            player.sendSystemMessage(Component.translatable("structure.spawning.failed", structure.location));
+            return pointsToUse;
+        }
 
-        return pointsToUse - 50;
+        player.sendSystemMessage(Component.translatable("structure.spawning.success", structure.location));
+        return pointsToUse - structure.value;
     }
 
-    public static SpecialStructure selectStructure(int points) {
+    private static SpecialStructure selectStructure(int points) {
         SpecialStructure structure;
         do {
             int id = RandomizerCore.RANDOM.nextInt(STRUCTURES.size());
@@ -60,7 +64,7 @@ public class StructureRandomizer {
         return structure;
     }
 
-    public static boolean tryPlaceStructure(ServerLevel serverLevel, Structure structure, BlockPos blockPos) {
+    private static boolean tryPlaceStructure(ServerLevel serverLevel, Structure structure, BlockPos blockPos) {
         ChunkGenerator chunkgenerator = serverLevel.getChunkSource().getGenerator();
         StructureStart structurestart = structure.generate(serverLevel.registryAccess(), chunkgenerator, chunkgenerator.getBiomeSource(), serverLevel.getChunkSource().randomState(), serverLevel.getStructureManager(), serverLevel.getSeed(), new ChunkPos(blockPos), 0, serverLevel, (p_214580_) -> true);
         if (!structurestart.isValid()) {

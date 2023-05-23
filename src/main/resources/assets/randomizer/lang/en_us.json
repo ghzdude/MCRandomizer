@@ -1,5 +1,7 @@
 {
-  "player.recieved.item": "Given %s to %s, %d points used.",
   "player.point_max.increased": "Points per cycle increased to %d!",
-  "random.potion": "Random Potion"
+  "random.potion": "Random Potion",
+  "structure.spawning": "Attempting to generate %s! The game may lag for a while!",
+  "structure.spawning.failed": "Failed to generate structure! Falling back to item...",
+  "structure.spawning.success": "Structure generated!"
 }
