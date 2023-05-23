@@ -46,7 +46,10 @@ public class RandomizerCore
     private static int POINTS = 0;
     private static int POINT_MAX = 1;
     private static int AMT_ITEMS_GIVEN = 0;
-    private static final ItemRandomizer ITEM_RANDOMIZER = new ItemRandomizer();
+    private static int CYCLE = 0;
+    private static int CYCLE_COUNTER = 3;
+    private static final int COUNTER_MAX = 20;
+    private static int STRUCTURE_PROBABILITY = 0;
     public static final RandomSource RANDOM = RandomSource.create();
 
     public RandomizerCore()
@@ -89,13 +92,12 @@ public class RandomizerCore
             POINTS = POINT_MAX;
 
             Player player = event.player;
-            // if (player.getInventory().getFreeSlot() == -1) return;
 
             int pointsToUse = RANDOM.nextIntBetweenInclusive(1, POINTS);
             POINTS -= pointsToUse;
 
             int selection = RANDOM.nextInt(100);
-            if (selection < 100 && RandomizerConfig.structureRandomizerEnabled()) { // config for percentage
+            if (RandomizerConfig.structureRandomizerEnabled() && selection < STRUCTURE_PROBABILITY) { // config for percentage
                 MinecraftServer server = event.player.getServer();
                 if (server == null) return;
                 ServerLevel level = server.getLevel(event.player.getLevel().dimension());
@@ -105,16 +107,20 @@ public class RandomizerCore
 
             if (RandomizerConfig.itemRandomizerEnabled()) {
                 player.displayClientMessage(Component.literal("Giving Item..."), true);
-                pointsToUse = ITEM_RANDOMIZER.GiveRandomItem(pointsToUse, player.getInventory());
+                pointsToUse = ItemRandomizer.GiveRandomItem(pointsToUse, player);
 
                 // make this per cycle instead of amount items given
                 // the time between incrementing point max should increase slowly overtime
-                if (AMT_ITEMS_GIVEN % 20 == 0) {
+                CYCLE++;
+                if (CYCLE == CYCLE_COUNTER) {
+                    CYCLE = 0;
+                    if (CYCLE_COUNTER < COUNTER_MAX) {
+                        CYCLE_COUNTER++;
+                    }
                     POINT_MAX++;
                     player.sendSystemMessage(Component.translatable("player.point_max.increased", POINT_MAX));
                 }
             }
-
             POINTS += pointsToUse;
         }
     }
@@ -125,10 +131,16 @@ public class RandomizerCore
         POINTS = tag.getInt("points");
         POINT_MAX = tag.getInt("point_max");
         AMT_ITEMS_GIVEN = tag.getInt("amount_items_given");
+        CYCLE = tag.getInt("cycle");
+        CYCLE_COUNTER = tag.getInt("cycle_counter");
+        STRUCTURE_PROBABILITY = RandomizerConfig.getStructureProbability();
+        STRUCTURE_PROBABILITY = Math.max(1, Math.min(100, STRUCTURE_PROBABILITY));
 
         POINTS = Math.max(POINTS, 0);
         POINT_MAX = Math.max(POINT_MAX, 1);
         AMT_ITEMS_GIVEN = Math.max(AMT_ITEMS_GIVEN, 0);
+        CYCLE = Math.max(CYCLE, 0);
+        CYCLE_COUNTER = Math.max(CYCLE_COUNTER, RandomizerConfig.getCycleBase());
     }
 
     @SubscribeEvent
@@ -137,5 +149,7 @@ public class RandomizerCore
         tag.putInt("points", POINTS);
         tag.putInt("point_max", POINT_MAX);
         tag.putInt("amount_items_given", AMT_ITEMS_GIVEN);
+        tag.putInt("cycle", CYCLE);
+        tag.putInt("cycle_counter", CYCLE_COUNTER);
     }
 }
