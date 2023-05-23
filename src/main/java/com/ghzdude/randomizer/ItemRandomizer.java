@@ -69,19 +69,10 @@ public class ItemRandomizer {
             if (selectedItem.value > pointsToUse) continue;
 
             int amtToGive = Math.floorDiv(pointsToUse, selectedItem.value);
-            ItemStack stack = new ItemStack(selectedItem.item);
+            ItemStack stack = specialItemToStack(selectedItem);
 
             stack.setCount(Math.min(amtToGive, stack.getMaxStackSize()));
 
-            if (selectedItem.item == Items.WRITTEN_BOOK){
-                getRandomBook(stack);
-            }
-
-            // do something about goat horns and fireworks
-
-            if (SpecialItems.EFFECT_ITEMS.contains(selectedItem)) {
-                applyEffect(stack);
-            }
             int pointsUsed = stack.getCount() * selectedItem.value;
 
             pointsToUse -= pointsUsed;
@@ -96,7 +87,30 @@ public class ItemRandomizer {
         return VALID_ITEMS.get(id);
     }
 
-    private void getRandomBook(ItemStack stack) {
+    public static ItemStack specialItemToStack (SpecialItem item) {
+        ItemStack stack = new ItemStack(item.item);
+
+        // do something about goat horns and fireworks
+        if (item.item == Items.WRITTEN_BOOK){
+            getRandomBook(stack);
+        } else if (SpecialItems.EFFECT_ITEMS.contains(item)) {
+            applyEffect(stack);
+        }
+
+        return stack;
+    }
+
+    @SuppressWarnings("SuspiciousMethodCalls")
+    public static SpecialItem getRandomSimpleItem() {
+        SpecialItem item;
+        do {
+            int id = RandomizerCore.RANDOM.nextInt(VALID_ITEMS.size());
+            item = VALID_ITEMS.get(id);
+        } while (SpecialItems.BLACKLISTED_ITEMS.contains(item));
+        return item;
+    }
+
+    private static void getRandomBook(ItemStack stack) {
         // pages -> {ListTag@23688}  size = 1
         //      '{"text":"proper book"}'
         // author -> {StringTag@23690} ""Dev""
@@ -121,7 +135,7 @@ public class ItemRandomizer {
         stack.setTag(tag);
     }
 
-    private void applyEffect(ItemStack stack) {
+    private static void applyEffect(ItemStack stack) {
         // Potion -> {StringTag@24140} ""minecraft:swiftness""
 
         // Effects -> {ListTag@24241}  size = 1
@@ -185,6 +199,8 @@ public class ItemRandomizer {
 
     private void addStackToPlayer(ItemStack stack, Inventory inventory, int pointsUsed) {
         RandomizerCore.LOGGER.warn(String.format("Given %s to %s, %d points used.",  stack.copy(), inventory.player.getDisplayName().getString(), pointsUsed).toString());
+        // deal with inventory being full, maybe drop item to ground?
+
         inventory.add(stack);
         RandomizerCore.incrementAmtItemsGiven();
     }
