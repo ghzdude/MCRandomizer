@@ -57,15 +57,16 @@ public class RecipeRandomizer {
 
     @SubscribeEvent
     public void start(ServerStartedEvent event) {
-        if (!RandomizerConfig.recipeRandomizerEnabled()) return;
+        if (RandomizerConfig.recipeRandomizerEnabled()) {
+            data = get(event.getServer().overworld().getDataStorage());
 
-        data = get(event.getServer().overworld().getDataStorage());
-        // load state here
-        RandomizerCore.LOGGER.warn("Randomizing Recipes!");
-        for (Recipe<?> recipe : event.getServer().getRecipeManager().getRecipes()) {
-            randomizeRecipe(recipe);
+            // load state here
+            RandomizerCore.LOGGER.warn("Randomizing Recipes!");
+            for (Recipe<?> recipe : event.getServer().getRecipeManager().getRecipes()) {
+                randomizeRecipe(recipe);
+            }
+            data.setDirty();
         }
-        data.setDirty();
     }
 
     public static RecipeData get(DimensionDataStorage storage){
@@ -78,19 +79,19 @@ public class RecipeRandomizer {
 
         @Override
         public @NotNull CompoundTag save(CompoundTag tag) {
-            if (!RandomizerConfig.recipeRandomizerEnabled()) return tag;
+            if (RandomizerConfig.recipeRandomizerEnabled()) {
+                RandomizerCore.LOGGER.warn("Saving changed recipes to world data!");
+                ListTag changedRecipesTag = new ListTag();
 
-            RandomizerCore.LOGGER.warn("Saving changed recipes to world data!");
-            ListTag changedRecipesTag = new ListTag();
+                changedRecipes.forEach((key, value) -> {
+                    CompoundTag kvPair = new CompoundTag();
+                    kvPair.putString("recipe_id", key.toString());
+                    kvPair.put("item", value.serializeNBT());
+                    changedRecipesTag.add(kvPair);
+                });
 
-            changedRecipes.forEach((key, value) -> {
-                CompoundTag kvPair = new CompoundTag();
-                kvPair.putString("recipe_id", key.toString());
-                kvPair.put("item", value.serializeNBT());
-                changedRecipesTag.add(kvPair);
-            });
-
-            tag.put("changed_recipes", changedRecipesTag);
+                tag.put("changed_recipes", changedRecipesTag);
+            }
             return tag;
         }
 
@@ -100,16 +101,17 @@ public class RecipeRandomizer {
 
         public static RecipeData load(CompoundTag tag) {
             RecipeData data = create();
-            if (!RandomizerConfig.recipeRandomizerEnabled()) return data;
+            if (RandomizerConfig.recipeRandomizerEnabled()) {
+                RandomizerCore.LOGGER.warn("Loading changed recipes to world data!");
 
-            RandomizerCore.LOGGER.warn("Loading changed recipes to world data!");
-            ListTag listTag = tag.getList("changed_recipes", Tag.TAG_COMPOUND);
-            for (int i = 0; i < listTag.size(); i++) {
-                CompoundTag kvPair = listTag.getCompound(i);
-                data.changedRecipes.put(
-                        ResourceLocation.tryParse(kvPair.getString("recipe_id")),
-                        ItemStack.of(kvPair.getCompound("item"))
-                );
+                ListTag listTag = tag.getList("changed_recipes", Tag.TAG_COMPOUND);
+                for (int i = 0; i < listTag.size(); i++) {
+                    CompoundTag kvPair = listTag.getCompound(i);
+                    data.changedRecipes.put(
+                            ResourceLocation.tryParse(kvPair.getString("recipe_id")),
+                            ItemStack.of(kvPair.getCompound("item"))
+                    );
+                }
             }
             return data;
         }
