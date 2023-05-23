@@ -10,6 +10,7 @@ public class RandomizerConfig {
 
     private static final Pair<RandomizerConfig, ForgeConfigSpec> RandomizerConfigPair;
     private final ForgeConfigSpec.ConfigValue<Integer> itemCooldown;
+    private final ForgeConfigSpec.ConfigValue<Integer> cycleBase;
     private final ForgeConfigSpec.ConfigValue<Boolean> randomizeRecipes;
     private final ForgeConfigSpec.ConfigValue<Boolean> giveRandomItems;
     private final ForgeConfigSpec.ConfigValue<Boolean> generateStructures;
