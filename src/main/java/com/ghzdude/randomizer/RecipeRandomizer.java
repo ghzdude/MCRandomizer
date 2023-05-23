@@ -29,20 +29,17 @@ public class RecipeRandomizer {
         if (data.changedRecipes.get(recipe.getId()) != null) {
             newResult = data.changedRecipes.get(recipe.getId());
         } else {
-            newResult = new ItemStack(ItemRandomizer.getRandomItem().item);
+            newResult = ItemRandomizer.specialItemToStack(ItemRandomizer.getRandomItem());
             newResult.setCount(Math.min(recipe.getResultItem().getCount(), newResult.getMaxStackSize()));
         }
 
         if (recipe instanceof ShapedRecipe) {
             setField(ShapedRecipe.class, (ShapedRecipe) recipe, 5, newResult);
-        }
-        if (recipe instanceof ShapelessRecipe) {
+        } else if (recipe instanceof ShapelessRecipe) {
             setField(ShapelessRecipe.class, (ShapelessRecipe) recipe, 2, newResult);
-        }
-        if (recipe instanceof AbstractCookingRecipe) {
+        } else if (recipe instanceof AbstractCookingRecipe) {
             setField(AbstractCookingRecipe.class, (AbstractCookingRecipe) recipe, 4, newResult);
-        }
-        if (recipe instanceof SingleItemRecipe) {
+        } else if (recipe instanceof SingleItemRecipe) {
             setField(SingleItemRecipe.class, (SingleItemRecipe) recipe, 1, newResult);
         }
     }
