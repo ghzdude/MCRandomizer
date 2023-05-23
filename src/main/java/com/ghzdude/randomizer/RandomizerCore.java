@@ -53,7 +53,7 @@ public class RandomizerCore
     {
         IEventBus modEventBus = FMLJavaModLoadingContext.get().getModEventBus();
 
-        ModLoadingContext.get().registerConfig(ModConfig.Type.COMMON, RandomizerConfig.RandomizerConfigPair.getRight());
+        ModLoadingContext.get().registerConfig(ModConfig.Type.COMMON, RandomizerConfig.getSpec());
 
         // Register the commonSetup method for modloading
         modEventBus.addListener(this::commonSetup);
@@ -89,7 +89,7 @@ public class RandomizerCore
             POINTS = POINT_MAX;
 
             Player player = event.player;
-            if (player.getInventory().getFreeSlot() == -1) return;
+            // if (player.getInventory().getFreeSlot() == -1) return;
 
             int pointsToUse = RANDOM.nextIntBetweenInclusive(1, POINTS);
             POINTS -= pointsToUse;
@@ -107,9 +107,11 @@ public class RandomizerCore
                 player.displayClientMessage(Component.literal("Giving Item..."), true);
                 pointsToUse = ITEM_RANDOMIZER.GiveRandomItem(pointsToUse, player.getInventory());
 
+                // make this per cycle instead of amount items given
+                // the time between incrementing point max should increase slowly overtime
                 if (AMT_ITEMS_GIVEN % 20 == 0) {
-                    player.sendSystemMessage(Component.translatable("player.point_max.increased", POINT_MAX));
                     POINT_MAX++;
+                    player.sendSystemMessage(Component.translatable("player.point_max.increased", POINT_MAX));
                 }
             }
 
