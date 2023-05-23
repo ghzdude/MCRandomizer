@@ -18,11 +18,10 @@ import net.minecraft.world.level.levelgen.structure.StructureStart;
  * every so often, generate a structure at some random x, z coordinate near the player
  */
 public class StructureRandomizer {
-
     private static final SpecialStructures.SpecialStructureList STRUCTURES = configureStructures();
 
     public static int placeStructure(int pointsToUse, ServerLevel level, Player player) {
-        // if (pointsToUse < 50) return pointsToUse; // make a list of structures with points instead of a flat number
+        if (pointsToUse < 1) return pointsToUse;
 
         SpecialStructure structure = selectStructure(pointsToUse);
 
