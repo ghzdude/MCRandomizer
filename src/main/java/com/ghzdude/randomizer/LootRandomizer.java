@@ -34,23 +34,24 @@ public class LootRandomizer {
 
     public void randomizeLootTables(LootTables lootTables) {
         for (ResourceLocation tableId : lootTables.getIds()) {
-            if (tableId.getPath().contains("blocks/")) {
-                ranomizeBlockLoot(lootTables.get(tableId));
+            if (RandomizerConfig.randomizeBlockLoot() && tableId.getPath().contains("blocks/")) {
+                randomizeLoot(lootTables.get(tableId));
             }
-            // add check for entities
 
-            // add check for chest loot
+            if (RandomizerConfig.randomizeEntityLoot() && tableId.getPath().contains("entities/")) {
+                randomizeLoot(lootTables.get(tableId));
+            }
+
+            if (RandomizerConfig.randomizeChestLoot() && tableId.getPath().contains("chests/")) {
+                randomizeLoot(lootTables.get(tableId));
+            }
         }
     }
 
-    private void ranomizeBlockLoot (LootTable table) {
+    private void randomizeLoot(LootTable table) {
         ResourceLocation tableId = table.getLootTableId();
         setField(LootTable.class, table, 7, false); // unfreeze loot table
         List<LootPool> pools = getField(LootTable.class, table, 4);
-
-        if (data.getPools(tableId) != null && pools.size() > data.getPools(tableId).size()) {
-            RandomizerCore.LOGGER.warn("Pool count is greater than expected for table: " + tableId);
-        }
 
         for (int i = 0; i < pools.size(); i++) {
             String poolName = pools.get(i).getName();
@@ -58,15 +59,16 @@ public class LootRandomizer {
 
             LootPoolEntryContainer[] entries = getField(LootPool.class, table.getPool(poolName), 1);
 
-            NonNullList<Item> newEntries = generateRandomList(calculateNewResults(entries));
-
+            NonNullList<Item> newEntries;
             if (data.containsPool(tableId, poolName)) {
                 newEntries = data.getPoolItems(tableId, poolName);
+            } else {
+                newEntries = generateRandomList(calculateNewResults(entries));
+                if (newEntries.size() == 0) return;
+                data.addPool(tableId, poolName, newEntries);
             }
 
             modifyEntries(entries, newEntries);
-
-            data.addPool(tableId, poolName, newEntries);
         }
     }
 
@@ -75,6 +77,12 @@ public class LootRandomizer {
 
         for (LootPoolEntryContainer entry : entries) {
             LootPoolEntryType type = entry.getType();
+
+            if (type == LootPoolEntries.REFERENCE) {
+                continue;
+            } else if (type == LootPoolEntries.EMPTY) {
+                continue;
+            }
 
             if (type == LootPoolEntries.ITEM) {
                 size++;
@@ -111,11 +119,16 @@ public class LootRandomizer {
         }
 
         for (int i = 0; i < entries.length; i++) {
+            LootPoolEntryType type = entries[i].getType();
+
+            if (type == LootPoolEntries.EMPTY) {
+                continue;
+            }
+
             if (i == toReplace.size()) {
                 RandomizerCore.LOGGER.warn("Items to replace is empty!");
                 return;
             }
-            LootPoolEntryType type = entries[i].getType();
 
             if (type == LootPoolEntries.ITEM) {
                 setField(LootItem.class, (LootItem) entries[i], 0, toReplace.get(i));
@@ -125,21 +138,6 @@ public class LootRandomizer {
             if (type == LootPoolEntries.ALTERNATIVES) {
                 LootPoolEntryContainer[] extraEntries = getField(CompositeEntryBase.class, (CompositeEntryBase) entries[i], 0);
                 modifyEntries(extraEntries, toReplace.subList(i, toReplace.size()));
-                continue;
-            }
-
-            if (type == LootPoolEntries.GROUP) {
-                RandomizerCore.LOGGER.warn("Group Entry");
-                continue;
-            }
-
-            if (type == LootPoolEntries.SEQUENCE) {
-                RandomizerCore.LOGGER.warn("Sequence Entry");
-                continue;
-            }
-
-            if (type == LootPoolEntries.DYNAMIC) {
-                RandomizerCore.LOGGER.warn("Dynamic Entry");
             }
         }
     }
@@ -162,7 +160,7 @@ public class LootRandomizer {
 
     private NonNullList<Item> generateRandomList(int amtItems) {
         NonNullList<Item> itemList = NonNullList.withSize(amtItems, Items.AIR);
-        itemList.replaceAll(item -> ItemRandomizer.getRandomItem().item);
+        itemList.replaceAll(item -> ItemRandomizer.getRandomSimpleItem().item);
         return itemList;
     }
 
