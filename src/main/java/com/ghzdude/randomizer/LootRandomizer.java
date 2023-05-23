@@ -1,7 +1,6 @@
 package com.ghzdude.randomizer;
 
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
-import it.unimi.dsi.fastutil.objects.ObjectSet;
 import net.minecraft.core.NonNullList;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
@@ -187,15 +186,17 @@ public class LootRandomizer {
 
     @SubscribeEvent
     public void start(ServerStartedEvent event) {
-        data = get(event.getServer().overworld().getDataStorage());
+        if (RandomizerConfig.randomizeLoot()) {
+            data = get(event.getServer().overworld().getDataStorage());
 
-        if (data.getTablesCount() > 0) {
-            RandomizerCore.LOGGER.warn("Using existing randomized loot table data!");
-        } else {
-            RandomizerCore.LOGGER.warn("Unable to find or use existing data! Randomizing loot tables!");
+            if (data.getTablesCount() > 0) {
+                RandomizerCore.LOGGER.warn("Using existing randomized loot table data!");
+            } else {
+                RandomizerCore.LOGGER.warn("Unable to find or use existing data! Randomizing loot tables!");
+            }
+            randomizeLootTables(event.getServer().getLootTables());
+            data.setDirty();
         }
-        randomizeLootTables(event.getServer().getLootTables());
-        data.setDirty();
     }
 
     public static LootData get(DimensionDataStorage storage){
@@ -212,75 +213,72 @@ public class LootRandomizer {
 
         @Override
         public @NotNull CompoundTag save(CompoundTag tag) {
-            RandomizerCore.LOGGER.warn("Saving changed loot tables to world data!");
-            // list of loot tables
-            ListTag changedLootTablesTag = new ListTag();
+            if (RandomizerConfig.randomizeLoot()) {
+                RandomizerCore.LOGGER.warn("Saving changed loot tables to world data!");
+                // list of loot tables
+                ListTag changedLootTablesTag = new ListTag();
 
-            // for each loot table
-            lootTablePoolsMap.forEach((location, pools) -> {
-                CompoundTag lootTableTag = new CompoundTag(); // each table has an id and a list of pools
-                ListTag poolsTag = new ListTag(); // list of pools
+                // for each loot table
+                lootTablePoolsMap.forEach((location, pools) -> {
+                    CompoundTag lootTableTag = new CompoundTag(); // each table has an id and a list of pools
+                    ListTag poolsTag = new ListTag(); // list of pools
 
-                // for each pool
-                pools.forEach((poolId, items)  -> {
-                    CompoundTag poolTag = new CompoundTag(); // each pool has a name and a list of items
-                    ListTag itemsTag = new ListTag(); // list of items
+                    // for each pool
+                    pools.forEach((poolId, items) -> {
+                        CompoundTag poolTag = new CompoundTag(); // each pool has a name and a list of items
+                        ListTag itemsTag = new ListTag(); // list of items
 
-                    items.forEach( // add each item
-                            item -> itemsTag.add(StringTag.valueOf(item.toString()))
-                    );
+                        items.forEach( // add each item
+                                item -> itemsTag.add(StringTag.valueOf(item.toString()))
+                        );
 
-                    poolTag.putString("pool_name", poolId);
-                    poolTag.put("items", itemsTag);
-                    poolsTag.add(poolTag);
+                        if (items.size() > 0) {
+                            poolTag.putString("pool_name", poolId);
+                            poolTag.put("items", itemsTag);
+                            poolsTag.add(poolTag);
+                        }
+                    });
+                    lootTableTag.putString("loot_entry_id", location.toString());
+                    lootTableTag.put("pools", poolsTag);
+                    changedLootTablesTag.add(lootTableTag);
                 });
-                lootTableTag.putString("loot_entry_id", location.toString());
-                lootTableTag.put("pools", poolsTag);
-                changedLootTablesTag.add(lootTableTag);
-            });
 
-            tag.put("changed_loot_tables", changedLootTablesTag);
+                tag.put("changed_loot_tables", changedLootTablesTag);
+            }
             return tag;
         }
 
         public static LootData load(CompoundTag tag) {
-            RandomizerCore.LOGGER.warn("Loading changed loot tables to world data!");
             LootData data = create();
+            if (RandomizerConfig.randomizeLoot()) {
+                RandomizerCore.LOGGER.warn("Loading changed loot tables to world data!");
 
-            // tag.getList("changed_loot_tables", Tag.TAG_COMPOUND).getCompound(0).get("loot_entry_id").toString()
-            // tag.getList("changed_loot_tables", Tag.TAG_COMPOUND).getCompound(0).getList("pools", Tag.TAG_COMPOUND).getCompound(0).getString("pool_name").toString()
-            // tag.getList("changed_loot_tables", Tag.TAG_COMPOUND).getCompound(0).getList("pools", Tag.TAG_COMPOUND).getCompound(0).getList("items", Tag.TAG_STRING).get(0).toString()
+                ListTag lootTablesTag = tag.getList("changed_loot_tables", Tag.TAG_COMPOUND);
 
-            ListTag lootTablesTag = tag.getList("changed_loot_tables", Tag.TAG_COMPOUND);
+                // for each loot table
+                for (int i = 0; i < lootTablesTag.size(); i++) {
+                    CompoundTag lootTableTag = lootTablesTag.getCompound(i);
+                    CompoundTag poolTag = null;
+                    NonNullList<Item> itemList = null;
+                    ListTag poolsTag = lootTableTag.getList("pools", Tag.TAG_COMPOUND);
+                    ResourceLocation loc = new ResourceLocation(lootTableTag.getString("loot_entry_id"));
+                    // for each pool
+                    for (int j = 0; j < poolsTag.size(); j++) {
+                        poolTag = poolsTag.getCompound(j);
+                        ListTag itemsTag = poolTag.getList("items", Tag.TAG_STRING);
+                        if (itemsTag.size() > 0) {
+                            itemList = NonNullList.withSize(itemsTag.size(), Items.AIR);
 
-            // for each loot table
-            for (int i = 0; i < lootTablesTag.size(); i++) {
-                CompoundTag lootTableTag = lootTablesTag.getCompound(i);
-                CompoundTag poolTag = null;
-                NonNullList<Item> itemList = null;
-                ListTag poolsTag = lootTableTag.getList("pools", Tag.TAG_COMPOUND);
-                ResourceLocation loc = new ResourceLocation(lootTableTag.getString("loot_entry_id"));
-                // for each pool
-                for (int j = 0; j < poolsTag.size(); j++) {
-                    poolTag = poolsTag.getCompound(j);
-                    ListTag itemsTag = poolTag.getList("items", Tag.TAG_STRING);
-                    itemList = NonNullList.withSize(itemsTag.size(), Items.AIR);
-
-                    // for each item in pool
-                    for (int k = 0; k < itemsTag.size(); k++) { // for each item
-                        itemList.set(k, ForgeRegistries.ITEMS.getValue(new ResourceLocation(itemsTag.getString(k))));
+                            // for each item in pool
+                            for (int k = 0; k < itemsTag.size(); k++) { // for each item
+                                itemList.set(k, ForgeRegistries.ITEMS.getValue(new ResourceLocation(itemsTag.getString(k))));
+                            }
+                            data.addPool(loc, poolTag.getString("pool_name"), itemList);
+                        }
                     }
-                    data.addPool(loc, poolTag.getString("pool_name"), itemList);
                 }
             }
             return data;
-        }
-
-        public ObjectSet<String> getPools(ResourceLocation location) {
-            if (lootTablePoolsMap.get(location) != null) {
-                return lootTablePoolsMap.get(location).keySet();
-            }
-            return null;
         }
 
         public NonNullList<Item> getPoolItems(ResourceLocation location, String poolId) {
@@ -299,18 +297,6 @@ public class LootRandomizer {
             }
         }
 
-        public void addTable(ResourceLocation location, Object2ObjectOpenHashMap<String, NonNullList<Item>> poolMap) {
-            if (!lootTablePoolsMap.containsKey(location)) {
-                lootTablePoolsMap.put(location, poolMap);
-            } else {
-                RandomizerCore.LOGGER.warn("Attempted to add table {} when it already exists!", location.toString());
-            }
-        }
-
-        public Boolean containsTable(ResourceLocation key) {
-                return lootTablePoolsMap.containsKey(key);
-        }
-
         public Boolean containsPool(ResourceLocation location, String key) {
             if (lootTablePoolsMap.containsKey(location)) {
                 return lootTablePoolsMap.get(location).containsKey(key);
@@ -320,17 +306,6 @@ public class LootRandomizer {
 
         public int getTablesCount() {
             return lootTablePoolsMap.size();
-        }
-
-        public int getPoolsCount(ResourceLocation location) {
-            if (lootTablePoolsMap.containsKey(location)) {
-                return lootTablePoolsMap.get(location).size();
-            }
-            return -1;
-        }
-
-        public boolean poolsExist(ResourceLocation location) {
-            return lootTablePoolsMap.get(location) == null;
         }
     }
 }
