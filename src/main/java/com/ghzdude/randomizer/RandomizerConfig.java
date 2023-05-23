@@ -29,6 +29,9 @@ public class RandomizerConfig {
 
         this.itemCooldown = builder.comment("Time between items given (measured in ticks, 20 ticks is one second) : Default value is 1200.")
                 .define("item_cooldown", 1200);
+
+        this.cycleBase = builder.comment("Amount of cycles needed to reach the first point max increment. Default value is 3.")
+                        .define("cycle_base", 3);
         builder.pop();
 
         // Recipe Randomizer
@@ -42,10 +45,9 @@ public class RandomizerConfig {
         this.generateStructures = builder.comment("Should random structures be generated when able? Defaults to true.")
                 .define("generate_structures", true);
 
-        Predicate<Object> validateProbability = o -> Integer.parseInt(o.toString()) > 0 || Integer.parseInt(o.toString()) < 100;
+        // Predicate<Object> validateProbability = o -> Integer.parseInt(o.toString()) > 0 || Integer.parseInt(o.toString()) < 100;
         this.structureProbability = builder.comment("Probability of how likely structure generation is picked over item generation. Defaults to 10, value must be between 0 and 100 ")
-                        .define("structure_probability", 10, validateProbability);
-
+                        .define("structure_probability", 10);
         builder.pop();
 
         builder.push("Loot Randomizer");
@@ -60,7 +62,6 @@ public class RandomizerConfig {
 
         this.randomizeChestLoot = builder.comment("Should chest loot be randomized? Defaults to true.")
                         .define("randomize_chest_loot", true);
-
         builder.pop();
     }
 
@@ -79,6 +80,10 @@ public class RandomizerConfig {
 
     public static int getCooldown() {
         return getConfig().itemCooldown.get();
+    }
+
+    public static int getCycleBase() {
+        return getConfig().cycleBase.get();
     }
 
     public static boolean itemRandomizerEnabled() {
