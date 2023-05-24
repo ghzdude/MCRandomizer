@@ -14,11 +14,14 @@ import net.minecraft.world.level.levelgen.structure.BoundingBox;
 import net.minecraft.world.level.levelgen.structure.Structure;
 import net.minecraft.world.level.levelgen.structure.StructureStart;
 
+import java.util.ArrayList;
+import java.util.Collection;
+
 /* Structure Randomizer description
  * every so often, generate a structure at some random x, z coordinate near the player
  */
 public class StructureRandomizer {
-    private static final SpecialStructures.SpecialStructureList STRUCTURES = configureStructures();
+    private static final SpecialStructureList STRUCTURES = new SpecialStructureList(configureStructures());;
 
     public static int placeStructure(int pointsToUse, ServerLevel level, Player player) {
         if (pointsToUse < 1) return pointsToUse;
@@ -41,17 +44,17 @@ public class StructureRandomizer {
             blockPos = blockPos.offset(offsetX, 0, -offsetZ);
         }
 
-        RandomizerCore.LOGGER.warn(String.format("Attempting to generate a structure! (%s AT %s)", structure.location, blockPos));
+        RandomizerCore.LOGGER.warn(String.format("Attempting to generate [%s] at %s", structure.location, blockPos));
         player.sendSystemMessage(Component.translatable("structure.spawning", structure.location));
 
         boolean success = tryPlaceStructure(level, structure.structure, blockPos);
         if (!success) {
             player.sendSystemMessage(Component.translatable("structure.spawning.failed", structure.location));
-            return pointsToUse;
+            return pointsToUse - ItemRandomizer.GiveRandomItem(pointsToUse, player);
+        } else {
+            player.sendSystemMessage(Component.translatable("structure.spawning.success", structure.location));
+            return pointsToUse - structure.value;
         }
-
-        player.sendSystemMessage(Component.translatable("structure.spawning.success", structure.location));
-        return pointsToUse - structure.value;
     }
 
     private static SpecialStructure selectStructure(int points) {
@@ -82,9 +85,10 @@ public class StructureRandomizer {
     }
 
     @SuppressWarnings("SuspiciousMethodCalls")
-    private static SpecialStructures.SpecialStructureList configureStructures() {
-        SpecialStructures.SpecialStructureList list = new SpecialStructures.SpecialStructureList();
-        BuiltinRegistries.STRUCTURES.forEach(structure -> {
+    private static Collection<SpecialStructure> configureStructures() {
+        ArrayList<SpecialStructure> list = new SpecialStructureList();
+
+        for (Structure structure : BuiltinRegistries.STRUCTURES) {
             SpecialStructure toAdd;
             if (SpecialStructures.CONFIGURED_STRUCTURES.contains(structure)) {
                 toAdd = SpecialStructures.CONFIGURED_STRUCTURES.get(SpecialStructures.CONFIGURED_STRUCTURES.indexOf(structure));
@@ -92,7 +96,7 @@ public class StructureRandomizer {
                 toAdd = new SpecialStructure(structure, BuiltinRegistries.STRUCTURES.getKey(structure), 1);
             }
             list.add(toAdd);
-        });
+        }
 
         return list;
     }
