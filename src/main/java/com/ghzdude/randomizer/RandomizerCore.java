@@ -70,6 +70,7 @@ public class RandomizerCore
         MinecraftForge.EVENT_BUS.register(this);
         MinecraftForge.EVENT_BUS.register(new RecipeRandomizer());
         MinecraftForge.EVENT_BUS.register(new LootRandomizer());
+        // MinecraftForge.EVENT_BUS.register(new MobRandomizer());
     }
 
     private void commonSetup(final FMLCommonSetupEvent event) {
@@ -82,30 +83,25 @@ public class RandomizerCore
 
     @SubscribeEvent
     public void update(TickEvent.PlayerTickEvent event) {
-        if (event.side == LogicalSide.CLIENT) return;
+        if (event.side.isClient()) return;
         if (event.phase == TickEvent.Phase.END) return;
         if (OFFSET < 0) OFFSET = 0;
         OFFSET++;
+        ServerPlayer player = (ServerPlayer) event.player;
 
-        if (OFFSET % RandomizerConfig.getCooldown() == 0) {
+        if (player.gameMode.isSurvival() && OFFSET % RandomizerConfig.getCooldown() == 0) {
 
             POINTS = POINT_MAX;
-
-            Player player = event.player;
 
             int pointsToUse = RANDOM.nextIntBetweenInclusive(1, POINTS);
             POINTS -= pointsToUse;
 
             int selection = RANDOM.nextInt(100);
-            if (RandomizerConfig.structureRandomizerEnabled() && selection < STRUCTURE_PROBABILITY) { // config for percentage
-                MinecraftServer server = event.player.getServer();
-                if (server == null) return;
-                ServerLevel level = server.getLevel(event.player.getLevel().dimension());
-                if (level == null) return;
-                pointsToUse = StructureRandomizer.placeStructure(pointsToUse, level, player);
-            }
+            if (RandomizerConfig.structureRandomizerEnabled() && selection < STRUCTURE_PROBABILITY) {
 
-            if (RandomizerConfig.itemRandomizerEnabled()) {
+                pointsToUse = StructureRandomizer.placeStructure(pointsToUse, player.getLevel(), player);
+
+            } else if (RandomizerConfig.itemRandomizerEnabled()) {
                 player.displayClientMessage(Component.literal("Giving Item..."), true);
                 pointsToUse = ItemRandomizer.GiveRandomItem(pointsToUse, player);
 
