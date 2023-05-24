@@ -33,25 +33,25 @@ import java.util.HexFormat;
 public class ItemRandomizer {
     private static final SpecialItemList VALID_ITEMS = new SpecialItemList(configureValidItem());
 
+    @SuppressWarnings("SuspiciousMethodCalls")
     private static Collection<SpecialItem> configureValidItem() {
         int lastMatch;
         ArrayList<SpecialItem> validItems = new ArrayList<>();
 
         for (Item item : ForgeRegistries.ITEMS.getValues()) {
             if (SpecialItems.BLACKLISTED_ITEMS.contains(item)) continue;
-            SpecialItem toUpdate = new SpecialItem(item);
+            SpecialItem toUpdate;
 
-            int match = -1;
-            if (SpecialItems.SPECIAL_ITEMS.contains(toUpdate)) {
-                match = SpecialItems.SPECIAL_ITEMS.indexOf(toUpdate);
-                toUpdate = SpecialItems.SPECIAL_ITEMS.get(match);
-            } else if (SpecialItems.EFFECT_ITEMS.contains(toUpdate)) {
-                match = SpecialItems.EFFECT_ITEMS.indexOf(toUpdate);
-                toUpdate = SpecialItems.EFFECT_ITEMS.get(match);
+            if (SpecialItems.SPECIAL_ITEMS.contains(item)) {
+                toUpdate = SpecialItems.SPECIAL_ITEMS.get(SpecialItems.SPECIAL_ITEMS.indexOf(item));
+            } else if (SpecialItems.EFFECT_ITEMS.contains(item)) {
+                toUpdate = SpecialItems.EFFECT_ITEMS.get(SpecialItems.EFFECT_ITEMS.indexOf(item));
+            } else {
+                toUpdate = new SpecialItem(item);
             }
 
-            lastMatch = match;
-            if (lastMatch != -1 && toUpdate.item.toString().contains("shulker_box")) {
+            if (toUpdate.item.toString().contains("shulker_box")) {
+                lastMatch = SpecialItems.SPECIAL_ITEMS.indexOf(Items.SHULKER_BOX);
                 toUpdate.value = SpecialItems.SPECIAL_ITEMS.get(lastMatch).value;
             }
 
@@ -114,9 +114,8 @@ public class ItemRandomizer {
     public static SpecialItem getRandomSimpleItem() {
         SpecialItem item;
         do {
-            int id = RandomizerCore.RANDOM.nextInt(VALID_ITEMS.size());
-            item = VALID_ITEMS.get(id);
-        } while (SpecialItems.BLACKLISTED_ITEMS.contains(item));
+            item = getRandomItem();
+        } while (SpecialItems.BLACKLISTED_ITEMS.contains(item) || SpecialItems.EFFECT_ITEMS.contains(item));
         return item;
     }
 
