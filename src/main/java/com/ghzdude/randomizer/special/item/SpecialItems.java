@@ -1,4 +1,4 @@
-package com.ghzdude.randomizer.special;
+package com.ghzdude.randomizer.special.item;
 
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;

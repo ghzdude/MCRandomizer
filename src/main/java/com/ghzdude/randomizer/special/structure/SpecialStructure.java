@@ -1,4 +1,4 @@
-package com.ghzdude.randomizer.special;
+package com.ghzdude.randomizer.special.structure;
 
 import net.minecraft.core.Holder;
 import net.minecraft.resources.ResourceLocation;

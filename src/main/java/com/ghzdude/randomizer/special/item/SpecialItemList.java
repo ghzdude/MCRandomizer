@@ -1,4 +1,7 @@
-package com.ghzdude.randomizer.special;
+package com.ghzdude.randomizer.special.item;
+
+import net.minecraft.world.item.Item;
+import net.minecraft.world.level.ItemLike;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -20,7 +23,11 @@ public class SpecialItemList extends ArrayList<SpecialItem> {
     @Override
     public int indexOf(Object o) {
         for (int i = 0; i < this.size(); i++) {
-            if (this.get(i).item == ((SpecialItem) o).item) return i;
+            if (o instanceof ItemLike) {
+                if (this.get(i).item == o) return i;
+            } else if (o instanceof SpecialItem) {
+                if (this.get(i).item == ((SpecialItem) o).item) return i;
+            }
         }
         return -1;
     }
