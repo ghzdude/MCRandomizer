@@ -1,7 +1,6 @@
 package com.ghzdude.randomizer;
 
-import com.ghzdude.randomizer.special.SpecialStructure;
-import com.ghzdude.randomizer.special.SpecialStructures;
+import com.ghzdude.randomizer.special.structure.*;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.SectionPos;
 import net.minecraft.data.BuiltinRegistries;
