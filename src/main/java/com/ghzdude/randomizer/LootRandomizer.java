@@ -1,5 +1,6 @@
 package com.ghzdude.randomizer;
 
+import com.ghzdude.randomizer.reflection.ReflectionUtils;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import net.minecraft.core.NonNullList;
 import net.minecraft.nbt.CompoundTag;
@@ -20,7 +21,6 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.registries.ForgeRegistries;
 import org.jetbrains.annotations.NotNull;
 
-import java.lang.reflect.Field;
 import java.util.List;
 
 /* Loot Randomizer
@@ -49,14 +49,14 @@ public class LootRandomizer {
 
     private void randomizeLoot(LootTable table) {
         ResourceLocation tableId = table.getLootTableId();
-        setField(LootTable.class, table, 7, false); // unfreeze loot table
-        List<LootPool> pools = getField(LootTable.class, table, 4);
+        ReflectionUtils.setField(LootTable.class, table, 7, false); // unfreeze loot table
+        List<LootPool> pools = ReflectionUtils.getField(LootTable.class, table, 4);
 
         for (int i = 0; i < pools.size(); i++) {
             String poolName = pools.get(i).getName();
-            setField(LootPool.class, table.getPool(poolName), 8, false); // unfreeze loot pool
+            ReflectionUtils.setField(LootPool.class, table.getPool(poolName), 8, false); // unfreeze loot pool
 
-            LootPoolEntryContainer[] entries = getField(LootPool.class, table.getPool(poolName), 1);
+            LootPoolEntryContainer[] entries = ReflectionUtils.getField(LootPool.class, table.getPool(poolName), 1);
 
             NonNullList<Item> newEntries;
             if (data.containsPool(tableId, poolName)) {
@@ -89,7 +89,7 @@ public class LootRandomizer {
             }
 
             if (type == LootPoolEntries.ALTERNATIVES) {
-                LootPoolEntryContainer[] extraEntries = getField(CompositeEntryBase.class, (CompositeEntryBase) entry, 0);
+                LootPoolEntryContainer[] extraEntries = ReflectionUtils.getField(CompositeEntryBase.class, (CompositeEntryBase) entry, 0);
                 size += calculateNewResults(extraEntries);
                 continue;
             }
@@ -130,12 +130,12 @@ public class LootRandomizer {
             }
 
             if (type == LootPoolEntries.ITEM) {
-                setField(LootItem.class, (LootItem) entries[i], 0, toReplace.get(i));
+                ReflectionUtils.setField(LootItem.class, (LootItem) entries[i], 0, toReplace.get(i));
                 continue;
             }
 
             if (type == LootPoolEntries.ALTERNATIVES) {
-                LootPoolEntryContainer[] extraEntries = getField(CompositeEntryBase.class, (CompositeEntryBase) entries[i], 0);
+                LootPoolEntryContainer[] extraEntries = ReflectionUtils.getField(CompositeEntryBase.class, (CompositeEntryBase) entries[i], 0);
                 modifyEntries(extraEntries, toReplace.subList(i, toReplace.size()));
             }
         }
@@ -161,27 +161,6 @@ public class LootRandomizer {
         NonNullList<Item> itemList = NonNullList.withSize(amtItems, Items.AIR);
         itemList.replaceAll(item -> ItemRandomizer.getRandomSimpleItem().item);
         return itemList;
-    }
-
-    @SuppressWarnings("unchecked")
-    protected static  <T, R> R getField(Class<T> clazz, T instance, int index) {
-        Field field = clazz.getDeclaredFields()[index];
-        field.setAccessible(true);
-        try {
-            return (R) field.get(instance);
-        } catch (IllegalArgumentException | IllegalAccessException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    protected static  <T> void setField(Class<T> clazz, T instance, int index, Object newValue) {
-        Field fld = clazz.getDeclaredFields()[index];
-        fld.setAccessible(true);
-        try {
-            fld.set(instance, newValue);
-        } catch (IllegalArgumentException | IllegalAccessException e) {
-            throw new RuntimeException(e);
-        }
     }
 
     @SubscribeEvent

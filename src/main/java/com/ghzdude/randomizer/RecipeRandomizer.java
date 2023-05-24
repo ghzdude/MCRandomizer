@@ -1,5 +1,6 @@
 package com.ghzdude.randomizer;
 
+import com.ghzdude.randomizer.reflection.ReflectionUtils;
 import it.unimi.dsi.fastutil.objects.Object2ObjectArrayMap;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
@@ -13,7 +14,6 @@ import net.minecraftforge.event.server.ServerStartedEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import org.jetbrains.annotations.NotNull;
 
-import java.lang.reflect.Field;
 import java.util.Map;
 
 /* Recipe Randomizer Description
@@ -34,25 +34,14 @@ public class RecipeRandomizer {
         }
 
         if (recipe instanceof ShapedRecipe) {
-            setField(ShapedRecipe.class, (ShapedRecipe) recipe, 5, newResult);
+            ReflectionUtils.setField(ShapedRecipe.class, (ShapedRecipe) recipe, 5, newResult);
         } else if (recipe instanceof ShapelessRecipe) {
-            setField(ShapelessRecipe.class, (ShapelessRecipe) recipe, 2, newResult);
+            ReflectionUtils.setField(ShapelessRecipe.class, (ShapelessRecipe) recipe, 2, newResult);
         } else if (recipe instanceof AbstractCookingRecipe) {
-            setField(AbstractCookingRecipe.class, (AbstractCookingRecipe) recipe, 4, newResult);
+            ReflectionUtils.setField(AbstractCookingRecipe.class, (AbstractCookingRecipe) recipe, 4, newResult);
         } else if (recipe instanceof SingleItemRecipe) {
-            setField(SingleItemRecipe.class, (SingleItemRecipe) recipe, 1, newResult);
+            ReflectionUtils.setField(SingleItemRecipe.class, (SingleItemRecipe) recipe, 1, newResult);
         }
-    }
-
-    private <T> void setField(Class<T> clazz, T instance, int index, ItemStack newResult) {
-        Field fld = clazz.getDeclaredFields()[index];
-        fld.setAccessible(true);
-        try {
-            fld.set(instance, newResult);
-        } catch (IllegalArgumentException | IllegalAccessException e) {
-            throw new RuntimeException(e);
-        }
-        data.changedRecipes.put(((Recipe<?>) instance).getId(), newResult);
     }
 
     @SubscribeEvent
