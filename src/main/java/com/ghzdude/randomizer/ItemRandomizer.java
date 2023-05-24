@@ -1,8 +1,6 @@
 package com.ghzdude.randomizer;
 
-import com.ghzdude.randomizer.special.SpecialItem;
-import com.ghzdude.randomizer.special.SpecialItemList;
-import com.ghzdude.randomizer.special.SpecialItems;
+import com.ghzdude.randomizer.special.item.*;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.StringTag;
