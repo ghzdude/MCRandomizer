@@ -58,41 +58,50 @@ public class ItemRandomizer {
         return validItems;
     }
 
-    public static int GiveRandomItem(int pointsToUse, Player player){
+    public static int giveRandomItem(int pointsToUse, Player player){
+
+        if (RandomizerConfig.giveMultipleItems()) {
+            pointsToUse = giveMultiple(pointsToUse, player.getInventory());
+        } else {
+            pointsToUse = giveOnce(pointsToUse, player.getInventory());
+        }
+        return pointsToUse;
+    }
+
+    private static int giveMultiple(int pointsToUse, Inventory playerInventory) {
         int tries = 0;
-        Inventory playerInventory = player.getInventory();
-
-        // try to give up to five items while there are points to use
         while (tries < 5 && pointsToUse > 0) {
-            SpecialItem selectedItem = getRandomItem();
-
-            if (selectedItem.value > pointsToUse) continue;
-
-            int amtToGive = Math.floorDiv(pointsToUse, selectedItem.value);
-            ItemStack stack = specialItemToStack(selectedItem);
-
-            stack.setCount(Math.min(amtToGive, stack.getMaxStackSize()));
-
-            int pointsUsed = stack.getCount() * selectedItem.value;
-
-            pointsToUse -= pointsUsed;
-            if (playerInventory.getFreeSlot() == -1) {
-                Entity itemEnt = stack.getEntityRepresentation();
-                if (itemEnt != null) {
-                    itemEnt.setPos(playerInventory.player.position());
-                    playerInventory.player.getLevel().addFreshEntity(itemEnt);
-                }
-            } else {
-                addStackToPlayer(stack, playerInventory, pointsUsed);
-            }
+            pointsToUse = giveOnce(pointsToUse, playerInventory);
             tries++;
         }
+        return pointsToUse;
+    }
+
+    private static int giveOnce(int pointsToUse, Inventory playerInventory) {
+        SpecialItem selectedItem = getRandomItem(pointsToUse);
+
+        int amtToGive = Math.floorDiv(pointsToUse, selectedItem.value);
+        ItemStack stack = specialItemToStack(selectedItem);
+
+        stack.setCount(Math.min(amtToGive, stack.getMaxStackSize()));
+
+        pointsToUse -= stack.getCount() * selectedItem.value;
+        addStackToPlayer(stack, playerInventory);
         return pointsToUse;
     }
 
     public static SpecialItem getRandomItem() {
         int id = RandomizerCore.RANDOM.nextInt(VALID_ITEMS.size());
         return VALID_ITEMS.get(id);
+    }
+
+    public static SpecialItem getRandomItem(int points) {
+        SpecialItem toReturn;
+        do {
+            int id = RandomizerCore.RANDOM.nextInt(VALID_ITEMS.size());
+            toReturn = VALID_ITEMS.get(id);
+        } while (toReturn.value > points);
+        return toReturn;
     }
 
     public static ItemStack specialItemToStack (SpecialItem item) {
@@ -204,11 +213,17 @@ public class ItemRandomizer {
         stack.setTag(baseTag);
     }
 
-    private static void addStackToPlayer(ItemStack stack, Inventory inventory, int pointsUsed) {
-        RandomizerCore.LOGGER.warn(String.format("Given %s to %s, %d points used.",  stack.copy(), inventory.player.getDisplayName().getString(), pointsUsed));
-        // deal with inventory being full, maybe drop item to ground?
-
-        inventory.add(stack);
+    private static void addStackToPlayer(ItemStack stack, Inventory inventory) {
+        RandomizerCore.LOGGER.warn(String.format("Given %s to %s.",  stack.copy(), inventory.player.getDisplayName().getString()));
+        if (inventory.getFreeSlot() == -1) {
+            Entity itemEnt = stack.getEntityRepresentation();
+            if (itemEnt != null) {
+                itemEnt.setPos(inventory.player.position());
+                inventory.player.getLevel().addFreshEntity(itemEnt);
+            }
+        } else {
+            inventory.add(stack);
+        }
         RandomizerCore.incrementAmtItemsGiven();
     }
 }
