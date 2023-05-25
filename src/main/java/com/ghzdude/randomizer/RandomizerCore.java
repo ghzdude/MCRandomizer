@@ -67,7 +67,7 @@ public class RandomizerCore
         MinecraftForge.EVENT_BUS.register(this);
         MinecraftForge.EVENT_BUS.register(new RecipeRandomizer());
         MinecraftForge.EVENT_BUS.register(new LootRandomizer());
-        // MinecraftForge.EVENT_BUS.register(new MobRandomizer());
+        MinecraftForge.EVENT_BUS.register(new MobRandomizer());
     }
 
     private void commonSetup(final FMLCommonSetupEvent event) {
@@ -100,7 +100,7 @@ public class RandomizerCore
 
             } else if (RandomizerConfig.itemRandomizerEnabled()) {
                 player.displayClientMessage(Component.literal("Giving Item..."), true);
-                pointsToUse = ItemRandomizer.GiveRandomItem(pointsToUse, player);
+                pointsToUse = ItemRandomizer.giveRandomItem(pointsToUse, player);
 
                 // make this per cycle instead of amount items given
                 // the time between incrementing point max should increase slowly overtime
