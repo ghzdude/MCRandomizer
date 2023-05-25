@@ -4,7 +4,9 @@ package com.ghzdude.randomizer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.*;
 import net.minecraft.world.level.Level;
+import net.minecraftforge.event.entity.living.LivingDeathEvent;
 import net.minecraftforge.event.entity.living.LivingSpawnEvent;
+import net.minecraftforge.event.server.ServerStartedEvent;
 import net.minecraftforge.eventbus.api.Event;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.registries.ForgeRegistries;
@@ -25,7 +27,8 @@ public class MobRandomizer {
             .stream().filter(entityType ->
                     !BLACKLISTED_ENTITIES.contains(entityType) && entityType.getCategory() != MobCategory.MISC
             ).toList());
-    private final int MAX_ENTITIES = 100;
+    private final int MAX_ENTITIES = 150;
+    private int entityCount;
 
     private Entity getRandomMob(Level level) {
         Entity mob;
@@ -41,47 +44,65 @@ public class MobRandomizer {
         mob.setPos(reference.position());
         mob.setXRot(reference.getXRot());
         mob.setYRot(reference.getYRot());
+        mob.setItemSlot(EquipmentSlot.MAINHAND, ItemRandomizer.specialItemToStack(ItemRandomizer.getRandomSimpleItem()));
+        RandomizerCore.LOGGER.warn("Spawned mob " + mob.getType() + " with " + entityCount + " in total.");
         level.addFreshEntity(mob);
     }
 
-    private int entityCount (ServerLevel level) {
-        int count = 0;
-        for (Entity mob : level.getAllEntities()) {
-             if (level.isPositionEntityTicking(mob.blockPosition())) count++;
+    @SubscribeEvent
+    public void onServerStart(ServerStartedEvent event) {
+        for (ServerLevel level : event.getServer().getAllLevels()) {
+            for (Entity mob : level.getAllEntities()) {
+                if (level.isLoaded(mob.blockPosition()) && mob.getType().getCategory() != MobCategory.MISC) {
+                    entityCount++;
+                }
+            }
         }
-        return count;
     }
+
     @SubscribeEvent
     public void onMobSpawn(LivingSpawnEvent.CheckSpawn event) {
-        MobSpawnType type = event.getSpawnReason();
-        ServerLevel level = (ServerLevel) event.getEntity().getLevel();
-
-        if (type == MobSpawnType.CHUNK_GENERATION ||
-                type == MobSpawnType.NATURAL ||
-                type == MobSpawnType.SPAWNER
-        ) {
-            if (entityCount(level) <= MAX_ENTITIES) {
+        if (entityCount <= MAX_ENTITIES) {
+            MobSpawnType reason = event.getSpawnReason();
+            ServerLevel level = (ServerLevel) event.getEntity().getLevel();
+            if (reason == MobSpawnType.CHUNK_GENERATION ||
+                    reason == MobSpawnType.NATURAL ||
+                    reason == MobSpawnType.SPAWNER
+            ) {
                 Entity mob = getRandomMob(event.getEntity().getLevel());
                 spawnMob(level, mob, event.getEntity());
+                entityCount++;
             }
-            event.setResult(Event.Result.DENY);
         }
+        event.setResult(Event.Result.DENY);
     }
 
     @SubscribeEvent
     public void onSpecialSpawn(LivingSpawnEvent.SpecialSpawn event) {
-        MobSpawnType type = event.getSpawnReason();
-        ServerLevel level = (ServerLevel) event.getEntity().getLevel();
+        if (entityCount <= MAX_ENTITIES) {
+            MobSpawnType reason = event.getSpawnReason();
+            ServerLevel level = (ServerLevel) event.getEntity().getLevel();
 
-        if (type == MobSpawnType.CHUNK_GENERATION ||
-                type == MobSpawnType.NATURAL ||
-                type == MobSpawnType.SPAWNER
-        ) {
-            if (entityCount(level) < MAX_ENTITIES) {
+            if (reason == MobSpawnType.CHUNK_GENERATION ||
+                    reason == MobSpawnType.NATURAL ||
+                    reason == MobSpawnType.SPAWNER
+            ) {
                 Entity mob = getRandomMob(event.getEntity().getLevel());
                 spawnMob(level, mob, event.getEntity());
+                entityCount++;
             }
-            event.setCanceled(true);
+        }
+        event.setCanceled(true);
+    }
+
+    @SubscribeEvent
+    public void onDeath(LivingDeathEvent event) {
+        EntityType<?> type = event.getEntity().getType();
+        if (entityTypes.contains(type)) {
+            entityCount--;
+        }
+        if (entityCount < 0) {
+            entityCount = 0;
         }
     }
 }
