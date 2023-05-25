@@ -49,7 +49,7 @@ public class StructureRandomizer {
         boolean success = tryPlaceStructure(level, structure.structure, blockPos);
         if (!success) {
             player.sendSystemMessage(Component.translatable("structure.spawning.failed", structure.location));
-            return pointsToUse - ItemRandomizer.GiveRandomItem(pointsToUse, player);
+            return pointsToUse - ItemRandomizer.giveRandomItem(pointsToUse, player);
         } else {
             player.sendSystemMessage(Component.translatable("structure.spawning.success", structure.location));
             return pointsToUse - structure.value;
