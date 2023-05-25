@@ -10,6 +10,7 @@ public class RandomizerConfig {
 
     private static final Pair<RandomizerConfig, ForgeConfigSpec> RandomizerConfigPair;
     private final ForgeConfigSpec.ConfigValue<Integer> itemCooldown;
+    private final ForgeConfigSpec.ConfigValue<Boolean> giveMultipleItems;
     private final ForgeConfigSpec.ConfigValue<Integer> cycleBase;
     private final ForgeConfigSpec.ConfigValue<Boolean> randomizeRecipes;
     private final ForgeConfigSpec.ConfigValue<Boolean> giveRandomItems;
@@ -29,6 +30,9 @@ public class RandomizerConfig {
 
         this.itemCooldown = builder.comment("Time between items given (measured in ticks, 20 ticks is one second) : Default value is 1200.")
                 .define("item_cooldown", 1200);
+
+        this.giveMultipleItems = builder.comment("Should the randomizer attempt to give the player more items if there are still points to use. Defaults to false.")
+                .define("give_multiple_items", false);
 
         this.cycleBase = builder.comment("Amount of cycles needed to reach the first point max increment. Default value is 3.")
                         .define("cycle_base", 3);
@@ -80,6 +84,10 @@ public class RandomizerConfig {
 
     public static int getCooldown() {
         return getConfig().itemCooldown.get();
+    }
+
+    public static boolean giveMultipleItems() {
+        return getConfig().giveMultipleItems.get();
     }
 
     public static int getCycleBase() {
