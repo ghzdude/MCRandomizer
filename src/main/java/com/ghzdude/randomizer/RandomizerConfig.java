@@ -32,7 +32,7 @@ public class RandomizerConfig {
                 .define("item_cooldown", 600);
 
         this.pointsCarryover = builder.comment("Should unused points carry over after a cycle? : Default value is false.")
-                .define("item_cooldown", false);
+                .define("points_carryover", false);
 
         this.giveMultipleItems = builder.comment("Should the randomizer attempt to give the player more items if there are still points to use. Defaults to false.")
                 .define("give_multiple_items", false);
