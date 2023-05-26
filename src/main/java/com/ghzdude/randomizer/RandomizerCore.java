@@ -44,6 +44,7 @@ public class RandomizerCore
     private static int OFFSET = 0;
     private static final int COUNTER_MAX = 50;
     private static int structureProbability;
+    private static boolean pointsCarryover;
     public static final RandomSource RANDOM = RandomSource.create();
     private static int points = 0;
     private static int pointMax = 1;
@@ -89,17 +90,19 @@ public class RandomizerCore
 
         if (player.gameMode.isSurvival() && OFFSET % cooldown == 0) {
 
-            points += pointMax;
+            if (pointsCarryover) {
+                points += pointMax;
+            } else {
+                points = pointMax;
+            }
 
             int pointsToUse = RANDOM.nextIntBetweenInclusive(1, points);
             points -= pointsToUse;
 
             int selection = RANDOM.nextInt(100);
             if (RandomizerConfig.structureRandomizerEnabled() && selection < structureProbability) {
-
                 pointsToUse = StructureRandomizer.placeStructure(pointsToUse, player.getLevel(), player);
                 increaseCycle(player);
-
             } else if (RandomizerConfig.itemRandomizerEnabled()) {
                 player.displayClientMessage(Component.literal("Giving Item..."), true);
                 pointsToUse = ItemRandomizer.giveRandomItem(pointsToUse, player.getInventory());
@@ -123,6 +126,7 @@ public class RandomizerCore
 
     @SubscribeEvent
     public void onStart(ServerStartedEvent event) {
+        pointsCarryover = RandomizerConfig.pointsCarryover();
         structureProbability = RandomizerConfig.getStructureProbability();
         structureProbability = Math.max(1, Math.min(100, structureProbability));
         cooldown = RandomizerConfig.getCooldown();

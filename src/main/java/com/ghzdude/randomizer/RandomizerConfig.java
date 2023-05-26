@@ -8,6 +8,7 @@ public class RandomizerConfig {
 
     private static final Pair<RandomizerConfig, ForgeConfigSpec> RandomizerConfigPair;
     private final ForgeConfigSpec.ConfigValue<Integer> itemCooldown;
+    private final ForgeConfigSpec.ConfigValue<Boolean> pointsCarryover;
     private final ForgeConfigSpec.ConfigValue<Boolean> giveMultipleItems;
     private final ForgeConfigSpec.ConfigValue<Integer> cycleBase;
     private final ForgeConfigSpec.ConfigValue<Boolean> randomizeRecipes;
@@ -27,8 +28,11 @@ public class RandomizerConfig {
         this.giveRandomItems = builder.comment("Should random items be given to the player? Defaults to true.")
                 .define("give_random_items", true);
 
-        this.itemCooldown = builder.comment("Time between items given (measured in ticks, 20 ticks is one second) : Default value is 600.")
+        this.itemCooldown = builder.comment("Time between items given (measured in ticks, 20 ticks is one second). Default value is 600.")
                 .define("item_cooldown", 600);
+
+        this.pointsCarryover = builder.comment("Should unused points carry over after a cycle? : Default value is false.")
+                .define("item_cooldown", false);
 
         this.giveMultipleItems = builder.comment("Should the randomizer attempt to give the player more items if there are still points to use. Defaults to false.")
                 .define("give_multiple_items", false);
@@ -92,6 +96,10 @@ public class RandomizerConfig {
 
     public static boolean giveMultipleItems() {
         return getConfig().giveMultipleItems.get();
+    }
+
+    public static boolean pointsCarryover() {
+        return getConfig().pointsCarryover.get();
     }
 
     public static int getCycleBase() {
