@@ -4,8 +4,6 @@ import net.minecraftforge.common.ForgeConfigSpec;
 import net.minecraftforge.fml.config.IConfigSpec;
 import org.apache.commons.lang3.tuple.Pair;
 
-import java.util.function.Predicate;
-
 public class RandomizerConfig {
 
     private static final Pair<RandomizerConfig, ForgeConfigSpec> RandomizerConfigPair;
@@ -110,7 +108,7 @@ public class RandomizerConfig {
         return getConfig().randomizeRecipes.get();
     }
 
-    public static boolean randomizeLoot() {
+    public static boolean lootRandomizerEnabled() {
         return getConfig().randomizeLoot.get();
     }
 

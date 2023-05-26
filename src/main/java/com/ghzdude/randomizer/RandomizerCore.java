@@ -65,8 +65,14 @@ public class RandomizerCore
 
         // Register ourselves for server and other game events we are interested in
         MinecraftForge.EVENT_BUS.register(this);
-        MinecraftForge.EVENT_BUS.register(new RecipeRandomizer());
-        MinecraftForge.EVENT_BUS.register(new LootRandomizer());
+        if (RandomizerConfig.recipeRandomizerEnabled()) {
+            MinecraftForge.EVENT_BUS.register(new RecipeRandomizer());
+        }
+
+        if (RandomizerConfig.lootRandomizerEnabled()) {
+            MinecraftForge.EVENT_BUS.register(new LootRandomizer());
+        }
+
         MinecraftForge.EVENT_BUS.register(new MobRandomizer());
     }
 
