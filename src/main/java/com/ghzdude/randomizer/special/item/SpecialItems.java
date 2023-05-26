@@ -5,6 +5,7 @@ import net.minecraft.world.item.Items;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 
 public class SpecialItems {
     public static final ArrayList<Item> BLACKLISTED_ITEMS = new ArrayList<>(Arrays.asList(
@@ -57,6 +58,11 @@ public class SpecialItems {
             new SpecialItem(Items.LINGERING_POTION, 6),
             new SpecialItem(Items.TIPPED_ARROW, 6),
             new SpecialItem(Items.SUSPICIOUS_STEW, 4)
+    ));
+
+    // enchantable tools/stuff
+    public static final ArrayList<Item> ENCHANTABLE = new ArrayList<>(List.of(
+            Items.ENCHANTED_BOOK
     ));
 
     public static final SpecialItemList SPECIAL_ITEMS = new SpecialItemList(Arrays.asList(
