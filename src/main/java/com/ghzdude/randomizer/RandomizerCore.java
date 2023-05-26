@@ -40,14 +40,14 @@ public class RandomizerCore
     // public static final RegistryObject<Item> EXAMPLE_BLOCK_ITEM = ITEMS.register("example_block", () -> new BlockItem(EXAMPLE_BLOCK.get(), new Item.Properties().tab(CreativeModeTab.TAB_BUILDING_BLOCKS)));
 
     private static int OFFSET = 0;
-    private static int POINTS = 0;
-    private static int POINT_MAX = 1;
-    private static int AMT_ITEMS_GIVEN = 0;
-    private static int CYCLE = 0;
-    private static int CYCLE_COUNTER = 3;
     private static final int COUNTER_MAX = 20;
     private static int STRUCTURE_PROBABILITY = 0;
     public static final RandomSource RANDOM = RandomSource.create();
+    private static int points = 0;
+    private static int pointMax = 1;
+    private static int amtItemsGiven = 0;
+    private static int cycle = 0;
+    private static int cycleCounter = 3;
 
     public RandomizerCore()
     {
@@ -74,7 +74,7 @@ public class RandomizerCore
     }
 
     public static void incrementAmtItemsGiven() {
-        AMT_ITEMS_GIVEN++;
+        amtItemsGiven++;
     }
 
     @SubscribeEvent
@@ -87,10 +87,10 @@ public class RandomizerCore
 
         if (player.gameMode.isSurvival() && OFFSET % RandomizerConfig.getCooldown() == 0) {
 
-            POINTS = POINT_MAX;
+            points = pointMax;
 
-            int pointsToUse = RANDOM.nextIntBetweenInclusive(1, POINTS);
-            POINTS -= pointsToUse;
+            int pointsToUse = RANDOM.nextIntBetweenInclusive(1, points);
+            points -= pointsToUse;
 
             int selection = RANDOM.nextInt(100);
             if (RandomizerConfig.structureRandomizerEnabled() && selection < STRUCTURE_PROBABILITY) {
@@ -103,45 +103,45 @@ public class RandomizerCore
 
                 // make this per cycle instead of amount items given
                 // the time between incrementing point max should increase slowly overtime
-                CYCLE++;
-                if (CYCLE == CYCLE_COUNTER) {
-                    CYCLE = 0;
-                    if (CYCLE_COUNTER < COUNTER_MAX) {
-                        CYCLE_COUNTER++;
+                cycle++;
+                if (cycle == cycleCounter) {
+                    cycle = 0;
+                    if (cycleCounter < COUNTER_MAX) {
+                        cycleCounter++;
                     }
-                    POINT_MAX++;
-                    player.sendSystemMessage(Component.translatable("player.point_max.increased", POINT_MAX));
+                    pointMax++;
+                    player.sendSystemMessage(Component.translatable("player.point_max.increased", pointMax));
                 }
             }
-            POINTS += pointsToUse;
+            points += pointsToUse;
         }
     }
 
     @SubscribeEvent
     public void onLogin (PlayerEvent.PlayerLoggedInEvent player) {
         CompoundTag tag = player.getEntity().getPersistentData();
-        POINTS = tag.getInt("points");
-        POINT_MAX = tag.getInt("point_max");
-        AMT_ITEMS_GIVEN = tag.getInt("amount_items_given");
-        CYCLE = tag.getInt("cycle");
-        CYCLE_COUNTER = tag.getInt("cycle_counter");
+        points = tag.getInt("points");
+        pointMax = tag.getInt("point_max");
+        amtItemsGiven = tag.getInt("amount_items_given");
+        cycle = tag.getInt("cycle");
+        cycleCounter = tag.getInt("cycle_counter");
         STRUCTURE_PROBABILITY = RandomizerConfig.getStructureProbability();
         STRUCTURE_PROBABILITY = Math.max(1, Math.min(100, STRUCTURE_PROBABILITY));
 
-        POINTS = Math.max(POINTS, 0);
-        POINT_MAX = Math.max(POINT_MAX, 1);
-        AMT_ITEMS_GIVEN = Math.max(AMT_ITEMS_GIVEN, 0);
-        CYCLE = Math.max(CYCLE, 0);
-        CYCLE_COUNTER = Math.max(CYCLE_COUNTER, RandomizerConfig.getCycleBase());
+        points = Math.max(points, 0);
+        pointMax = Math.max(pointMax, 1);
+        amtItemsGiven = Math.max(amtItemsGiven, 0);
+        cycle = Math.max(cycle, 0);
+        cycleCounter = Math.max(cycleCounter, RandomizerConfig.getCycleBase());
     }
 
     @SubscribeEvent
     public void onLogout (PlayerEvent.PlayerLoggedOutEvent player) {
         CompoundTag tag = player.getEntity().getPersistentData();
-        tag.putInt("points", POINTS);
-        tag.putInt("point_max", POINT_MAX);
-        tag.putInt("amount_items_given", AMT_ITEMS_GIVEN);
-        tag.putInt("cycle", CYCLE);
-        tag.putInt("cycle_counter", CYCLE_COUNTER);
+        tag.putInt("points", points);
+        tag.putInt("point_max", pointMax);
+        tag.putInt("amount_items_given", amtItemsGiven);
+        tag.putInt("cycle", cycle);
+        tag.putInt("cycle_counter", cycleCounter);
     }
 }
