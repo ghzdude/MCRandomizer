@@ -10,6 +10,7 @@ import net.minecraft.world.level.block.Block;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
+import net.minecraftforge.event.server.ServerStartedEvent;
 import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.ModLoadingContext;
@@ -41,16 +42,16 @@ public class RandomizerCore
 
     private static int OFFSET = 0;
     private static final int COUNTER_MAX = 20;
-    private static int STRUCTURE_PROBABILITY = 0;
+    private static int structureProbability;
     public static final RandomSource RANDOM = RandomSource.create();
     private static int points = 0;
     private static int pointMax = 1;
     private static int amtItemsGiven = 0;
     private static int cycle = 0;
     private static int cycleCounter = 3;
+    private static int cooldown;
 
-    public RandomizerCore()
-    {
+    public RandomizerCore() {
         IEventBus modEventBus = FMLJavaModLoadingContext.get().getModEventBus();
 
         ModLoadingContext.get().registerConfig(ModConfig.Type.COMMON, RandomizerConfig.getSpec());
@@ -85,48 +86,51 @@ public class RandomizerCore
         OFFSET++;
         ServerPlayer player = (ServerPlayer) event.player;
 
-        if (player.gameMode.isSurvival() && OFFSET % RandomizerConfig.getCooldown() == 0) {
+        if (player.gameMode.isSurvival() && OFFSET % cooldown == 0) {
 
-            points = pointMax;
+            points += pointMax;
 
             int pointsToUse = RANDOM.nextIntBetweenInclusive(1, points);
             points -= pointsToUse;
 
             int selection = RANDOM.nextInt(100);
-            if (RandomizerConfig.structureRandomizerEnabled() && selection < STRUCTURE_PROBABILITY) {
+            if (RandomizerConfig.structureRandomizerEnabled() && selection < structureProbability) {
 
                 pointsToUse = StructureRandomizer.placeStructure(pointsToUse, player.getLevel(), player);
 
             } else if (RandomizerConfig.itemRandomizerEnabled()) {
                 player.displayClientMessage(Component.literal("Giving Item..."), true);
-                pointsToUse = ItemRandomizer.giveRandomItem(pointsToUse, player);
-
-                // make this per cycle instead of amount items given
-                // the time between incrementing point max should increase slowly overtime
-                cycle++;
-                if (cycle == cycleCounter) {
-                    cycle = 0;
-                    if (cycleCounter < COUNTER_MAX) {
-                        cycleCounter++;
-                    }
-                    pointMax++;
-                    player.sendSystemMessage(Component.translatable("player.point_max.increased", pointMax));
-                }
+                pointsToUse = ItemRandomizer.giveRandomItem(pointsToUse, player.getInventory());
             }
+
             points += pointsToUse;
+
+            cycle++;
+            if (cycle % cycleCounter == 0) {
+                if (cycleCounter < COUNTER_MAX) {
+                    cycleCounter += 2;
+                }
+                pointMax++;
+                player.sendSystemMessage(Component.translatable("player.point_max.increased", pointMax));
+            }
         }
     }
 
     @SubscribeEvent
-    public void onLogin (PlayerEvent.PlayerLoggedInEvent player) {
+    public void onStart(ServerStartedEvent event) {
+        structureProbability = RandomizerConfig.getStructureProbability();
+        structureProbability = Math.max(1, Math.min(100, structureProbability));
+        cooldown = RandomizerConfig.getCooldown();
+    }
+
+    @SubscribeEvent
+    public void onLogin(PlayerEvent.PlayerLoggedInEvent player) {
         CompoundTag tag = player.getEntity().getPersistentData();
         points = tag.getInt("points");
         pointMax = tag.getInt("point_max");
         amtItemsGiven = tag.getInt("amount_items_given");
         cycle = tag.getInt("cycle");
         cycleCounter = tag.getInt("cycle_counter");
-        STRUCTURE_PROBABILITY = RandomizerConfig.getStructureProbability();
-        STRUCTURE_PROBABILITY = Math.max(1, Math.min(100, STRUCTURE_PROBABILITY));
 
         points = Math.max(points, 0);
         pointMax = Math.max(pointMax, 1);
@@ -136,7 +140,7 @@ public class RandomizerCore
     }
 
     @SubscribeEvent
-    public void onLogout (PlayerEvent.PlayerLoggedOutEvent player) {
+    public void onLogout(PlayerEvent.PlayerLoggedOutEvent player) {
         CompoundTag tag = player.getEntity().getPersistentData();
         tag.putInt("points", points);
         tag.putInt("point_max", pointMax);

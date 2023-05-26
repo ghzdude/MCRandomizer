@@ -58,12 +58,12 @@ public class ItemRandomizer {
         return validItems;
     }
 
-    public static int giveRandomItem(int pointsToUse, Player player){
+    public static int giveRandomItem(int pointsToUse, Inventory inventory){
 
         if (RandomizerConfig.giveMultipleItems()) {
-            pointsToUse = giveMultiple(pointsToUse, player.getInventory());
+            pointsToUse = giveMultiple(pointsToUse, inventory);
         } else {
-            pointsToUse = giveOnce(pointsToUse, player.getInventory());
+            pointsToUse = giveOnce(pointsToUse, inventory);
         }
         return pointsToUse;
     }
