@@ -67,7 +67,7 @@ public class StructureRandomizer {
 
     private static boolean tryPlaceStructure(ServerLevel serverLevel, Structure structure, BlockPos blockPos) {
         ChunkGenerator chunkgenerator = serverLevel.getChunkSource().getGenerator();
-        StructureStart structurestart = structure.generate(serverLevel.registryAccess(), chunkgenerator, chunkgenerator.getBiomeSource(), serverLevel.getChunkSource().randomState(), serverLevel.getStructureManager(), serverLevel.getSeed(), new ChunkPos(blockPos), 0, serverLevel, (p_214580_) -> true);
+        StructureStart structurestart = structure.generate(serverLevel.registryAccess(), chunkgenerator, chunkgenerator.getBiomeSource(), serverLevel.getChunkSource().randomState(), serverLevel.getStructureManager(), serverLevel.getSeed(), new ChunkPos(blockPos), 0, serverLevel, (biomes) -> true);
         if (!structurestart.isValid()) {
             RandomizerCore.LOGGER.warn("Invalid Structure Start!");
             return false;
@@ -76,8 +76,8 @@ public class StructureRandomizer {
         BoundingBox boundingbox = structurestart.getBoundingBox();
         ChunkPos chunkpos = new ChunkPos(SectionPos.blockToSectionCoord(boundingbox.minX()), SectionPos.blockToSectionCoord(boundingbox.minZ()));
         ChunkPos chunkpos1 = new ChunkPos(SectionPos.blockToSectionCoord(boundingbox.maxX()), SectionPos.blockToSectionCoord(boundingbox.maxZ()));
-        ChunkPos.rangeClosed(chunkpos, chunkpos1).forEach((p_214558_) -> {
-            structurestart.placeInChunk(serverLevel, serverLevel.structureManager(), chunkgenerator, serverLevel.getRandom(), new BoundingBox(p_214558_.getMinBlockX(), serverLevel.getMinBuildHeight(), p_214558_.getMinBlockZ(), p_214558_.getMaxBlockX(), serverLevel.getMaxBuildHeight(), p_214558_.getMaxBlockZ()), p_214558_);
+        ChunkPos.rangeClosed(chunkpos, chunkpos1).forEach((chunkPos) -> {
+            structurestart.placeInChunk(serverLevel, serverLevel.structureManager(), chunkgenerator, serverLevel.getRandom(), new BoundingBox(chunkPos.getMinBlockX(), serverLevel.getMinBuildHeight(), chunkPos.getMinBlockZ(), chunkPos.getMaxBlockX(), serverLevel.getMaxBuildHeight(), chunkPos.getMaxBlockZ()), chunkPos);
         });
         RandomizerCore.LOGGER.warn("Structure Generated!");
         return true;
