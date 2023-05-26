@@ -30,26 +30,26 @@ public class StructureRandomizer {
         int offsetX = level.getRandom().nextIntBetweenInclusive(32, 64);
         int offsetZ = level.getRandom().nextIntBetweenInclusive(32, 64);
 
-        BlockPos blockPos = new BlockPos(player.getBlockX(), player.getBlockY(), player.getBlockZ());
+        BlockPos playerPos = player.getOnPos();
 
         // ChunkPos pos = new ChunkPos(player.getBlockX(), player.getBlockZ());
         if (level.getRandom().nextBoolean()) {
-            blockPos = blockPos.offset(offsetX, 0, offsetZ);
+            playerPos = playerPos.offset(offsetX, 0, offsetZ);
         } else if (level.getRandom().nextBoolean()) {
-            blockPos = blockPos.offset(-offsetX, 0, offsetZ);
+            playerPos = playerPos.offset(-offsetX, 0, offsetZ);
         } else if (level.getRandom().nextBoolean()) {
-            blockPos = blockPos.offset(-offsetX, 0, -offsetZ);
+            playerPos = playerPos.offset(-offsetX, 0, -offsetZ);
         } else {
-            blockPos = blockPos.offset(offsetX, 0, -offsetZ);
+            playerPos = playerPos.offset(offsetX, 0, -offsetZ);
         }
 
-        RandomizerCore.LOGGER.warn(String.format("Attempting to generate [%s] at %s", structure.location, blockPos));
+        RandomizerCore.LOGGER.warn(String.format("Attempting to generate [%s] at %s", structure.location, playerPos));
         player.sendSystemMessage(Component.translatable("structure.spawning", structure.location));
 
-        boolean success = tryPlaceStructure(level, structure.structure, blockPos);
+        boolean success = tryPlaceStructure(level, structure.structure, playerPos);
         if (!success) {
             player.sendSystemMessage(Component.translatable("structure.spawning.failed", structure.location));
-            return pointsToUse - ItemRandomizer.giveRandomItem(pointsToUse, player);
+            return pointsToUse - ItemRandomizer.giveRandomItem(pointsToUse, player.getInventory());
         } else {
             player.sendSystemMessage(Component.translatable("structure.spawning.success", structure.location));
             return pointsToUse - structure.value;
