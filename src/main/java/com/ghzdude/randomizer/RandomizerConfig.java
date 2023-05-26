@@ -18,6 +18,7 @@ public class RandomizerConfig {
     private final ForgeConfigSpec.ConfigValue<Boolean> randomizeBloockLoot;
     private final ForgeConfigSpec.ConfigValue<Boolean> randomizeEntityLoot;
     private final ForgeConfigSpec.ConfigValue<Boolean> randomizeChestLoot;
+    private final ForgeConfigSpec.ConfigValue<Boolean> randomizeMobs;
 
     RandomizerConfig (ForgeConfigSpec.Builder builder) {
 
@@ -38,7 +39,7 @@ public class RandomizerConfig {
 
         // Recipe Randomizer
         builder.push("Recipe Randomizer");
-        this.randomizeRecipes = builder.comment("Should recipes be randomized per world? Defaults to true.")
+        this.randomizeRecipes = builder.comment("Should recipes be randomized? Defaults to true.")
                 .define("randomize_recipes", true);
         builder.pop();
 
@@ -47,13 +48,12 @@ public class RandomizerConfig {
         this.generateStructures = builder.comment("Should random structures be generated when able? Defaults to true.")
                 .define("generate_structures", true);
 
-        // Predicate<Object> validateProbability = o -> Integer.parseInt(o.toString()) > 0 || Integer.parseInt(o.toString()) < 100;
-        this.structureProbability = builder.comment("Probability of how likely structure generation is picked over item generation. Defaults to 10, value must be between 0 and 100 ")
+        this.structureProbability = builder.comment("Probability of how likely structure generation is picked over item generation. Defaults to 10, value should be between 0 and 100 ")
                         .define("structure_probability", 10);
         builder.pop();
 
         builder.push("Loot Randomizer");
-        this.randomizeLoot = builder.comment("Should Loot Randomizer be enabled at all? Defaults to true.")
+        this.randomizeLoot = builder.comment("Should Loot Tables (block drops, entity drops, chest loot) be randomized? Defaults to true.")
                 .define("randomize_loot", true);
 
         this.randomizeBloockLoot = builder.comment("Should block drops be randomized? Defaults to false.")
@@ -64,6 +64,12 @@ public class RandomizerConfig {
 
         this.randomizeChestLoot = builder.comment("Should chest loot be randomized? Defaults to true.")
                         .define("randomize_chest_loot", true);
+        builder.pop();
+
+        builder.push("Mob Randomizer");
+
+        this.randomizeMobs = builder.comment("Should mobs be randomized when spawning? Note that this prevents normal mob spawn. Defaults to false.")
+                .define("randomize_mobs", false);
         builder.pop();
     }
 
@@ -122,5 +128,9 @@ public class RandomizerConfig {
 
     public static boolean randomizeChestLoot() {
         return getConfig().randomizeChestLoot.get();
+    }
+
+    public static boolean mobRandomizerEnabled() {
+        return getConfig().randomizeMobs.get();
     }
 }

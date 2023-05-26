@@ -73,7 +73,9 @@ public class RandomizerCore
             MinecraftForge.EVENT_BUS.register(new LootRandomizer());
         }
 
-        MinecraftForge.EVENT_BUS.register(new MobRandomizer());
+        if (RandomizerConfig.mobRandomizerEnabled()) {
+            MinecraftForge.EVENT_BUS.register(new MobRandomizer());
+        }
     }
 
     private void commonSetup(final FMLCommonSetupEvent event) {
