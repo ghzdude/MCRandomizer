@@ -27,8 +27,9 @@ public class MobRandomizer {
             .stream().filter(entityType ->
                     !BLACKLISTED_ENTITIES.contains(entityType) && entityType.getCategory() != MobCategory.MISC
             ).toList());
-    private final int MAX_ENTITIES = 150;
+    private int entityCap = 150;
     private int entityCount;
+    private boolean isEnabled;
 
     private Entity getRandomMob(Level level) {
         Entity mob;
@@ -49,12 +50,30 @@ public class MobRandomizer {
         level.addFreshEntity(mob);
     }
 
+    private void randomizeMobSpawn(MobSpawnType reason, Entity toSpawn) {
+        if (entityCount <= entityCap) {
+            ServerLevel level = (ServerLevel) toSpawn.getLevel();
+
+            if (reason == MobSpawnType.CHUNK_GENERATION ||
+                    reason == MobSpawnType.NATURAL ||
+                    reason == MobSpawnType.SPAWNER
+            ) {
+                Entity mob = getRandomMob(level);
+                spawnMob(level, mob, toSpawn);
+                entityCount++;
+            }
+        }
+    }
+
     @SubscribeEvent
     public void onServerStart(ServerStartedEvent event) {
-        for (ServerLevel level : event.getServer().getAllLevels()) {
-            for (Entity mob : level.getAllEntities()) {
-                if (level.isLoaded(mob.blockPosition()) && mob.getType().getCategory() != MobCategory.MISC) {
-                    entityCount++;
+        isEnabled = RandomizerConfig.mobRandomizerEnabled();
+        if (isEnabled) {
+            for (ServerLevel level : event.getServer().getAllLevels()) {
+                for (Entity mob : level.getAllEntities()) {
+                    if (level.isLoaded(mob.blockPosition()) && mob.getType().getCategory() != MobCategory.MISC) {
+                        entityCount++;
+                    }
                 }
             }
         }
@@ -62,47 +81,30 @@ public class MobRandomizer {
 
     @SubscribeEvent
     public void onMobSpawn(LivingSpawnEvent.CheckSpawn event) {
-        if (entityCount <= MAX_ENTITIES) {
-            MobSpawnType reason = event.getSpawnReason();
-            ServerLevel level = (ServerLevel) event.getEntity().getLevel();
-            if (reason == MobSpawnType.CHUNK_GENERATION ||
-                    reason == MobSpawnType.NATURAL ||
-                    reason == MobSpawnType.SPAWNER
-            ) {
-                Entity mob = getRandomMob(event.getEntity().getLevel());
-                spawnMob(level, mob, event.getEntity());
-                entityCount++;
-            }
+        if (isEnabled) {
+            randomizeMobSpawn(event.getSpawnReason(), event.getEntity());
+            event.setResult(Event.Result.DENY);
         }
-        event.setResult(Event.Result.DENY);
     }
 
     @SubscribeEvent
     public void onSpecialSpawn(LivingSpawnEvent.SpecialSpawn event) {
-        if (entityCount <= MAX_ENTITIES) {
-            MobSpawnType reason = event.getSpawnReason();
-            ServerLevel level = (ServerLevel) event.getEntity().getLevel();
-
-            if (reason == MobSpawnType.CHUNK_GENERATION ||
-                    reason == MobSpawnType.NATURAL ||
-                    reason == MobSpawnType.SPAWNER
-            ) {
-                Entity mob = getRandomMob(event.getEntity().getLevel());
-                spawnMob(level, mob, event.getEntity());
-                entityCount++;
-            }
+        if (isEnabled) {
+            randomizeMobSpawn(event.getSpawnReason(), event.getEntity());
+            event.setCanceled(true);
         }
-        event.setCanceled(true);
     }
 
     @SubscribeEvent
     public void onDeath(LivingDeathEvent event) {
-        EntityType<?> type = event.getEntity().getType();
-        if (entityTypes.contains(type)) {
-            entityCount--;
-        }
-        if (entityCount < 0) {
-            entityCount = 0;
+        if (isEnabled) {
+            EntityType<?> type = event.getEntity().getType();
+            if (entityTypes.contains(type)) {
+                entityCount--;
+            }
+            if (entityCount < 0) {
+                entityCount = 0;
+            }
         }
     }
 }

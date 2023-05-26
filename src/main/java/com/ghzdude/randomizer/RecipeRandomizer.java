@@ -32,6 +32,7 @@ public class RecipeRandomizer {
             } else {
                 newResult = ItemRandomizer.specialItemToStack(ItemRandomizer.getRandomItem());
                 newResult.setCount(Math.min(recipe.getResultItem().getCount(), newResult.getMaxStackSize()));
+                RandomizerCore.LOGGER.warn("No data for " + recipe.getId() + ", generating new data!");
                 data.put(recipe.getId(), newResult);
             }
 
@@ -49,12 +50,14 @@ public class RecipeRandomizer {
 
     @SubscribeEvent
     public void start(ServerStartedEvent event) {
-        data = get(event.getServer().overworld().getDataStorage());
+        if (RandomizerConfig.recipeRandomizerEnabled()) {
+            data = get(event.getServer().overworld().getDataStorage());
 
-        RandomizerCore.LOGGER.warn("Randomizing Recipes!");
-        randomizeRecipes(event.getServer().getRecipeManager().getRecipes());
+            RandomizerCore.LOGGER.warn("Recipe Randomizer Running!");
+            randomizeRecipes(event.getServer().getRecipeManager().getRecipes());
 
-        data.setDirty();
+            data.setDirty();
+        }
     }
 
     public static RecipeData get(DimensionDataStorage storage){

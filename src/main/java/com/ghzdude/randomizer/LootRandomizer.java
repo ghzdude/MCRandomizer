@@ -65,6 +65,7 @@ public class LootRandomizer {
                 newEntries = generateRandomList(calculateNewResults(entries));
                 if (newEntries.size() == 0) return;
                 data.addPool(tableId, poolName, newEntries);
+                RandomizerCore.LOGGER.warn("No data for " + tableId + ", generating new data!");
             }
 
             modifyEntries(entries, newEntries);
@@ -165,15 +166,14 @@ public class LootRandomizer {
 
     @SubscribeEvent
     public void start(ServerStartedEvent event) {
-        data = get(event.getServer().overworld().getDataStorage());
+        if (RandomizerConfig.lootRandomizerEnabled()) {
+            data = get(event.getServer().overworld().getDataStorage());
 
-        if (data.getTablesCount() > 0) {
-            RandomizerCore.LOGGER.warn("Using existing randomized loot table data!");
-        } else {
-            RandomizerCore.LOGGER.warn("Unable to find or use existing data! Randomizing loot tables!");
+            RandomizerCore.LOGGER.warn("Loot Table Randomizer running!");
+
+            randomizeLootTables(event.getServer().getLootTables());
+            data.setDirty();
         }
-        randomizeLootTables(event.getServer().getLootTables());
-        data.setDirty();
     }
 
     public static LootData get(DimensionDataStorage storage){

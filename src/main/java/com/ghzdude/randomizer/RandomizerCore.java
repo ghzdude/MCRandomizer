@@ -65,21 +65,12 @@ public class RandomizerCore
 
         // Register ourselves for server and other game events we are interested in
         MinecraftForge.EVENT_BUS.register(this);
-        if (RandomizerConfig.recipeRandomizerEnabled()) {
-            MinecraftForge.EVENT_BUS.register(new RecipeRandomizer());
-        }
-
-        if (RandomizerConfig.lootRandomizerEnabled()) {
-            MinecraftForge.EVENT_BUS.register(new LootRandomizer());
-        }
-
-        if (RandomizerConfig.mobRandomizerEnabled()) {
-            MinecraftForge.EVENT_BUS.register(new MobRandomizer());
-        }
     }
 
     private void commonSetup(final FMLCommonSetupEvent event) {
-
+        MinecraftForge.EVENT_BUS.register(new RecipeRandomizer());
+        MinecraftForge.EVENT_BUS.register(new LootRandomizer());
+        MinecraftForge.EVENT_BUS.register(new MobRandomizer());
     }
 
     public static void incrementAmtItemsGiven() {
