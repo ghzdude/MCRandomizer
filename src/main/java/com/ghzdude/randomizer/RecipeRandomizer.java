@@ -31,6 +31,7 @@ public class RecipeRandomizer {
         } else {
             newResult = ItemRandomizer.specialItemToStack(ItemRandomizer.getRandomItem());
             newResult.setCount(Math.min(recipe.getResultItem().getCount(), newResult.getMaxStackSize()));
+            data.changedRecipes.put(recipe.getId(), newResult);
         }
 
         if (recipe instanceof ShapedRecipe) {
