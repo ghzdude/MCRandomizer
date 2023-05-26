@@ -27,14 +27,14 @@ public class RandomizerConfig {
         this.giveRandomItems = builder.comment("Should random items be given to the player? Defaults to true.")
                 .define("give_random_items", true);
 
-        this.itemCooldown = builder.comment("Time between items given (measured in ticks, 20 ticks is one second) : Default value is 1200.")
-                .define("item_cooldown", 1200);
+        this.itemCooldown = builder.comment("Time between items given (measured in ticks, 20 ticks is one second) : Default value is 600.")
+                .define("item_cooldown", 600);
 
         this.giveMultipleItems = builder.comment("Should the randomizer attempt to give the player more items if there are still points to use. Defaults to false.")
                 .define("give_multiple_items", false);
 
-        this.cycleBase = builder.comment("Amount of cycles needed to reach the first point max increment. Default value is 3.")
-                        .define("cycle_base", 3);
+        this.cycleBase = builder.comment("Amount of cycles needed to reach the first point max increment. Default value is 5.")
+                        .define("cycle_base", 5);
         builder.pop();
 
         // Recipe Randomizer
