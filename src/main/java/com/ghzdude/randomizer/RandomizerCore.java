@@ -5,6 +5,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.RandomSource;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.level.block.Block;
 import net.minecraftforge.common.MinecraftForge;
@@ -41,7 +42,7 @@ public class RandomizerCore
     // public static final RegistryObject<Item> EXAMPLE_BLOCK_ITEM = ITEMS.register("example_block", () -> new BlockItem(EXAMPLE_BLOCK.get(), new Item.Properties().tab(CreativeModeTab.TAB_BUILDING_BLOCKS)));
 
     private static int OFFSET = 0;
-    private static final int COUNTER_MAX = 20;
+    private static final int COUNTER_MAX = 50;
     private static int structureProbability;
     public static final RandomSource RANDOM = RandomSource.create();
     private static int points = 0;
@@ -97,22 +98,26 @@ public class RandomizerCore
             if (RandomizerConfig.structureRandomizerEnabled() && selection < structureProbability) {
 
                 pointsToUse = StructureRandomizer.placeStructure(pointsToUse, player.getLevel(), player);
+                increaseCycle(player);
 
             } else if (RandomizerConfig.itemRandomizerEnabled()) {
                 player.displayClientMessage(Component.literal("Giving Item..."), true);
                 pointsToUse = ItemRandomizer.giveRandomItem(pointsToUse, player.getInventory());
+                increaseCycle(player);
             }
 
             points += pointsToUse;
+        }
+    }
 
-            cycle++;
-            if (cycle % cycleCounter == 0) {
-                if (cycleCounter < COUNTER_MAX) {
-                    cycleCounter += 2;
-                }
-                pointMax++;
-                player.sendSystemMessage(Component.translatable("player.point_max.increased", pointMax));
-            }
+    private void increaseCycle(Player player) {
+        cycle++;
+        if (cycle % cycleCounter == 0) {
+            cycle = 0;
+            int i = (cycleCounter / 2) + 1;
+            cycleCounter = Math.min(cycleCounter + i, COUNTER_MAX);
+            pointMax++;
+            player.sendSystemMessage(Component.translatable("player.point_max.increased", pointMax));
         }
     }
 
