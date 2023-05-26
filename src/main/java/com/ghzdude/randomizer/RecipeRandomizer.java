@@ -14,6 +14,7 @@ import net.minecraftforge.event.server.ServerStartedEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.Collection;
 import java.util.Map;
 
 /* Recipe Randomizer Description
@@ -23,25 +24,26 @@ import java.util.Map;
 public class RecipeRandomizer {
     private RecipeData data;
 
-    public void randomizeRecipe(Recipe<?> recipe) {
+    public void randomizeRecipes(Collection<Recipe<?>> recipes) {
+        for (Recipe<?> recipe : recipes) {
+            ItemStack newResult;
+            if (data.hasRecipe(recipe.getId())) {
+                newResult = data.getStack(recipe.getId());
+            } else {
+                newResult = ItemRandomizer.specialItemToStack(ItemRandomizer.getRandomItem());
+                newResult.setCount(Math.min(recipe.getResultItem().getCount(), newResult.getMaxStackSize()));
+                data.put(recipe.getId(), newResult);
+            }
 
-        ItemStack newResult;
-        if (data.changedRecipes.get(recipe.getId()) != null) {
-            newResult = data.changedRecipes.get(recipe.getId());
-        } else {
-            newResult = ItemRandomizer.specialItemToStack(ItemRandomizer.getRandomItem());
-            newResult.setCount(Math.min(recipe.getResultItem().getCount(), newResult.getMaxStackSize()));
-            data.changedRecipes.put(recipe.getId(), newResult);
-        }
-
-        if (recipe instanceof ShapedRecipe) {
-            ReflectionUtils.setField(ShapedRecipe.class, (ShapedRecipe) recipe, 5, newResult);
-        } else if (recipe instanceof ShapelessRecipe) {
-            ReflectionUtils.setField(ShapelessRecipe.class, (ShapelessRecipe) recipe, 2, newResult);
-        } else if (recipe instanceof AbstractCookingRecipe) {
-            ReflectionUtils.setField(AbstractCookingRecipe.class, (AbstractCookingRecipe) recipe, 4, newResult);
-        } else if (recipe instanceof SingleItemRecipe) {
-            ReflectionUtils.setField(SingleItemRecipe.class, (SingleItemRecipe) recipe, 1, newResult);
+            if (recipe instanceof ShapedRecipe) {
+                ReflectionUtils.setField(ShapedRecipe.class, (ShapedRecipe) recipe, 5, newResult);
+            } else if (recipe instanceof ShapelessRecipe) {
+                ReflectionUtils.setField(ShapelessRecipe.class, (ShapelessRecipe) recipe, 2, newResult);
+            } else if (recipe instanceof AbstractCookingRecipe) {
+                ReflectionUtils.setField(AbstractCookingRecipe.class, (AbstractCookingRecipe) recipe, 4, newResult);
+            } else if (recipe instanceof SingleItemRecipe) {
+                ReflectionUtils.setField(SingleItemRecipe.class, (SingleItemRecipe) recipe, 1, newResult);
+            }
         }
     }
 
@@ -50,9 +52,8 @@ public class RecipeRandomizer {
         data = get(event.getServer().overworld().getDataStorage());
 
         RandomizerCore.LOGGER.warn("Randomizing Recipes!");
-        for (Recipe<?> recipe : event.getServer().getRecipeManager().getRecipes()) {
-            randomizeRecipe(recipe);
-        }
+        randomizeRecipes(event.getServer().getRecipeManager().getRecipes());
+
         data.setDirty();
     }
 
@@ -62,7 +63,7 @@ public class RecipeRandomizer {
 
     protected static class RecipeData extends SavedData {
 
-        public final Map<ResourceLocation, ItemStack> changedRecipes = new Object2ObjectArrayMap<>();
+        private final Map<ResourceLocation, ItemStack> changedRecipes = new Object2ObjectArrayMap<>();
 
         @Override
         public @NotNull CompoundTag save(CompoundTag tag) {
@@ -98,6 +99,18 @@ public class RecipeRandomizer {
                 );
             }
             return data;
+        }
+
+        public boolean hasRecipe(ResourceLocation location) {
+            return changedRecipes.containsKey(location);
+        }
+
+        public ItemStack getStack(ResourceLocation location) {
+            return changedRecipes.get(location);
+        }
+
+        public void put(ResourceLocation location, ItemStack stack) {
+            changedRecipes.put(location, stack);
         }
     }
 }
