@@ -35,23 +35,23 @@ public class RandomizerCore
     public static final DeferredRegister<Block> BLOCKS = DeferredRegister.create(ForgeRegistries.BLOCKS, MODID);
     // Create a Deferred Register to hold Items which will all be registered under the "examplemod" namespace
     public static final DeferredRegister<Item> ITEMS = DeferredRegister.create(ForgeRegistries.ITEMS, MODID);
+    public static final RandomSource RANDOM = RandomSource.create();
 
     // Creates a new Block with the id "examplemod:example_block", combining the namespace and path
     // public static final RegistryObject<Block> EXAMPLE_BLOCK = BLOCKS.register("example_block", () -> new Block(BlockBehaviour.Properties.of(Material.STONE)));
     // Creates a new BlockItem with the id "examplemod:example_block", combining the namespace and path
     // public static final RegistryObject<Item> EXAMPLE_BLOCK_ITEM = ITEMS.register("example_block", () -> new BlockItem(EXAMPLE_BLOCK.get(), new Item.Properties().tab(CreativeModeTab.TAB_BUILDING_BLOCKS)));
 
-    private static int OFFSET = 0;
+    private int OFFSET = 0;
     private static final int COUNTER_MAX = 50;
-    private static int structureProbability;
-    private static boolean pointsCarryover;
-    public static final RandomSource RANDOM = RandomSource.create();
-    private static int points = 0;
-    private static int pointMax = 1;
     private static int amtItemsGiven = 0;
-    private static int cycle = 0;
-    private static int cycleCounter = 3;
-    private static int cooldown;
+    private int structureProbability;
+    private boolean pointsCarryover;
+    private int points = 0;
+    private int pointMax = 1;
+    private int cycle = 0;
+    private int cycleCounter = 3;
+    private int cooldown;
 
     public RandomizerCore() {
         IEventBus modEventBus = FMLJavaModLoadingContext.get().getModEventBus();
@@ -128,7 +128,6 @@ public class RandomizerCore
     public void onStart(ServerStartedEvent event) {
         pointsCarryover = RandomizerConfig.pointsCarryover();
         structureProbability = RandomizerConfig.getStructureProbability();
-        structureProbability = Math.max(1, Math.min(100, structureProbability));
         cooldown = RandomizerConfig.getCooldown();
     }
 

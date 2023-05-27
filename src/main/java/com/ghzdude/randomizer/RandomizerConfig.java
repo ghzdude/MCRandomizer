@@ -49,11 +49,11 @@ public class RandomizerConfig {
 
         // Structure Randomizer
         builder.push("Structure Randomizer");
-        this.generateStructures = builder.comment("Should random structures be generated when able? Defaults to true.")
+        this.generateStructures = builder.comment("Should random structures be generated when able? Defaults to true.").worldRestart()
                 .define("generate_structures", true);
 
-        this.structureProbability = builder.comment("Probability of how likely structure generation is picked over item generation. Defaults to 10, value should be between 0 and 100 ")
-                        .define("structure_probability", 10);
+        this.structureProbability = builder.comment("Percent chance of how likely structure generation is picked over item generation. Defaults to 10.")
+                        .defineInRange("structure_probability", 10, 0, 100);
         builder.pop();
 
         builder.push("Loot Randomizer");
