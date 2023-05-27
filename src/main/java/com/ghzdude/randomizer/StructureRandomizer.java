@@ -72,7 +72,7 @@ public class StructureRandomizer {
         ChunkGenerator chunkgenerator = serverLevel.getChunkSource().getGenerator();
         StructureStart structurestart = structure.generate(serverLevel.registryAccess(), chunkgenerator, chunkgenerator.getBiomeSource(), serverLevel.getChunkSource().randomState(), serverLevel.getStructureManager(), serverLevel.getSeed(), new ChunkPos(blockPos), 0, serverLevel, (biomes) -> true);
         if (!structurestart.isValid()) {
-            RandomizerCore.LOGGER.warn("Invalid Structure Start!");
+            RandomizerCore.LOGGER.warn("Invalid Structure Start for \"{}\"!", structure);
             return false;
         }
 
@@ -88,7 +88,7 @@ public class StructureRandomizer {
 
     @SuppressWarnings("SuspiciousMethodCalls")
     private static Collection<SpecialStructure> configureStructures() {
-        ArrayList<SpecialStructure> list = new SpecialStructureList();
+        SpecialStructureList list = new SpecialStructureList();
 
         for (Structure structure : BuiltinRegistries.STRUCTURES) {
             SpecialStructure toAdd;
