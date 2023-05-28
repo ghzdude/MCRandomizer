@@ -23,35 +23,6 @@ public class SpecialItems {
             Items.JIGSAW
     ));
 
-    /* create special logic for...
-     * Written Book
-     * Tipped Arrow
-     * potions
-     * sus stew
-     */
-
-    /* give point values to
-     * wodden tools - 1 point
-     * stone tools - 2 point
-     * iron tools - 3 point
-     * diamond tools - 5 point
-     * netherite tools - 9 point
-     * nether star - 15 points
-     * shulker boxes 6 points
-     * chest 3 points
-     * bundle 6 points
-     * written book 4 points
-     * potions 4 points
-     * splash/lingering potions 6 points
-     * tipped arrows 6 points
-     * villager stations 6-15
-     * furnace 2 points
-     * blast furnace 5 points
-     * cooker 4 points
-     * campfire 2 points
-     * im fucking tired lol
-     */
-
     public static final SpecialItemList EFFECT_ITEMS = new SpecialItemList(Arrays.asList(
             new SpecialItem(Items.POTION, 4),
             new SpecialItem(Items.SPLASH_POTION, 6),
