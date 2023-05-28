@@ -1,6 +1,9 @@
 package com.ghzdude.randomizer;
 
+import com.ghzdude.randomizer.special.generators.BookGenerator;
+import com.ghzdude.randomizer.special.generators.EnchantmentGenerator;
 import com.ghzdude.randomizer.special.item.*;
+import com.ghzdude.randomizer.special.generators.PotionGenerator;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.StringTag;
@@ -8,12 +11,10 @@ import net.minecraft.util.RandomSource;
 import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Inventory;
-import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.alchemy.Potion;
-import net.minecraft.world.item.alchemy.Potions;
 import net.minecraftforge.registries.ForgeRegistries;
 
 import java.util.ArrayList;
@@ -59,7 +60,6 @@ public class ItemRandomizer {
     }
 
     public static int giveRandomItem(int pointsToUse, Inventory inventory){
-
         if (RandomizerConfig.giveMultipleItems()) {
             pointsToUse = giveMultiple(pointsToUse, inventory);
         } else {
@@ -104,113 +104,28 @@ public class ItemRandomizer {
         return toReturn;
     }
 
-    public static ItemStack specialItemToStack (SpecialItem item) {
-        ItemStack stack = new ItemStack(item.item);
-
-        // do something about goat horns and fireworks
-        if (item.item == Items.WRITTEN_BOOK){
-            getRandomBook(stack);
-        } else if (SpecialItems.EFFECT_ITEMS.contains(item)) {
-            applyEffect(stack);
-        }
-
-        return stack;
-    }
-
     @SuppressWarnings("SuspiciousMethodCalls")
     public static SpecialItem getRandomSimpleItem() {
         SpecialItem item;
         do {
             item = getRandomItem();
-        } while (SpecialItems.BLACKLISTED_ITEMS.contains(item) || SpecialItems.EFFECT_ITEMS.contains(item));
+        } while (SpecialItems.EFFECT_ITEMS.contains(item) || SpecialItems.ENCHANTABLE.contains(item));
         return item;
     }
 
-    private static void getRandomBook(ItemStack stack) {
-        // pages -> {ListTag@23688}  size = 1
-        //      '{"text":"proper book"}'
-        // author -> {StringTag@23690} ""Dev""
-        // filtered_title -> {StringTag@23692} ""krk""
-        // title -> {StringTag@23694} ""krk""
+    public static ItemStack specialItemToStack (SpecialItem item) {
+        ItemStack stack = new ItemStack(item.item);
 
-        // player.getInventory().getItem(5).getTag().put("pages", new ListTag(){{add(StringTag.valueOf("{\"text\":\"improper book\"}"));}})
-
-        CompoundTag tag = new CompoundTag();
-        ListTag pages = new ListTag();
-        StringTag author = StringTag.valueOf("\"Amonga\"");
-        StringTag filteredTitle = StringTag.valueOf("\"The Book of Sus\"");
-        StringTag title = StringTag.valueOf("\"The Book of Sus\"");
-
-        // each page has a max of 798 characters
-        // each book has a max of 100 pages in JE
-        pages.add(0, StringTag.valueOf("{\"text\":\"they are among us\"}"));
-        tag.put("pages", pages);
-        tag.put("author", author);
-        tag.put("filtered_title", filteredTitle);
-        tag.put("title", title);
-        stack.setTag(tag);
-    }
-
-    private static void applyEffect(ItemStack stack) {
-        // Potion -> {StringTag@24140} ""minecraft:swiftness""
-
-        // Effects -> {ListTag@24241}  size = 1
-        //      Compound Tag ->
-        //          "EffectDuration" -> {IntTag@24252} "120"
-        //          "forge:effect_id" -> {StringTag@24254} ""minecraft:jump_boost""
-        //          "EffectId" -> {IntTag@24256} "8"
-
-        ArrayList<Potion> potions = new ArrayList<>(ForgeRegistries.POTIONS.getValues());
-        ArrayList<MobEffect> mobEffects = new ArrayList<>(ForgeRegistries.MOB_EFFECTS.getValues());
-        potions.removeIf(potion -> potion == Potions.EMPTY);
-
-        final RandomSource random = RandomizerCore.RANDOM;
-
-        int id = random.nextInt(potions.size());
-        int numOfEffects = random.nextInt(3) + 1;
-
-        CompoundTag baseTag = new CompoundTag();
-
-        if (stack.getItem() == Items.SUSPICIOUS_STEW) {
-            ListTag effects = new ListTag();
-            CompoundTag effect = new CompoundTag();
-
-            for (int i = 1; i <= numOfEffects; i++) {
-                effect.putInt("EffectDuration", random.nextIntBetweenInclusive(100, 2000));
-                effect.putString("forge:effect_id", potions.get(id).getName("minecraft:"));
-                effects.add(effect);
-            }
-
-            baseTag.put("Effects", effects);
-
-        } else {
-            ListTag effects = new ListTag();
-
-            for (int i = 1; i <= numOfEffects; i++) {
-                CompoundTag effect = new CompoundTag();
-                effect.putInt("Id", random.nextInt(mobEffects.size()));
-                effect.putInt("Amplifier", random.nextInt(4) + 1);
-                effect.putInt("Duration",random.nextIntBetweenInclusive(100, 2000));
-                effect.putBoolean("ShowIcon", true);
-                effects.add(effect);
-            }
-            baseTag.put("CustomPotionEffects", effects);
-            baseTag.putString("Potion", "minecraft:water");
-
-            baseTag.putInt("CustomPotionColor", random.nextInt(HexFormat.fromHexDigits("00FFFFFF")));
-
-            CompoundTag displayTag = new CompoundTag();
-
-            String itemType = stack.getItem() == Items.TIPPED_ARROW ? "Arrow" : "Potion";
-            displayTag.putString("Name", String.format("\"Randomly Generated %s\"", itemType));
-
-            ListTag lore = new ListTag();
-            lore.add(StringTag.valueOf(String.format("\"A randomly generated %s from the Gods\"", itemType)));
-            displayTag.put("Lore", lore);
-            baseTag.put("display", displayTag);
-
+        // do something about goat horns and fireworks
+        if (item.item == Items.WRITTEN_BOOK){
+            BookGenerator.applyPassages(stack);
+        } else if (SpecialItems.EFFECT_ITEMS.contains(item)) {
+            PotionGenerator.applyEffect(stack);
+        } else if (SpecialItems.ENCHANTABLE.contains(item.item)) {
+            EnchantmentGenerator.applyEnchantment(stack);
         }
-        stack.setTag(baseTag);
+
+        return stack;
     }
 
     private static void addStackToPlayer(ItemStack stack, Inventory inventory) {
