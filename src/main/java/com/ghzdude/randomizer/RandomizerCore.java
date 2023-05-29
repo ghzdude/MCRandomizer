@@ -1,6 +1,7 @@
 package com.ghzdude.randomizer;
 
 import com.ghzdude.randomizer.io.PassageIO;
+import com.ghzdude.randomizer.special.generators.BookGenerator;
 import com.mojang.logging.LogUtils;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
@@ -8,6 +9,8 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Block;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.TickEvent;
@@ -75,7 +78,8 @@ public class RandomizerCore
         MinecraftForge.EVENT_BUS.register(new RecipeRandomizer());
         MinecraftForge.EVENT_BUS.register(new LootRandomizer());
         MinecraftForge.EVENT_BUS.register(new MobRandomizer());
-        PassageIO.readTest();
+        BookGenerator.applyPassages(new ItemStack(Items.WRITTEN_BOOK));
+        // PassageIO.readTest();
     }
 
     public static void incrementAmtItemsGiven() {

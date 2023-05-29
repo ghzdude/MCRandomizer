@@ -19,7 +19,7 @@ public class PassageIO {
     private static final String PASSAGE_DIR = "config\\passages\\";
     private static final File directory = new File(Minecraft.getInstance().gameDirectory, PASSAGE_DIR);
 
-    private static Gson GSON = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
+    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
 
     @SuppressWarnings("ResultOfMethodCallIgnored")
     public static void writeTest() {
@@ -31,11 +31,11 @@ public class PassageIO {
         for (int i = 0; i < Passages.PASSAGES.size(); i++) {
             JsonObject passageJson = new JsonObject();
             Passage passage = Passages.PASSAGES.get(i);
-            File passageFile = createFileName(directory, passage.getTitle());
+            File passageFile = createFileName(directory, passage.title());
 
-            passageJson.addProperty("author", passage.getAuthor());
-            passageJson.addProperty("title", passage.getTitle());
-            passageJson.addProperty("body", passage.getBody());
+            passageJson.addProperty("author", passage.author());
+            passageJson.addProperty("title", passage.title());
+            passageJson.addProperty("body", passage.body());
 
             try {
                 Writer writer = Files.newBufferedWriter(passageFile.toPath());
@@ -79,7 +79,7 @@ public class PassageIO {
 
                     reader.endObject();
 
-                    if (Passages.PASSAGES.stream().noneMatch(pass -> pass.getTitle().equals(title))) {
+                    if (Passages.PASSAGES.stream().noneMatch(pass -> pass.title().equals(title))) {
                         Passages.PASSAGES.add(new Passage(author, title, body));
                     } else {
                         RandomizerCore.LOGGER.warn("Passage \"" + title + "\" already exists! Titles must be unique!");
