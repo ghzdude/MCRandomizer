@@ -1,5 +1,6 @@
 package com.ghzdude.randomizer;
 
+import com.ghzdude.randomizer.io.PassageIO;
 import com.mojang.logging.LogUtils;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
@@ -74,6 +75,7 @@ public class RandomizerCore
         MinecraftForge.EVENT_BUS.register(new RecipeRandomizer());
         MinecraftForge.EVENT_BUS.register(new LootRandomizer());
         MinecraftForge.EVENT_BUS.register(new MobRandomizer());
+        PassageIO.readTest();
     }
 
     public static void incrementAmtItemsGiven() {

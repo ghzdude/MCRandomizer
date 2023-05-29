@@ -16,6 +16,7 @@ public class BookGenerator {
 
     private static final ArrayList<Passage> PASSAGES = new ArrayList<>();
     public static void applyPassages(ItemStack stack) {
+
         CompoundTag tag = new CompoundTag();
         ListTag pages = new ListTag();
         int id = RandomizerCore.RANDOM.nextInt(PASSAGES.size());
@@ -24,9 +25,8 @@ public class BookGenerator {
         StringTag title = StringTag.valueOf(String.format(FORMAT, passage.getTitle()));
         StringTag author = StringTag.valueOf(String.format(FORMAT, passage.getAuthor()));
 
-        for (String page : passage.getPages()) {
-            // each page has a max of 798 characters
-            // each book has a max of 100 pages in JE
+        for (String page : passage.parseBody()) {
+
             pages.add(StringTag.valueOf(String.format(PAGE_FORMAT, page)));
         }
 

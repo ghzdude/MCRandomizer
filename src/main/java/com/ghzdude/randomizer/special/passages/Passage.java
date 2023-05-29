@@ -1,22 +1,16 @@
 package com.ghzdude.randomizer.special.passages;
 
 import java.util.ArrayList;
-import java.util.List;
 
 public class Passage {
+    public static final int MAX_CHARS = 798;
     private final String author;
     private final String title;
-    private final ArrayList<String> pages;
-
-    Passage (String author, String title, ArrayList<String> pages) {
+    private final String body;
+    public Passage (String author, String title, String body) {
         this.author = author;
         this.title = title;
-        this.pages = pages;
-    }
-    Passage (String author, String title, String page) {
-        this.author = author;
-        this.title = title;
-        this.pages = new ArrayList<>(List.of(page));
+        this.body = body;
     }
 
     public String getAuthor() {
@@ -27,7 +21,27 @@ public class Passage {
         return title;
     }
 
-    public ArrayList<String> getPages() {
-        return pages;
+    public String getBody() {
+        return body;
+    }
+
+    public ArrayList<String> parseBody() {
+        // parse body into proper book format
+        // each page has a max of 798 characters
+        // each book has a max of 100 pages in JE
+        ArrayList<String> formatted = new ArrayList<>();
+        int pages = Math.floorDiv(MAX_CHARS, body.length());
+
+        for (int i = 1; i <= pages; i++) {
+            int start = (i - 1) * MAX_CHARS;
+            int end = (i) * MAX_CHARS;
+            String s = body.substring(start, end);
+            int lastSpace = s.lastIndexOf(" ");
+            s = body.substring(start, lastSpace);
+
+        }
+
+
+        return formatted;
     }
 }
