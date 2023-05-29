@@ -12,8 +12,8 @@ import java.util.ArrayList;
 
 public class BookGenerator {
 
-    private static final String FORMAT = "\"%s\"";
-    private static final String PAGE_FORMAT = "{\"text\":" + FORMAT + "}";
+    private static final String FORMAT = "%s";
+    private static final String PAGE_FORMAT = "\"%s\"";
 
     public static void applyPassages(ItemStack stack) {
 
@@ -32,7 +32,6 @@ public class BookGenerator {
         tag.put("author", author);
         tag.put("title", title);
         tag.put("pages", pages);
-        // tag.put("filtered_title", title);
         stack.setTag(tag);
     }
 }

@@ -16,54 +16,47 @@ import java.nio.file.Files;
 import java.util.Locale;
 
 public class PassageIO {
-    private static final String PASSAGE_DIR = "config\\passages\\";
+    private static final String PASSAGE_DIR = "config\\" + RandomizerCore.MODID + "\\passages\\";
     private static final File directory = new File(Minecraft.getInstance().gameDirectory, PASSAGE_DIR);
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
 
     @SuppressWarnings("ResultOfMethodCallIgnored")
-    public static void writeTest() {
+    public static void writeExample() {
 
         if (!directory.exists()) {
             directory.mkdir();
         }
 
-        for (int i = 0; i < Passages.PASSAGES.size(); i++) {
-            JsonObject passageJson = new JsonObject();
-            Passage passage = Passages.PASSAGES.get(i);
-            File passageFile = createFileName(directory, passage.title());
+        Passage passage = Passages.EXAMPLE;
+        File passageFile = createFileName(directory, passage.title());
 
-            passageJson.addProperty("author", passage.author());
-            passageJson.addProperty("title", passage.title());
-            passageJson.addProperty("body", passage.body());
+        try {
+            Writer writer = Files.newBufferedWriter(passageFile.toPath());
 
-            try {
-                Writer writer = Files.newBufferedWriter(passageFile.toPath());
-
-                if (!passageFile.exists()) {
-                    passageFile.createNewFile();
-                }
-
-                GSON.toJson(passage, writer);
-                writer.close();
-            } catch (IOException | NullPointerException e) {
-                RandomizerCore.LOGGER.warn("Failure to write JSON at " + passageFile.getAbsolutePath());
-            }
+            GSON.toJson(passage, writer);
+            writer.close();
+        } catch (IOException | NullPointerException e) {
+            RandomizerCore.LOGGER.warn("Failure to write JSON at " + passageFile.getAbsolutePath());
         }
     }
 
     @SuppressWarnings("ResultOfMethodCallIgnored")
-    public static void readTest() {
+    public static void readPassagesFromDisk() {
         if (!directory.exists()) {
-            directory.mkdir();
+            directory.mkdirs();
         }
 
         String[] listPath = directory.list();
-        File passageFile;
+
+        if (listPath == null || listPath.length == 0) {
+            writeExample();
+            listPath = directory.list();
+        }
 
         if (listPath != null) {
             for (String passage : listPath) {
-                passageFile = new File(directory,  "\\" + passage);
+                File passageFile = new File(directory,  "\\" + passage);
                 try {
                     JsonReader reader = GSON.newJsonReader(Files.newBufferedReader(passageFile.toPath()));
                     reader.beginObject();

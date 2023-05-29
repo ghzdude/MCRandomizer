@@ -78,8 +78,8 @@ public class RandomizerCore
         MinecraftForge.EVENT_BUS.register(new RecipeRandomizer());
         MinecraftForge.EVENT_BUS.register(new LootRandomizer());
         MinecraftForge.EVENT_BUS.register(new MobRandomizer());
-        BookGenerator.applyPassages(new ItemStack(Items.WRITTEN_BOOK));
-        // PassageIO.readTest();
+        PassageIO.readPassagesFromDisk();
+        // BookGenerator.applyPassages(new ItemStack(Items.WRITTEN_BOOK));
     }
 
     public static void incrementAmtItemsGiven() {

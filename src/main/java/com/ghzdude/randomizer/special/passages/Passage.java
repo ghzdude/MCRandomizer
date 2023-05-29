@@ -3,7 +3,7 @@ package com.ghzdude.randomizer.special.passages;
 import java.util.ArrayList;
 
 public record Passage(String author, String title, String body) {
-    public static final int MAX_CHARS = 798;
+    public static final int MAX_CHARS = 255;
     public static final int MAX_PAGES = 100;
 
     public ArrayList<String> parseBody() {
@@ -13,18 +13,22 @@ public record Passage(String author, String title, String body) {
         ArrayList<String> formatted = new ArrayList<>();
         int pages = Math.floorDiv(body.length(), MAX_CHARS) + 1;
         if (pages > MAX_PAGES) pages = MAX_PAGES;
-        int lastSpace = 0;
-        int lastDot = 0;
+        int lastSpace;
+        int lastDot;
+        int start = 0;
 
         for (int i = 0; i < pages; i++) {
-            int start = (i * MAX_CHARS + i) - Math.max(lastSpace, lastDot);
+            // diff -= MAX_CHARS - Math.max(lastSpace, lastDot);
             int end = Math.min(start + MAX_CHARS, body.length());
 
+            // int start = (i * MAX_CHARS + i) - diff;
+            // int end = Math.min(start + MAX_CHARS, body.length());
             lastSpace = body.substring(start, end).lastIndexOf(" ");
             lastDot = body.substring(start, end).lastIndexOf(".");
-            String s = body.substring(start, start + Math.max(lastSpace, lastDot));
+            int index = Math.max(lastSpace,  lastDot) + 1;
 
-            formatted.add(s);
+            formatted.add(body.substring(start, start + index));
+            start += index;
         }
         return formatted;
     }
