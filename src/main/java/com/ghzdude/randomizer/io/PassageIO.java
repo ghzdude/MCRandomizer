@@ -33,9 +33,10 @@ public class PassageIO {
 
         try {
             Writer writer = Files.newBufferedWriter(passageFile.toPath());
-
-            GSON.toJson(passage, writer);
-            writer.close();
+            if (!passageFile.exists()) {
+                GSON.toJson(passage, writer);
+                writer.close();
+            }
         } catch (IOException | NullPointerException e) {
             RandomizerCore.LOGGER.warn("Failure to write JSON at " + passageFile.getAbsolutePath());
         }
@@ -49,15 +50,13 @@ public class PassageIO {
 
         String[] listPath = directory.list();
 
-        if (listPath == null || listPath.length == 0) {
-            writeExample();
-            listPath = directory.list();
-        }
-
         if (listPath != null) {
             for (String passage : listPath) {
                 File passageFile = new File(directory,  "\\" + passage);
                 try {
+                    if (passageFile.createNewFile()) {
+                        writeExample();
+                    }
                     JsonReader reader = GSON.newJsonReader(Files.newBufferedReader(passageFile.toPath()));
                     reader.beginObject();
 
@@ -79,7 +78,7 @@ public class PassageIO {
                     }
                     reader.close();
                 } catch (IOException | NullPointerException e) {
-                    RandomizerCore.LOGGER.warn("Failure to read JSON at " + passageFile.getAbsolutePath());
+                    RandomizerCore.LOGGER.warn("Failure to read JSON at " + passageFile.getAbsolutePath() + " Overriding!");
                 }
             }
         }
