@@ -1,5 +1,6 @@
 package com.ghzdude.randomizer.special.item;
 
+import com.ghzdude.randomizer.io.ConfigIO;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;
 
@@ -8,20 +9,7 @@ import java.util.Arrays;
 import java.util.List;
 
 public class SpecialItems {
-    public static final ArrayList<Item> BLACKLISTED_ITEMS = new ArrayList<>(Arrays.asList(
-            Items.AIR,
-            Items.COMMAND_BLOCK,
-            Items.COMMAND_BLOCK_MINECART,
-            Items.CHAIN_COMMAND_BLOCK,
-            Items.REPEATING_COMMAND_BLOCK,
-            Items.BARRIER,
-            Items.LIGHT,
-            Items.STRUCTURE_BLOCK,
-            Items.STRUCTURE_VOID,
-            Items.WRITTEN_BOOK,
-            Items.KNOWLEDGE_BOOK,
-            Items.JIGSAW
-    ));
+    public static final ArrayList<Item> BLACKLISTED_ITEMS = ConfigIO.readBlacklist();
 
     public static final SpecialItemList EFFECT_ITEMS = new SpecialItemList(Arrays.asList(
             new SpecialItem(Items.POTION, 4),
@@ -31,48 +19,56 @@ public class SpecialItems {
             new SpecialItem(Items.SUSPICIOUS_STEW, 4)
     ));
 
+    public static final ArrayList<Item> WOODEN_TOOLS = new ArrayList<>(List.of(
+            Items.WOODEN_PICKAXE,
+            Items.WOODEN_AXE,
+            Items.WOODEN_HOE,
+            Items.WOODEN_SHOVEL,
+            Items.WOODEN_SWORD
+    ));
+    public static final ArrayList<Item> STONE_TOOLS = new ArrayList<>(List.of(
+            Items.STONE_PICKAXE,
+            Items.STONE_AXE,
+            Items.STONE_HOE,
+            Items.STONE_SHOVEL,
+            Items.STONE_SWORD
+    ));
+    public static final ArrayList<Item> IRON_TOOLS = new ArrayList<>(List.of(
+            Items.IRON_PICKAXE,
+            Items.IRON_AXE,
+            Items.IRON_HOE,
+            Items.IRON_SHOVEL,
+            Items.IRON_SWORD
+    ));
+    public static final ArrayList<Item> GOLDEN_TOOLS = new ArrayList<>(List.of(
+            Items.GOLDEN_PICKAXE,
+            Items.GOLDEN_AXE,
+            Items.GOLDEN_HOE,
+            Items.GOLDEN_SHOVEL,
+            Items.GOLDEN_SWORD
+    ));
+    public static final ArrayList<Item> DIAMOND_TOOLS = new ArrayList<>(List.of(
+            Items.DIAMOND_PICKAXE,
+            Items.DIAMOND_AXE,
+            Items.DIAMOND_HOE,
+            Items.DIAMOND_SHOVEL,
+            Items.DIAMOND_SWORD
+    ));
+    public static final ArrayList<Item> NETHERITE_TOOLS = new ArrayList<>(List.of(
+            Items.NETHERITE_PICKAXE,
+            Items.NETHERITE_AXE,
+            Items.NETHERITE_HOE,
+            Items.NETHERITE_SHOVEL,
+            Items.NETHERITE_SWORD
+    ));
+
     // enchantable tools/stuff
     public static final ArrayList<Item> ENCHANTABLE = new ArrayList<>(List.of(
             Items.ENCHANTED_BOOK
     ));
 
+
     public static final SpecialItemList SPECIAL_ITEMS = new SpecialItemList(Arrays.asList(
-            new SpecialItem(Items.WOODEN_PICKAXE),
-            new SpecialItem(Items.WOODEN_AXE),
-            new SpecialItem(Items.WOODEN_HOE),
-            new SpecialItem(Items.WOODEN_SHOVEL),
-            new SpecialItem(Items.WOODEN_SWORD),
-
-            new SpecialItem(Items.GOLDEN_PICKAXE, 2),
-            new SpecialItem(Items.GOLDEN_AXE, 2),
-            new SpecialItem(Items.GOLDEN_HOE, 2),
-            new SpecialItem(Items.GOLDEN_SHOVEL, 2),
-            new SpecialItem(Items.GOLDEN_SWORD, 2),
-
-            new SpecialItem(Items.STONE_PICKAXE, 2),
-            new SpecialItem(Items.STONE_AXE, 2),
-            new SpecialItem(Items.STONE_HOE, 2),
-            new SpecialItem(Items.STONE_SHOVEL, 2),
-            new SpecialItem(Items.STONE_SWORD, 2),
-
-            new SpecialItem(Items.IRON_PICKAXE, 3),
-            new SpecialItem(Items.IRON_AXE, 3),
-            new SpecialItem(Items.IRON_HOE, 3),
-            new SpecialItem(Items.IRON_SHOVEL, 3),
-            new SpecialItem(Items.IRON_SWORD, 3),
-
-            new SpecialItem(Items.DIAMOND_PICKAXE, 5),
-            new SpecialItem(Items.DIAMOND_AXE, 5),
-            new SpecialItem(Items.DIAMOND_HOE, 5),
-            new SpecialItem(Items.DIAMOND_SHOVEL, 5),
-            new SpecialItem(Items.DIAMOND_SWORD, 5),
-
-            new SpecialItem(Items.NETHERITE_PICKAXE, 9),
-            new SpecialItem(Items.NETHERITE_AXE, 9),
-            new SpecialItem(Items.NETHERITE_HOE, 9),
-            new SpecialItem(Items.NETHERITE_SHOVEL, 9),
-            new SpecialItem(Items.NETHERITE_SWORD, 9),
-
             new SpecialItem(Items.NETHER_STAR, 15),
             new SpecialItem(Items.CHEST, 3),
             new SpecialItem(Items.TRAPPED_CHEST, 3),
@@ -94,4 +90,21 @@ public class SpecialItems {
             new SpecialItem(Items.CAMPFIRE, 2),
             new SpecialItem(Items.SOUL_CAMPFIRE, 2)
     ));
+
+    static {
+        ENCHANTABLE.addAll(WOODEN_TOOLS);
+        ENCHANTABLE.addAll(STONE_TOOLS);
+        ENCHANTABLE.addAll(IRON_TOOLS);
+        ENCHANTABLE.addAll(GOLDEN_TOOLS);
+        ENCHANTABLE.addAll(DIAMOND_TOOLS);
+        ENCHANTABLE.addAll(NETHERITE_TOOLS);
+
+        WOODEN_TOOLS.forEach(item -> SPECIAL_ITEMS.add(new SpecialItem(item)));
+        STONE_TOOLS.forEach(item -> SPECIAL_ITEMS.add(new SpecialItem(item, 2)));
+        IRON_TOOLS.forEach(item -> SPECIAL_ITEMS.add(new SpecialItem(item, 3)));
+        GOLDEN_TOOLS.forEach(item -> SPECIAL_ITEMS.add(new SpecialItem(item, 2)));
+        DIAMOND_TOOLS.forEach(item -> SPECIAL_ITEMS.add(new SpecialItem(item, 5)));
+        NETHERITE_TOOLS.forEach(item -> SPECIAL_ITEMS.add(new SpecialItem(item, 9)));
+    }
+
 }
