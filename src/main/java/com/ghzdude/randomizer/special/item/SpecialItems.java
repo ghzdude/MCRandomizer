@@ -9,7 +9,7 @@ import java.util.Arrays;
 import java.util.List;
 
 public class SpecialItems {
-    public static final ArrayList<Item> BLACKLISTED_ITEMS = ConfigIO.readBlacklist();
+    public static final ArrayList<Item> BLACKLISTED_ITEMS = ConfigIO.readItemBlacklist();
 
     public static final SpecialItemList EFFECT_ITEMS = new SpecialItemList(Arrays.asList(
             new SpecialItem(Items.POTION, 4),
