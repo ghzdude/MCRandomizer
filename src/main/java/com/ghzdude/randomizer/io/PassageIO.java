@@ -23,17 +23,12 @@ public class PassageIO {
 
     @SuppressWarnings("ResultOfMethodCallIgnored")
     public static void writeExample() {
-
-        if (!directory.exists()) {
-            directory.mkdir();
-        }
-
         Passage passage = Passages.EXAMPLE;
         File passageFile = createFileName(directory, passage.title());
 
         try {
-            Writer writer = Files.newBufferedWriter(passageFile.toPath());
-            if (!passageFile.exists()) {
+            if (passageFile.createNewFile()) {
+                Writer writer = Files.newBufferedWriter(passageFile.toPath());
                 GSON.toJson(passage, writer);
                 writer.close();
             }
@@ -48,15 +43,13 @@ public class PassageIO {
             directory.mkdirs();
         }
 
+        writeExample();
         String[] listPath = directory.list();
 
         if (listPath != null) {
             for (String passage : listPath) {
                 File passageFile = new File(directory,  "\\" + passage);
                 try {
-                    if (passageFile.createNewFile()) {
-                        writeExample();
-                    }
                     JsonReader reader = GSON.newJsonReader(Files.newBufferedReader(passageFile.toPath()));
                     reader.beginObject();
 
