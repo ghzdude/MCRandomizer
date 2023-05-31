@@ -26,7 +26,7 @@ public class EnchantmentGenerator {
         for (int i = 0; i < numOfEnchants; i++) {
             int id = random.nextInt(VALID_ENCHANTS.size());
             Enchantment toApply = VALID_ENCHANTS.get(id);
-            stack.enchant(toApply, random.nextInt(10) + 1);
+            stack.enchant(toApply, random.nextInt(toApply.getMaxLevel()) + 1);
         }
     }
 }
