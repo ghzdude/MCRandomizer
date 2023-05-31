@@ -1,6 +1,7 @@
 package com.ghzdude.randomizer;
 
 
+import com.ghzdude.randomizer.io.ConfigIO;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.*;
 import net.minecraft.world.level.Level;
@@ -16,18 +17,15 @@ import java.util.List;
 
 /* Mob Spawn Randomizer description
  * when a mob is about to spawn, change the mob
- * should only randomize when naturally spawned, from spawner, or from breeding.
+ * should only randomize when naturally spawned, or from spawner.
  */
 public class MobRandomizer {
-    private static final ArrayList<EntityType<?>> BLACKLISTED_ENTITIES = new ArrayList<>(List.of(
-            EntityType.ENDER_DRAGON,
-            EntityType.GIANT
-    ));
+    private static final ArrayList<EntityType<?>> BLACKLISTED_ENTITIES = ConfigIO.readMobBlacklist();
     private final ArrayList<EntityType<?>> entityTypes = new ArrayList<>(ForgeRegistries.ENTITY_TYPES.getValues()
             .stream().filter(entityType ->
                     !BLACKLISTED_ENTITIES.contains(entityType) && entityType.getCategory() != MobCategory.MISC
             ).toList());
-    private int entityCap = 150;
+    private final int entityCap = 150;
     private int entityCount;
     private boolean isEnabled;
 
