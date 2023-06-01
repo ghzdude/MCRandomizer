@@ -11,11 +11,7 @@ import java.util.ArrayList;
 
 public class EnchantmentGenerator {
 
-    private static final ArrayList<Enchantment> VALID_ENCHANTS = new ArrayList<>(ForgeRegistries.ENCHANTMENTS
-            .getValues()
-            .stream()
-            .toList()
-    );
+    private static final ArrayList<Enchantment> VALID_ENCHANTS = new ArrayList<>(ForgeRegistries.ENCHANTMENTS.getValues());
 
     public static void applyEnchantment(ItemStack stack) {
         final RandomSource random = RandomizerCore.RANDOM;
