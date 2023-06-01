@@ -43,7 +43,7 @@ public class MobRandomizer {
         mob.setPos(reference.position());
         mob.setXRot(reference.getXRot());
         mob.setYRot(reference.getYRot());
-        mob.setItemSlot(EquipmentSlot.MAINHAND, ItemRandomizer.specialItemToStack(ItemRandomizer.getRandomSimpleItem()));
+        mob.setItemSlot(EquipmentSlot.MAINHAND, ItemRandomizer.getRandomItemStack());
         RandomizerCore.LOGGER.warn("Spawned mob " + mob.getType() + " with " + entityCount + " in total.");
         level.addFreshEntity(mob);
     }
@@ -81,7 +81,9 @@ public class MobRandomizer {
     public void onMobSpawn(LivingSpawnEvent.CheckSpawn event) {
         if (isEnabled) {
             randomizeMobSpawn(event.getSpawnReason(), event.getEntity());
-            event.setResult(Event.Result.DENY);
+            if (event.getSpawnReason() != MobSpawnType.SPAWN_EGG) {
+                event.setResult(Event.Result.DENY);
+            }
         }
     }
 
@@ -89,7 +91,9 @@ public class MobRandomizer {
     public void onSpecialSpawn(LivingSpawnEvent.SpecialSpawn event) {
         if (isEnabled) {
             randomizeMobSpawn(event.getSpawnReason(), event.getEntity());
-            event.setCanceled(true);
+            if (event.getSpawnReason() != MobSpawnType.SPAWN_EGG) {
+                event.setCanceled(true);
+            }
         }
     }
 
