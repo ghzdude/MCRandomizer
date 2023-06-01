@@ -72,7 +72,7 @@ public class RandomizerConfig {
 
         builder.push("Mob Randomizer");
 
-        this.randomizeMobs = builder.comment("Should mobs be randomized when spawning? Note that this completely overrides vanilla spawning logic. Defaults to false.")
+        this.randomizeMobs = builder.comment("Should mobs be randomized when spawning? Note that this completely overrides vanilla spawning logic. Ignores spawn egss. Defaults to false.")
                 .define("randomize_mobs", false);
         builder.pop();
     }
