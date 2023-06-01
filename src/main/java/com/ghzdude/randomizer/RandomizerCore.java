@@ -75,7 +75,6 @@ public class RandomizerCore
         MinecraftForge.EVENT_BUS.register(new RecipeRandomizer());
         MinecraftForge.EVENT_BUS.register(new LootRandomizer());
         MinecraftForge.EVENT_BUS.register(new MobRandomizer());
-        PassageIO.readPassagesFromDisk();
     }
 
     public static void incrementAmtItemsGiven() {
@@ -104,13 +103,12 @@ public class RandomizerCore
             int selection = RANDOM.nextInt(100);
             if (RandomizerConfig.structureRandomizerEnabled() && selection < structureProbability) {
                 pointsToUse = StructureRandomizer.placeStructure(pointsToUse, player.getLevel(), player);
-                increaseCycle(player);
             } else if (RandomizerConfig.itemRandomizerEnabled()) {
                 player.displayClientMessage(Component.literal("Giving Item..."), true);
                 pointsToUse = ItemRandomizer.giveRandomItem(pointsToUse, player.getInventory());
-                increaseCycle(player);
             }
 
+            increaseCycle(player);
             points += pointsToUse;
         }
     }
