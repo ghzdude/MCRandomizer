@@ -1,6 +1,9 @@
 package com.ghzdude.randomizer;
 
-import com.ghzdude.randomizer.special.structure.*;
+import com.ghzdude.randomizer.io.ConfigIO;
+import com.ghzdude.randomizer.special.structure.SpecialStructure;
+import com.ghzdude.randomizer.special.structure.SpecialStructureList;
+import com.ghzdude.randomizer.special.structure.SpecialStructures;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.SectionPos;
 import net.minecraft.data.BuiltinRegistries;
@@ -14,13 +17,13 @@ import net.minecraft.world.level.levelgen.structure.Structure;
 import net.minecraft.world.level.levelgen.structure.StructureStart;
 
 import java.util.ArrayList;
-import java.util.Collection;
 
 /* Structure Randomizer description
  * every so often, generate a structure at some random x, z coordinate near the player
  */
 public class StructureRandomizer {
-    private static final SpecialStructureList STRUCTURES = new SpecialStructureList(configureStructures());;
+    private static final ArrayList<Structure> BLACKLISTED_STRUCTURES = ConfigIO.readStructureBlacklist();
+    private static final SpecialStructureList STRUCTURES = configureStructures();
 
     public static int placeStructure(int pointsToUse, ServerLevel level, Player player) {
         if (pointsToUse < 1) return pointsToUse;
@@ -86,12 +89,13 @@ public class StructureRandomizer {
         return true;
     }
 
-    @SuppressWarnings("SuspiciousMethodCalls")
-    private static Collection<SpecialStructure> configureStructures() {
+    private static SpecialStructureList configureStructures() {
         SpecialStructureList list = new SpecialStructureList();
 
         for (Structure structure : BuiltinRegistries.STRUCTURES) {
             SpecialStructure toAdd;
+            if (BLACKLISTED_STRUCTURES.contains(structure)) continue;
+
             if (SpecialStructures.CONFIGURED_STRUCTURES.contains(structure)) {
                 toAdd = SpecialStructures.CONFIGURED_STRUCTURES.get(SpecialStructures.CONFIGURED_STRUCTURES.indexOf(structure));
             } else {
