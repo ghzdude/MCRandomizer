@@ -1,8 +1,8 @@
 package com.ghzdude.randomizer.special.generators;
 
 import com.ghzdude.randomizer.RandomizerCore;
+import com.ghzdude.randomizer.io.PassageIO;
 import com.ghzdude.randomizer.special.passages.Passage;
-import com.ghzdude.randomizer.special.passages.Passages;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.StringTag;
@@ -15,12 +15,15 @@ public class BookGenerator {
     private static final String FORMAT = "%s";
     private static final String PAGE_FORMAT = "\"%s\"";
 
+    public static final ArrayList<Passage> PASSAGES = new ArrayList<>();
+
     public static void applyPassages(ItemStack stack) {
+        PASSAGES.addAll(PassageIO.readPassages());
 
         CompoundTag tag = new CompoundTag();
         ListTag pages = new ListTag();
-        int id = RandomizerCore.RANDOM.nextInt(Passages.PASSAGES.size());
-        Passage passage = Passages.PASSAGES.get(id);
+        int id = RandomizerCore.RANDOM.nextInt(PASSAGES.size());
+        Passage passage = PASSAGES.get(id);
 
         StringTag title = StringTag.valueOf(String.format(FORMAT, passage.title()));
         StringTag author = StringTag.valueOf(String.format(FORMAT, passage.author()));
