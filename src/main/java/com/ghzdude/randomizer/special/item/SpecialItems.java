@@ -112,6 +112,7 @@ public class SpecialItems {
             new SpecialItem(Items.SHULKER_BOX, 6),
             new SpecialItem(Items.BUNDLE, 6),
             new SpecialItem(Items.WRITTEN_BOOK, 4),
+            new SpecialItem(Items.END_PORTAL_FRAME, 7),
 
             // villager stations
             new SpecialItem(Items.GRINDSTONE, 6),
