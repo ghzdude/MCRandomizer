@@ -99,7 +99,10 @@ public class SpecialItems {
 
     // enchantable tools/stuff
     public static final ArrayList<Item> ENCHANTABLE = new ArrayList<>(List.of(
-            Items.ENCHANTED_BOOK
+            Items.ENCHANTED_BOOK,
+            Items.CROSSBOW,
+            Items.TRIDENT,
+            Items.BOW
     ));
 
     public static final SpecialItemList SPECIAL_ITEMS = new SpecialItemList(Arrays.asList(
