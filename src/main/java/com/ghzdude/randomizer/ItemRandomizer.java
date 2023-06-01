@@ -1,25 +1,18 @@
 package com.ghzdude.randomizer;
 
-import com.ghzdude.randomizer.special.generators.BookGenerator;
-import com.ghzdude.randomizer.special.generators.EnchantmentGenerator;
-import com.ghzdude.randomizer.special.item.*;
-import com.ghzdude.randomizer.special.generators.PotionGenerator;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.ListTag;
-import net.minecraft.nbt.StringTag;
-import net.minecraft.util.RandomSource;
-import net.minecraft.world.effect.MobEffect;
+import com.ghzdude.randomizer.special.generators.*;
+import com.ghzdude.randomizer.special.item.SpecialItem;
+import com.ghzdude.randomizer.special.item.SpecialItemList;
+import com.ghzdude.randomizer.special.item.SpecialItems;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
-import net.minecraft.world.item.alchemy.Potion;
 import net.minecraftforge.registries.ForgeRegistries;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HexFormat;
 
 /* Item Randomizer Description
  * Goal is to give the player a random item every so often DONE
@@ -32,7 +25,6 @@ import java.util.HexFormat;
 public class ItemRandomizer {
     private static final SpecialItemList VALID_ITEMS = new SpecialItemList(configureValidItem());
 
-    @SuppressWarnings("SuspiciousMethodCalls")
     private static Collection<SpecialItem> configureValidItem() {
         int lastMatch;
         ArrayList<SpecialItem> validItems = new ArrayList<>();
@@ -95,6 +87,11 @@ public class ItemRandomizer {
         return VALID_ITEMS.get(id);
     }
 
+    public static ItemStack getRandomItemStack() {
+        int id = RandomizerCore.RANDOM.nextInt(VALID_ITEMS.size());
+        return specialItemToStack(VALID_ITEMS.get(id));
+    }
+
     public static SpecialItem getRandomItem(int points) {
         SpecialItem toReturn;
         do {
@@ -104,25 +101,29 @@ public class ItemRandomizer {
         return toReturn;
     }
 
-    @SuppressWarnings("SuspiciousMethodCalls")
     public static SpecialItem getRandomSimpleItem() {
         SpecialItem item;
         do {
             item = getRandomItem();
-        } while (SpecialItems.EFFECT_ITEMS.contains(item) || SpecialItems.ENCHANTABLE.contains(item));
+        } while (SpecialItems.EFFECT_ITEMS.contains(item) || SpecialItems.ENCHANTABLE.contains(item.item));
         return item;
     }
 
     public static ItemStack specialItemToStack (SpecialItem item) {
         ItemStack stack = new ItemStack(item.item);
 
-        // do something about goat horns and fireworks
-        if (item.item == Items.WRITTEN_BOOK){
-            BookGenerator.applyPassages(stack);
+        if (SpecialItems.ENCHANTABLE.contains(item.item)) {
+            EnchantmentGenerator.applyEnchantment(stack);
         } else if (SpecialItems.EFFECT_ITEMS.contains(item)) {
             PotionGenerator.applyEffect(stack);
-        } else if (SpecialItems.ENCHANTABLE.contains(item.item)) {
-            EnchantmentGenerator.applyEnchantment(stack);
+        } else if (item.item == Items.WRITTEN_BOOK) {
+            BookGenerator.applyPassages(stack);
+        } else if (item.item == Items.FIREWORK_ROCKET) {
+            FireworkGenerator.applyFirework(stack);
+        } else if (item.item == Items.FIREWORK_STAR) {
+            FireworkGenerator.applyFireworkStar(stack);
+        } else if (item.item == Items.GOAT_HORN) {
+            GoatHornGenerator.applyGoatHornSound(stack);
         }
 
         return stack;
