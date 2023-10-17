@@ -65,14 +65,17 @@ public class LootRandomizer {
             if (data.containsPool(tableId, poolName)) {
                 newEntries = data.getPoolItems(tableId, poolName);
             } else {
-                newEntries = generateRandomList(calculateNewResults(entries, 0));
-                if (newEntries.size() == 0) return;
+                int itemsToGenerate = calculateNewResults(entries, 0);
+                if (itemsToGenerate < 1) return;
+                newEntries = generateRandomList(itemsToGenerate);
                 data.addPool(tableId, poolName, newEntries);
                 RandomizerCore.LOGGER.warn("No data for " + tableId + ", generating new data!");
             }
 
             modifyEntries(entries, newEntries);
+            ReflectionUtils.setField(LootPool.class, pool, 8, true); // freeze loot pool
         }
+        ReflectionUtils.setField(LootTable.class, table, 7, true); // freeze loot table
     }
 
     public int calculateNewResults (LootPoolEntryContainer[] entries, int depth) {
