@@ -266,8 +266,9 @@ public class LootRandomizer {
                 Object2ObjectOpenHashMap<String, NonNullList<Item>> poolMap = new Object2ObjectOpenHashMap<>();
                 poolMap.put(poolId, items);
                 lootTablePoolsMap.put(tableId, poolMap);
+            } else {
+                RandomizerCore.LOGGER.warn("A pool name in {} was null! Randomization will not be saved.", tableId);
             }
-            RandomizerCore.LOGGER.warn("A pool name in {} was null! Randomization will not be saved.", tableId);
         }
 
         public Boolean containsPool(ResourceLocation tableId, String poolId) {
