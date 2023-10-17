@@ -95,20 +95,6 @@ public class LootRandomizer {
                 LootPoolEntryContainer[] extraEntries = ReflectionUtils.getField(CompositeEntryBase.class, (CompositeEntryBase) entry, 0);
                 size += calculateNewResults(extraEntries, depth++);
             }
-
-//            if (type == LootPoolEntries.GROUP) {
-//                RandomizerCore.LOGGER.warn("Group Entry");
-//                continue;
-//            }
-//
-//            if (type == LootPoolEntries.SEQUENCE) {
-//                RandomizerCore.LOGGER.warn("Sequence Entry");
-//                continue;
-//            }
-//
-//            if (type == LootPoolEntries.DYNAMIC) {
-//                RandomizerCore.LOGGER.warn("Dynamic Entry");
-//            }
         }
         return size;
     }
