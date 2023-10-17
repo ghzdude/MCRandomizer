@@ -103,17 +103,8 @@ public class LootRandomizer {
     }
 
     public void modifyEntries (LootPoolEntryContainer[] entries, List<Item> toReplace ) {
-        if (entries.length == 0) {
-            RandomizerCore.LOGGER.warn("Pool Entries ran out!");
-            return;
-        }
-
         for (int i = 0; i < entries.length; i++) {
             LootPoolEntryType type = entries[i].getType();
-
-            if (type == LootPoolEntries.EMPTY) {
-                continue;
-            }
 
             if (i == toReplace.size()) {
                 RandomizerCore.LOGGER.warn("Items to replace is empty!");
