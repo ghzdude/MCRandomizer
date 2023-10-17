@@ -143,22 +143,6 @@ public class LootRandomizer {
         }
     }
 
-    // debug only remove later
-    public void printTableDebug (LootTable table, List<LootPool> pools) {
-        StringBuilder builder = new StringBuilder(table.getLootTableId().toString());
-        builder.append(" has pools -> [");
-        for (LootPool pool : pools) {
-            builder.append(pool.getName());
-            builder.append(",");
-        }
-        if (builder.lastIndexOf(",") != -1) {
-            builder.deleteCharAt(builder.lastIndexOf(","));
-        }
-        builder.append("]");
-
-        RandomizerCore.LOGGER.debug(builder.toString());
-    }
-
     private NonNullList<Item> generateRandomList(int amtItems) {
         NonNullList<Item> itemList = NonNullList.withSize(amtItems, Items.AIR);
         itemList.replaceAll(item -> ItemRandomizer.getRandomSimpleItem().item);
