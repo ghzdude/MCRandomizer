@@ -31,6 +31,8 @@ public class LootRandomizer {
 
     private LootData data;
 
+    private final int MAX_DEPTH = 10;
+
     public void randomizeLootTables(LootTables lootTables) {
         for (ResourceLocation tableId : lootTables.getIds()) {
             if (RandomizerConfig.randomizeBlockLoot() && tableId.getPath().contains("blocks/")) {
@@ -53,16 +55,17 @@ public class LootRandomizer {
         List<LootPool> pools = ReflectionUtils.getField(LootTable.class, table, 4);
 
         for (int i = 0; i < pools.size(); i++) {
-            String poolName = pools.get(i).getName();
-            ReflectionUtils.setField(LootPool.class, table.getPool(poolName), 8, false); // unfreeze loot pool
+            LootPool pool = pools.get(i);
+            String poolName = pool.getName();
 
-            LootPoolEntryContainer[] entries = ReflectionUtils.getField(LootPool.class, table.getPool(poolName), 1);
+            ReflectionUtils.setField(LootPool.class, pool, 8, false); // unfreeze loot pool
+            LootPoolEntryContainer[] entries = ReflectionUtils.getField(LootPool.class, pool, 1);
 
             NonNullList<Item> newEntries;
             if (data.containsPool(tableId, poolName)) {
                 newEntries = data.getPoolItems(tableId, poolName);
             } else {
-                newEntries = generateRandomList(calculateNewResults(entries));
+                newEntries = generateRandomList(calculateNewResults(entries, 0));
                 if (newEntries.size() == 0) return;
                 data.addPool(tableId, poolName, newEntries);
                 RandomizerCore.LOGGER.warn("No data for " + tableId + ", generating new data!");
@@ -72,17 +75,16 @@ public class LootRandomizer {
         }
     }
 
-    public int calculateNewResults (LootPoolEntryContainer[] entries ) {
+    public int calculateNewResults (LootPoolEntryContainer[] entries, int depth) {
         int size = 0;
+
+        if (depth > MAX_DEPTH) {
+            RandomizerCore.LOGGER.warn("Loot Pool entries exceeded max depth! Stopping randomization for this pool.");
+            return size;
+        }
 
         for (LootPoolEntryContainer entry : entries) {
             LootPoolEntryType type = entry.getType();
-
-            if (type == LootPoolEntries.REFERENCE) {
-                continue;
-            } else if (type == LootPoolEntries.EMPTY) {
-                continue;
-            }
 
             if (type == LootPoolEntries.ITEM) {
                 size++;
@@ -91,23 +93,22 @@ public class LootRandomizer {
 
             if (type == LootPoolEntries.ALTERNATIVES) {
                 LootPoolEntryContainer[] extraEntries = ReflectionUtils.getField(CompositeEntryBase.class, (CompositeEntryBase) entry, 0);
-                size += calculateNewResults(extraEntries);
-                continue;
+                size += calculateNewResults(extraEntries, depth++);
             }
 
-            if (type == LootPoolEntries.GROUP) {
-                RandomizerCore.LOGGER.warn("Group Entry");
-                continue;
-            }
-
-            if (type == LootPoolEntries.SEQUENCE) {
-                RandomizerCore.LOGGER.warn("Sequence Entry");
-                continue;
-            }
-
-            if (type == LootPoolEntries.DYNAMIC) {
-                RandomizerCore.LOGGER.warn("Dynamic Entry");
-            }
+//            if (type == LootPoolEntries.GROUP) {
+//                RandomizerCore.LOGGER.warn("Group Entry");
+//                continue;
+//            }
+//
+//            if (type == LootPoolEntries.SEQUENCE) {
+//                RandomizerCore.LOGGER.warn("Sequence Entry");
+//                continue;
+//            }
+//
+//            if (type == LootPoolEntries.DYNAMIC) {
+//                RandomizerCore.LOGGER.warn("Dynamic Entry");
+//            }
         }
         return size;
     }
@@ -258,21 +259,22 @@ public class LootRandomizer {
             return lootTablePoolsMap.get(location).get(poolId);
         }
 
-        public void addPool(ResourceLocation location, String poolId, NonNullList<Item> items) {
-            if (lootTablePoolsMap.containsKey(location)){
-                if (!lootTablePoolsMap.get(location).containsKey(poolId)) {
-                    lootTablePoolsMap.get(location).put(poolId, items);
-                }
-            } else {
-                Object2ObjectOpenHashMap<String, NonNullList<Item>> poolmap = new Object2ObjectOpenHashMap<>();
-                poolmap.put(poolId, items);
-                lootTablePoolsMap.put(location, poolmap);
+        public void addPool(ResourceLocation tableId, String poolId, NonNullList<Item> items) {
+            if (containsPool(tableId, poolId)){
+                lootTablePoolsMap.get(tableId).put(poolId, items);
+            } else if (poolId != null){
+                Object2ObjectOpenHashMap<String, NonNullList<Item>> poolMap = new Object2ObjectOpenHashMap<>();
+                poolMap.put(poolId, items);
+                lootTablePoolsMap.put(tableId, poolMap);
             }
+            RandomizerCore.LOGGER.warn("A pool name in {} was null! Randomization will not be saved.", tableId);
         }
 
-        public Boolean containsPool(ResourceLocation location, String key) {
-            if (lootTablePoolsMap.containsKey(location)) {
-                return lootTablePoolsMap.get(location).containsKey(key);
+        public Boolean containsPool(ResourceLocation tableId, String poolId) {
+            if (tableId == null || poolId == null) return false;
+
+            if (lootTablePoolsMap.containsKey(tableId)) {
+                return lootTablePoolsMap.get(tableId).containsKey(poolId);
             }
             return false;
         }
