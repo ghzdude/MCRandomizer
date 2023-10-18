@@ -59,14 +59,15 @@ public class LootRandomizer {
             String poolName = pool.getName();
 
             ReflectionUtils.setField(LootPool.class, pool, 8, false); // unfreeze loot pool
-            LootPoolEntryContainer[] entries = ReflectionUtils.getField(LootPool.class, pool, 1);
+            LootPoolEntryContainer[] entries = ReflectionUtils.getField(LootPool.class, pool, 1); // get list of entries
 
             NonNullList<Item> newEntries;
             if (data.containsPool(tableId, poolName)) {
                 newEntries = data.getPoolItems(tableId, poolName);
             } else {
                 int itemsToGenerate = calculateNewResults(entries, 0);
-                if (itemsToGenerate < 1) return;
+                if (itemsToGenerate < 1) return; // pool has no items
+
                 newEntries = generateRandomList(itemsToGenerate);
                 data.addPool(tableId, poolName, newEntries);
                 RandomizerCore.LOGGER.warn("No data for " + tableId + ", generating new data!");
@@ -89,7 +90,7 @@ public class LootRandomizer {
         for (LootPoolEntryContainer entry : entries) {
             LootPoolEntryType type = entry.getType();
 
-            if (type == LootPoolEntries.ITEM) {
+            if (type == LootPoolEntries.ITEM || type == LootPoolEntries.EMPTY) {
                 size++;
                 continue;
             }
@@ -105,11 +106,6 @@ public class LootRandomizer {
     public void modifyEntries (LootPoolEntryContainer[] entries, List<Item> toReplace ) {
         for (int i = 0; i < entries.length; i++) {
             LootPoolEntryType type = entries[i].getType();
-
-            if (i == toReplace.size()) {
-                RandomizerCore.LOGGER.warn("Items to replace is empty!");
-                return;
-            }
 
             if (type == LootPoolEntries.ITEM) {
                 ReflectionUtils.setField(LootItem.class, (LootItem) entries[i], 0, toReplace.get(i));
@@ -197,8 +193,8 @@ public class LootRandomizer {
             // for each loot table
             for (int i = 0; i < lootTablesTag.size(); i++) {
                 CompoundTag lootTableTag = lootTablesTag.getCompound(i);
-                CompoundTag poolTag = null;
-                NonNullList<Item> itemList = null;
+                CompoundTag poolTag;
+                NonNullList<Item> itemList;
                 ListTag poolsTag = lootTableTag.getList("pools", Tag.TAG_COMPOUND);
                 ResourceLocation loc = new ResourceLocation(lootTableTag.getString("loot_entry_id"));
                 // for each pool
@@ -224,7 +220,7 @@ public class LootRandomizer {
         }
 
         public void addPool(ResourceLocation tableId, String poolId, NonNullList<Item> items) {
-            if (containsPool(tableId, poolId)){
+            if (lootTablePoolsMap.containsKey(tableId)){
                 lootTablePoolsMap.get(tableId).put(poolId, items);
             } else if (poolId != null){
                 Object2ObjectOpenHashMap<String, NonNullList<Item>> poolMap = new Object2ObjectOpenHashMap<>();
