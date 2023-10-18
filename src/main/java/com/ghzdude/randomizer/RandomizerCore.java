@@ -102,7 +102,7 @@ public class RandomizerCore
 
             int selection = RANDOM.nextInt(100);
             if (RandomizerConfig.structureRandomizerEnabled() && selection < structureProbability) {
-                pointsToUse = StructureRandomizer.placeStructure(pointsToUse, player.getLevel(), player);
+                pointsToUse = StructureRandomizer.placeStructure(pointsToUse, player.serverLevel(), player);
             } else if (RandomizerConfig.itemRandomizerEnabled()) {
                 player.displayClientMessage(Component.literal("Giving Item..."), true);
                 pointsToUse = ItemRandomizer.giveRandomItem(pointsToUse, player.getInventory());
