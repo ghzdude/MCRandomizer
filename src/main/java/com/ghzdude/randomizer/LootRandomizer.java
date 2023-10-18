@@ -70,7 +70,7 @@ public class LootRandomizer {
 
                 newEntries = generateRandomList(itemsToGenerate);
                 data.addPool(tableId, poolName, newEntries);
-                RandomizerCore.LOGGER.warn("No data for " + tableId + ", generating new data!");
+                RandomizerCore.LOGGER.warn("No data for {}, generating new data!", tableId);
             }
 
             modifyEntries(entries, newEntries);
