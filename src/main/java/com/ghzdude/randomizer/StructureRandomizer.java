@@ -6,7 +6,6 @@ import com.ghzdude.randomizer.special.structure.SpecialStructureList;
 import com.ghzdude.randomizer.special.structure.SpecialStructures;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.SectionPos;
-import net.minecraft.data.BuiltinRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.player.Player;
@@ -92,17 +91,17 @@ public class StructureRandomizer {
     private static SpecialStructureList configureStructures() {
         SpecialStructureList list = new SpecialStructureList();
 
-        for (Structure structure : BuiltinRegistries.STRUCTURES) {
-            SpecialStructure toAdd;
-            if (BLACKLISTED_STRUCTURES.contains(structure)) continue;
-
-            if (SpecialStructures.CONFIGURED_STRUCTURES.contains(structure)) {
-                toAdd = SpecialStructures.CONFIGURED_STRUCTURES.get(SpecialStructures.CONFIGURED_STRUCTURES.indexOf(structure));
-            } else {
-                toAdd = new SpecialStructure(structure, BuiltinRegistries.STRUCTURES.getKey(structure), 1);
-            }
-            list.add(toAdd);
-        }
+//        for (Structure structure : BuiltinRegistries.STRUCTURES) {
+//            SpecialStructure toAdd;
+//            if (BLACKLISTED_STRUCTURES.contains(structure)) continue;
+//
+//            if (SpecialStructures.CONFIGURED_STRUCTURES.contains(structure)) {
+//                toAdd = SpecialStructures.CONFIGURED_STRUCTURES.get(SpecialStructures.CONFIGURED_STRUCTURES.indexOf(structure));
+//            } else {
+//                toAdd = new SpecialStructure(structure, BuiltinRegistries.STRUCTURES.getKey(structure), 1);
+//            }
+//            list.add(toAdd);
+//        }
 
         return list;
     }

@@ -24,44 +24,45 @@ import java.util.Map;
 public class RecipeRandomizer {
     private RecipeData data;
 
-    public void randomizeRecipes(Collection<Recipe<?>> recipes) {
-        for (Recipe<?> recipe : recipes) {
-            ItemStack newResult;
-            if (data.hasRecipe(recipe.getId())) {
-                newResult = data.getStack(recipe.getId());
-            } else {
-                newResult = ItemRandomizer.specialItemToStack(ItemRandomizer.getRandomItem());
-                newResult.setCount(Math.min(recipe.getResultItem().getCount(), newResult.getMaxStackSize()));
-                RandomizerCore.LOGGER.warn("No data for " + recipe.getId() + ", generating new data!");
-                data.put(recipe.getId(), newResult);
-            }
-
-            if (recipe instanceof ShapedRecipe) {
-                ReflectionUtils.setField(ShapedRecipe.class, (ShapedRecipe) recipe, 5, newResult);
-            } else if (recipe instanceof ShapelessRecipe) {
-                ReflectionUtils.setField(ShapelessRecipe.class, (ShapelessRecipe) recipe, 2, newResult);
-            } else if (recipe instanceof AbstractCookingRecipe) {
-                ReflectionUtils.setField(AbstractCookingRecipe.class, (AbstractCookingRecipe) recipe, 4, newResult);
-            } else if (recipe instanceof SingleItemRecipe) {
-                ReflectionUtils.setField(SingleItemRecipe.class, (SingleItemRecipe) recipe, 1, newResult);
-            }
-        }
-    }
+//    public void randomizeRecipes(Collection<Recipe<?>> recipes) {
+//        for (Recipe<?> recipe : recipes) {
+//            ItemStack newResult;
+//            if (data.hasRecipe(recipe.getId())) {
+//                newResult = data.getStack(recipe.getId());
+//            } else {
+//                newResult = ItemRandomizer.specialItemToStack(ItemRandomizer.getRandomItem());
+//                newResult.setCount(Math.min(recipe.getResultItem().getCount(), newResult.getMaxStackSize()));
+//                RandomizerCore.LOGGER.warn("No data for " + recipe.getId() + ", generating new data!");
+//                data.put(recipe.getId(), newResult);
+//            }
+//
+//            if (recipe instanceof ShapedRecipe) {
+//                ReflectionUtils.setField(ShapedRecipe.class, (ShapedRecipe) recipe, 5, newResult);
+//            } else if (recipe instanceof ShapelessRecipe) {
+//                ReflectionUtils.setField(ShapelessRecipe.class, (ShapelessRecipe) recipe, 2, newResult);
+//            } else if (recipe instanceof AbstractCookingRecipe) {
+//                ReflectionUtils.setField(AbstractCookingRecipe.class, (AbstractCookingRecipe) recipe, 4, newResult);
+//            } else if (recipe instanceof SingleItemRecipe) {
+//                ReflectionUtils.setField(SingleItemRecipe.class, (SingleItemRecipe) recipe, 1, newResult);
+//            }
+//        }
+//    }
 
     @SubscribeEvent
     public void start(ServerStartedEvent event) {
         if (RandomizerConfig.recipeRandomizerEnabled()) {
-            data = get(event.getServer().overworld().getDataStorage());
+            // data = get(event.getServer().overworld().getDataStorage());
 
             RandomizerCore.LOGGER.warn("Recipe Randomizer Running!");
-            randomizeRecipes(event.getServer().getRecipeManager().getRecipes());
+            // randomizeRecipes(event.getServer().getRecipeManager().getRecipes());
 
             data.setDirty();
         }
     }
 
     public static RecipeData get(DimensionDataStorage storage){
-        return storage.computeIfAbsent(RecipeData::load, RecipeData::create, RandomizerCore.MODID + "_recipes");
+//        return storage.computeIfAbsent(RecipeData::load, RecipeData::create, RandomizerCore.MODID + "_recipes");
+        return null;
     }
 
     protected static class RecipeData extends SavedData {

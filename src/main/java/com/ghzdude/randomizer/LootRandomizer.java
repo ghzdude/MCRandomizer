@@ -12,9 +12,10 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.saveddata.SavedData;
 import net.minecraft.world.level.storage.DimensionDataStorage;
+import net.minecraft.world.level.storage.loot.LootDataManager;
+import net.minecraft.world.level.storage.loot.LootDataType;
 import net.minecraft.world.level.storage.loot.LootPool;
 import net.minecraft.world.level.storage.loot.LootTable;
-import net.minecraft.world.level.storage.loot.LootTables;
 import net.minecraft.world.level.storage.loot.entries.*;
 import net.minecraftforge.event.server.ServerStartedEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -33,33 +34,47 @@ public class LootRandomizer {
 
     private final int MAX_DEPTH = 10;
 
-    public void randomizeLootTables(LootTables lootTables) {
-        for (ResourceLocation tableId : lootTables.getIds()) {
-            if (RandomizerConfig.randomizeBlockLoot() && tableId.getPath().contains("blocks/")) {
-                randomizeLoot(lootTables.get(tableId));
-            }
+    @SubscribeEvent
+    public void start(ServerStartedEvent event) {
+        if (RandomizerConfig.lootRandomizerEnabled()) {
+            // data = get(event.getServer().overworld().getDataStorage());
 
-            if (RandomizerConfig.randomizeEntityLoot() && tableId.getPath().contains("entities/")) {
-                randomizeLoot(lootTables.get(tableId));
-            }
+            RandomizerCore.LOGGER.warn("Loot Table Randomizer running!");
+            LootDataManager lootData = event.getServer().getLootData();
+            lootData.getKeys(LootDataType.TABLE).forEach(
+                    location -> randomizeLootTable(lootData.getLootTable(location))
+            );
+            // event.getServer().getLootData().getKeys(LootDataType.TABLE) gets a list of resource locations
+            // use event.getServer().getLootData().getLootTable() to get a loot table
+            // data.setDirty();
+        }
+    }
 
-            if (RandomizerConfig.randomizeChestLoot() && tableId.getPath().contains("chests/")) {
-                randomizeLoot(lootTables.get(tableId));
-            }
+    public void randomizeLootTable(LootTable lootTable) {
+        ResourceLocation tableId = lootTable.getLootTableId();
+        if (RandomizerConfig.randomizeBlockLoot() && lootTable.getLootTableId().getPath().contains("blocks/")) {
+            randomizeLoot(lootTable);
+        }
+
+        if (RandomizerConfig.randomizeEntityLoot() && tableId.getPath().contains("entities/")) {
+            randomizeLoot(lootTable);
+        }
+
+        if (RandomizerConfig.randomizeChestLoot() && tableId.getPath().contains("chests/")) {
+            randomizeLoot(lootTable);
         }
     }
 
     private void randomizeLoot(LootTable table) {
         ResourceLocation tableId = table.getLootTableId();
-        ReflectionUtils.setField(LootTable.class, table, 7, false); // unfreeze loot table
-        List<LootPool> pools = ReflectionUtils.getField(LootTable.class, table, 4);
-
+        // ReflectionUtils.setField(LootTable.class, table, 7, false); // unfreeze loot table
+        List<LootPool> pools = ReflectionUtils.getField(LootTable.class, table, 6);
         for (int i = 0; i < pools.size(); i++) {
             LootPool pool = pools.get(i);
             String poolName = pool.getName();
 
-            ReflectionUtils.setField(LootPool.class, pool, 8, false); // unfreeze loot pool
-            LootPoolEntryContainer[] entries = ReflectionUtils.getField(LootPool.class, pool, 1); // get list of entries
+            // ReflectionUtils.setField(LootPool.class, pool, 8, false); // unfreeze loot pool
+            LootPoolEntryContainer[] entries = ReflectionUtils.getField(LootPool.class, pool, 2); // get list of entries
 
             NonNullList<Item> newEntries;
             if (data.containsPool(tableId, poolName)) {
@@ -74,9 +89,9 @@ public class LootRandomizer {
             }
 
             modifyEntries(entries, newEntries);
-            ReflectionUtils.setField(LootPool.class, pool, 8, true); // freeze loot pool
+            // ReflectionUtils.setField(LootPool.class, pool, 8, true); // freeze loot pool
         }
-        ReflectionUtils.setField(LootTable.class, table, 7, true); // freeze loot table
+        // ReflectionUtils.setField(LootTable.class, table, 7, true); // freeze loot table
     }
 
     public int calculateNewResults (LootPoolEntryContainer[] entries, int depth) {
@@ -125,20 +140,9 @@ public class LootRandomizer {
         return itemList;
     }
 
-    @SubscribeEvent
-    public void start(ServerStartedEvent event) {
-        if (RandomizerConfig.lootRandomizerEnabled()) {
-            data = get(event.getServer().overworld().getDataStorage());
-
-            RandomizerCore.LOGGER.warn("Loot Table Randomizer running!");
-
-            randomizeLootTables(event.getServer().getLootTables());
-            data.setDirty();
-        }
-    }
-
     public static LootData get(DimensionDataStorage storage){
-        return storage.computeIfAbsent(LootData::load, LootData::create, RandomizerCore.MODID + "_loot");
+        //return storage.computeIfAbsent(LootData::load, LootData::create, RandomizerCore.MODID + "_loot");
+        return null;
     }
 
     protected static class LootData extends SavedData {

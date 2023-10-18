@@ -8,12 +8,15 @@ import com.google.gson.JsonElement;
 import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonToken;
 import net.minecraft.client.Minecraft;
-import net.minecraft.data.BuiltinRegistries;
+import net.minecraft.core.Registry;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.data.worldgen.Structures;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.level.levelgen.structure.BuiltinStructures;
 import net.minecraft.world.level.levelgen.structure.Structure;
 import net.minecraftforge.registries.ForgeRegistries;
 
@@ -52,9 +55,9 @@ public class ConfigIO {
             EntityType.GIANT
     ));
 
-    private static final ArrayList<Structure> BLACKLISTED_STRUCTURES = new ArrayList<>(List.of(
-            Structures.NETHER_FOSSIL.value()
-    ));
+    private static final List<ResourceLocation> BLACKLISTED_STRUCTURES =  List.of(
+            BuiltinStructures.NETHER_FOSSIL.location()
+    );
 
     public static void writeItemBlacklist(File file) {
         JsonArray itemArray = new JsonArray();
@@ -86,8 +89,9 @@ public class ConfigIO {
 
     public static void writeStructureBlacklist(File file) {
         JsonArray structures = new JsonArray();
-        for (Structure structure : BLACKLISTED_STRUCTURES) {
-            ResourceLocation location = BuiltinRegistries.STRUCTURES.getKey(structure);
+        for (ResourceLocation structure : BLACKLISTED_STRUCTURES) {
+            //Registry<Structure> = Registries.STRUCTURE.cast(Registries.STRUCTURE).get()
+            ResourceLocation location = null; //.STRUCTURES.getKey(structure);
             if (location != null) {
                 structures.add(location.toString());
             } else {
@@ -181,11 +185,11 @@ public class ConfigIO {
 
             while (reader.peek() == JsonToken.STRING) {
                 ResourceLocation location = new ResourceLocation(reader.nextString());
-                if (BuiltinRegistries.STRUCTURES.containsKey(location)) {
-                    blacklist.add(BuiltinRegistries.STRUCTURES.get(location));
-                } else {
-                    RandomizerCore.LOGGER.warn("Location " + location + "is not a valid structure!");
-                }
+//                if (BuiltinRegistries.STRUCTURES.containsKey(location)) {
+//                    blacklist.add(BuiltinRegistries.STRUCTURES.get(location));
+//                } else {
+//                    RandomizerCore.LOGGER.warn("Location " + location + "is not a valid structure!");
+//                }
             }
 
             reader.endArray();
