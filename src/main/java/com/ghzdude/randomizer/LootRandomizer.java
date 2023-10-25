@@ -66,24 +66,21 @@ public class LootRandomizer {
 
     private void randomizeLoot(LootTable table) {
         ResourceLocation tableId = table.getLootTableId();
-        // ReflectionUtils.setField(LootTable.class, table, 7, false); // unfreeze loot table
         List<LootPool> pools = ReflectionUtils.getField(LootTable.class, table, 6);
         for (int i = 0; i < pools.size(); i++) {
             LootPool pool = pools.get(i);
-            String poolName = pool.getName();
 
-            // ReflectionUtils.setField(LootPool.class, pool, 8, false); // unfreeze loot pool
-            LootPoolEntryContainer[] entries = ReflectionUtils.getField(LootPool.class, pool, 2); // get list of entries
+            List<LootPoolEntryContainer> entries = ReflectionUtils.getField(LootPool.class, pool, 2); // get list of entries
 
             NonNullList<Item> newEntries;
-            if (data.containsPool(tableId, poolName)) {
-                newEntries = data.getPoolItems(tableId, poolName);
+            if (LootData.data.containsPool(tableId, i)) {
+                newEntries = LootData.data.getPoolItems(tableId, i);
             } else {
                 int itemsToGenerate = calculateNewResults(entries, 0);
                 if (itemsToGenerate < 1) return; // pool has no items
 
                 newEntries = generateRandomList(itemsToGenerate);
-                data.addPool(tableId, poolName, newEntries);
+                LootData.data.addPool(tableId, i, newEntries);
                 RandomizerCore.LOGGER.warn("No data for {}, generating new data!", tableId);
             }
 
@@ -93,7 +90,7 @@ public class LootRandomizer {
         // ReflectionUtils.setField(LootTable.class, table, 7, true); // freeze loot table
     }
 
-    public int calculateNewResults (LootPoolEntryContainer[] entries, int depth) {
+    public int calculateNewResults (List<LootPoolEntryContainer> entries, int depth) {
         int size = 0;
 
         if (depth > MAX_DEPTH) {
@@ -104,31 +101,51 @@ public class LootRandomizer {
         for (LootPoolEntryContainer entry : entries) {
             LootPoolEntryType type = entry.getType();
 
-            if (type == LootPoolEntries.ITEM || type == LootPoolEntries.EMPTY) {
+            if (type == LootPoolEntries.ITEM ||
+                    type == LootPoolEntries.EMPTY ||
+                    type == LootPoolEntries.DYNAMIC)
+            {
                 size++;
                 continue;
             }
 
             if (type == LootPoolEntries.ALTERNATIVES) {
-                LootPoolEntryContainer[] extraEntries = ReflectionUtils.getField(CompositeEntryBase.class, (CompositeEntryBase) entry, 0);
+                List<LootPoolEntryContainer> extraEntries = ReflectionUtils.getField(CompositeEntryBase.class, (CompositeEntryBase) entry, 0);
                 size += calculateNewResults(extraEntries, depth++);
             }
         }
         return size;
     }
 
-    public void modifyEntries (LootPoolEntryContainer[] entries, List<Item> toReplace ) {
-        for (int i = 0; i < entries.length; i++) {
-            LootPoolEntryType type = entries[i].getType();
+    public void modifyEntries (List<LootPoolEntryContainer> entries, List<Item> toReplace ) {
+        for (int i = 0; i < entries.size(); i++) {
+            LootPoolEntryType type = entries.get(i).getType();
 
-            if (type == LootPoolEntries.ITEM) {
-                ReflectionUtils.setField(LootItem.class, (LootItem) entries[i], 0, toReplace.get(i));
+            if (type == LootPoolEntries.ALTERNATIVES) {
+                List<LootPoolEntryContainer> extraEntries = ReflectionUtils.getField(CompositeEntryBase.class, (CompositeEntryBase) entries.get(i), 0);
+                modifyEntries(extraEntries, toReplace);
+            }
+
+            if (type == LootPoolEntries.DYNAMIC) {
+                RandomizerCore.LOGGER.warn("dynamic loot pool");
                 continue;
             }
 
-            if (type == LootPoolEntries.ALTERNATIVES) {
-                LootPoolEntryContainer[] extraEntries = ReflectionUtils.getField(CompositeEntryBase.class, (CompositeEntryBase) entries[i], 0);
-                modifyEntries(extraEntries, toReplace.subList(i, toReplace.size()));
+            if (entries.get(i) instanceof LootItem itemEntry) {
+                //get item holder
+                Holder<Item> itemHolder = ReflectionUtils.getField(LootItem.class, itemEntry, 1);
+                // replace item in holder if possible
+                // also replace resource location
+                switch (itemHolder.kind()) {
+                    case REFERENCE -> {
+                        ResourceKey<?> key = itemHolder.unwrapKey().get();
+                        ReflectionUtils.setField(ResourceKey.class, key, 2, ForgeRegistries.ITEMS.getKey(toReplace.get(i)));
+
+                        ReflectionUtils.setField(Holder.Reference.class, (Holder.Reference<Item>) itemHolder, 4,
+                                toReplace.get(i));
+                    }
+                    case DIRECT -> RandomizerCore.LOGGER.warn("we got a direct holder here for: {}", itemHolder.get());
+                }
             }
         }
     }
