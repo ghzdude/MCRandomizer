@@ -16,6 +16,7 @@ import net.minecraftforge.registries.ForgeRegistries;
 import java.util.ArrayList;
 import java.util.HexFormat;
 import java.util.List;
+import java.util.Random;
 
 public class PotionGenerator {
     public static final ArrayList<Potion> BLACKLISTED_POTIONS = new ArrayList<>(List.of(
@@ -40,7 +41,7 @@ public class PotionGenerator {
 
     public static void applyEffect(ItemStack stack) {
 
-        final RandomSource random = RandomizerCore.rng;
+        final Random random = RandomizerCore.rng;
 
         int id = random.nextInt(VALID_POTIONS.size());
         int numOfEffects = random.nextInt(3) + 1;
@@ -52,7 +53,7 @@ public class PotionGenerator {
             CompoundTag effect = new CompoundTag();
 
             for (int i = 1; i <= numOfEffects; i++) {
-                effect.putInt("EffectDuration", random.nextIntBetweenInclusive(100, 2000));
+                effect.putInt("EffectDuration", random.nextInt(100, 2001));
                 effect.putString("forge:effect_id", VALID_POTIONS.get(id).getName("minecraft:"));
                 effects.add(effect);
             }
@@ -66,7 +67,7 @@ public class PotionGenerator {
                 CompoundTag effect = new CompoundTag();
                 effect.putInt("Id", random.nextInt(VALID_EFFECTS.size()));
                 effect.putInt("Amplifier", random.nextInt(4) + 1);
-                effect.putInt("Duration",random.nextIntBetweenInclusive(200, 2000));
+                effect.putInt("Duration",random.nextInt(200, 2001));
                 effect.putBoolean("ShowIcon", true);
                 effects.add(effect);
             }
