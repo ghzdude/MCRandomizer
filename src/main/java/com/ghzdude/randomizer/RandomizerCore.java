@@ -1,6 +1,6 @@
 package com.ghzdude.randomizer;
 
-import com.ghzdude.randomizer.io.PassageIO;
+import com.ghzdude.randomizer.loot.ModLootModifiers;
 import com.mojang.logging.LogUtils;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
@@ -36,6 +36,7 @@ public class RandomizerCore
     public static final DeferredRegister<Block> BLOCKS = DeferredRegister.create(ForgeRegistries.BLOCKS, MODID);
     // Create a Deferred Register to hold Items which will all be registered under the "examplemod" namespace
     public static final DeferredRegister<Item> ITEMS = DeferredRegister.create(ForgeRegistries.ITEMS, MODID);
+
     public static final RandomSource RANDOM = RandomSource.create();
 
     // Creates a new Block with the id "examplemod:example_block", combining the namespace and path
@@ -61,6 +62,7 @@ public class RandomizerCore
 
         // Register the commonSetup method for modloading
         modEventBus.addListener(this::commonSetup);
+        ModLootModifiers.register(modEventBus);
 
         // Register the Deferred Register to the mod event bus so blocks get registered
         // BLOCKS.register(modEventBus);

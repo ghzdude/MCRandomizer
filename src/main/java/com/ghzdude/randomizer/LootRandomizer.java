@@ -1,6 +1,7 @@
 package com.ghzdude.randomizer;
 
 import com.ghzdude.randomizer.reflection.ReflectionUtils;
+import com.google.common.collect.Lists;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import net.minecraft.core.Holder;
 import net.minecraft.core.NonNullList;
@@ -10,23 +11,28 @@ import net.minecraft.nbt.StringTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.datafix.DataFixTypes;
 import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.saveddata.SavedData;
 import net.minecraft.world.level.storage.DimensionDataStorage;
-import net.minecraft.world.level.storage.loot.LootDataManager;
-import net.minecraft.world.level.storage.loot.LootDataType;
-import net.minecraft.world.level.storage.loot.LootPool;
-import net.minecraft.world.level.storage.loot.LootTable;
+import net.minecraft.world.level.storage.loot.*;
 import net.minecraft.world.level.storage.loot.entries.*;
+import net.minecraft.world.level.storage.loot.parameters.LootContextParams;
+import net.minecraft.world.phys.Vec3;
+import net.minecraftforge.common.loot.LootModifier;
+import net.minecraftforge.common.loot.LootModifierManager;
+import net.minecraftforge.event.entity.living.LivingDropsEvent;
+import net.minecraftforge.event.level.BlockEvent;
 import net.minecraftforge.event.server.ServerStartingEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.registries.ForgeRegistries;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 
 /* Loot Randomizer
  * Randomizes Loot dropped from mobs, blocks, etc
@@ -34,34 +40,59 @@ import java.util.List;
  */
 public class LootRandomizer {
     private final int MAX_DEPTH = 10;
+    public static final Map<Item, Item> ITEM_MAP = new Object2ObjectOpenHashMap<>();
 
     @SubscribeEvent
     public void start(ServerStartingEvent event) {
         if (RandomizerConfig.lootRandomizerEnabled()) {
             LootData.data = get(event.getServer().overworld().getDataStorage());
             RandomizerCore.LOGGER.warn("Loot Table Randomizer running!");
-            LootDataManager lootData = event.getServer().getLootData();
-            lootData.getKeys(LootDataType.TABLE).forEach(
-                    location -> randomizeLootTable(lootData.getLootTable(location))
-            );
-            LootData.data.setDirty();
 
+            Random rng = new Random(event.getServer().getWorldData().worldGenOptions().seed());
+            List<Item> blocks = Lists.newArrayList(ForgeRegistries.ITEMS.getValues());
+            Collections.shuffle(blocks, rng);
+
+            List<Item> registry = Lists.newArrayList(ForgeRegistries.ITEMS.getValues());
+
+            if (registry.size() != blocks.size()) {
+                RandomizerCore.LOGGER.warn("Registry was modified during server start!");
+                return;
+            }
+
+            for (int i = 0; i < registry.size(); i++) {
+                ITEM_MAP.put(registry.get(i), blocks.get(i));
+            }
+
+            LootDataManager lootData = event.getServer().getLootData();
+            lootData.getKeys(LootDataType.TABLE).forEach(location -> {
+                LootTable lootTable = lootData.getLootTable(location);
+//                if (RandomizerConfig.randomizeBlockLoot() && location.getPath().contains("blocks/")) {
+//                    randomizeLoot(lootTable);
+//                }
+
+//                if (RandomizerConfig.randomizeEntityLoot() && location.getPath().contains("entities/")) {
+//                    randomizeLoot(lootTable);
+//                }
+
+//                if (RandomizerConfig.randomizeChestLoot() && location.getPath().contains("chests/")) {
+//                    randomizeLoot(lootTable);
+//                }
+            });
+
+            LootData.data.setDirty();
         }
     }
 
-    public void randomizeLootTable(LootTable lootTable) {
-        ResourceLocation tableId = lootTable.getLootTableId();
-        if (RandomizerConfig.randomizeBlockLoot() && lootTable.getLootTableId().getPath().contains("blocks/")) {
-            randomizeLoot(lootTable);
-        }
+    @SubscribeEvent
+    public void livingDrops(LivingDropsEvent event) {
+        if (!RandomizerConfig.randomizeEntityLoot()) return;
+        event.getDrops().forEach(
+                drop -> drop.setItem(new ItemStack(ITEM_MAP.get(drop.getItem().getItem())))
+        );
+    }
+    @SubscribeEvent
+    public void blockDrops(BlockEvent.BreakEvent event) {
 
-        if (RandomizerConfig.randomizeEntityLoot() && tableId.getPath().contains("entities/")) {
-            randomizeLoot(lootTable);
-        }
-
-        if (RandomizerConfig.randomizeChestLoot() && tableId.getPath().contains("chests/")) {
-            randomizeLoot(lootTable);
-        }
     }
 
     private void randomizeLoot(LootTable table) {
@@ -85,9 +116,7 @@ public class LootRandomizer {
             }
 
             modifyEntries(entries, newEntries);
-            // ReflectionUtils.setField(LootPool.class, pool, 8, true); // freeze loot pool
         }
-        // ReflectionUtils.setField(LootTable.class, table, 7, true); // freeze loot table
     }
 
     public int calculateNewResults (List<LootPoolEntryContainer> entries, int depth) {
