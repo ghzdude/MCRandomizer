@@ -17,13 +17,15 @@ import org.jetbrains.annotations.NotNull;
 public class LootRandomizeModifier extends LootModifier {
     public static final Supplier<Codec<LootRandomizeModifier>> CODEC = Suppliers.memoize(() ->
             RecordCodecBuilder.create(inst ->
-                    codecStart(inst)
-                            .apply(inst, LootRandomizeModifier::new)
-            )
+                    codecStart(inst).apply(inst, LootRandomizeModifier::new))
     );
 
     public LootRandomizeModifier(LootItemCondition[] c) {
-        super(c);
+        super(new LootItemCondition[]{});
+    }
+
+    public LootRandomizeModifier() {
+        this(new LootItemCondition[]{});
     }
 
     @Override
