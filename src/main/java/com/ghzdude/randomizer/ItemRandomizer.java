@@ -123,7 +123,7 @@ public class ItemRandomizer {
         } else if (item.item == Items.FIREWORK_STAR) {
             FireworkGenerator.applyFireworkStar(stack);
         } else if (item.item == Items.GOAT_HORN) {
-//            GoatHornGenerator.applyGoatHornSound(stack);
+            GoatHornGenerator.applyGoatHornSound(stack);
         }
 
         return stack;
