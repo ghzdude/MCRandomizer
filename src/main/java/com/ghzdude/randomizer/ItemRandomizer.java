@@ -84,7 +84,7 @@ public class ItemRandomizer {
     }
 
     private static int giveOnce(int pointsToUse, Inventory playerInventory) {
-        SpecialItem selectedItem = getRandomItem(pointsToUse);
+        SpecialItem selectedItem = getRandomSpecialItem(pointsToUse);
 
         int amtToGive = Math.floorDiv(pointsToUse, selectedItem.value);
         ItemStack stack = specialItemToStack(selectedItem);
@@ -96,17 +96,15 @@ public class ItemRandomizer {
         return pointsToUse;
     }
 
-    public static SpecialItem getRandomItem() {
-        int id = RandomizerCore.rng.nextInt(VALID_ITEMS.size());
-        return VALID_ITEMS.get(id);
+    public static SpecialItem getRandomSpecialItem() {
+        return VALID_ITEMS.getRandomSpecialItem(RandomizerCore.rng);
     }
 
     public static ItemStack getRandomItemStack() {
-        int id = RandomizerCore.rng.nextInt(VALID_ITEMS.size());
-        return specialItemToStack(VALID_ITEMS.get(id));
+        return specialItemToStack(getRandomSpecialItem());
     }
 
-    public static SpecialItem getRandomItem(int points) {
+    public static SpecialItem getRandomSpecialItem(int points) {
         SpecialItem toReturn;
         do {
             toReturn = VALID_ITEMS.getRandomSpecialItem(RandomizerCore.rng);
@@ -189,14 +187,11 @@ public class ItemRandomizer {
             return INSTANCE;
         }
 
-        public void configure(long seed) {
-            Random rng = new Random(seed);
-            List<Item> registry = Lists.newArrayList(ForgeRegistries.ITEMS.getValues()
-                    .stream()
-                    .filter(item -> !SpecialItems.BLACKLISTED_ITEMS.contains(item)).toList());
+        public void configure() {
+            List<Item> registry = Lists.newArrayList(ItemRandomizer.VALID_ITEMS.asItems());
 
             List<Item> blocks = Lists.newArrayList(registry);
-            Collections.shuffle(blocks, rng);
+            Collections.shuffle(blocks, RandomizerCore.rng);
 
 
             if (registry.size() != blocks.size()) {
@@ -205,7 +200,7 @@ public class ItemRandomizer {
             }
 
             for (int i = 0; i < registry.size(); i++) {
-                if (ITEM_MAP.containsKey(registry.get(i)) && SpecialItems.BLACKLISTED_ITEMS.contains(blocks.get(i))) continue;
+                if (ITEM_MAP.containsKey(registry.get(i))) continue;
 
                 ITEM_MAP.put(registry.get(i), blocks.get(i));
             }
