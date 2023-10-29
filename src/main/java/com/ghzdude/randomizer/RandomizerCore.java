@@ -128,6 +128,7 @@ public class RandomizerCore
         structureProbability = RandomizerConfig.getStructureProbability();
         cooldown = RandomizerConfig.getCooldown();
         rng = new Random(event.getServer().getWorldData().worldGenOptions().seed());
+        ItemRandomizer.ItemRandomMapData.INSTANCE.configure();
     }
 
     @SubscribeEvent

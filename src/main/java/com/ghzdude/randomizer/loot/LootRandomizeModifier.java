@@ -1,6 +1,6 @@
 package com.ghzdude.randomizer.loot;
 
-import com.ghzdude.randomizer.LootRandomizer;
+import com.ghzdude.randomizer.ItemRandomizer;
 import com.ghzdude.randomizer.RandomizerConfig;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
