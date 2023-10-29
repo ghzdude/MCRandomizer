@@ -1,10 +1,10 @@
 package com.ghzdude.randomizer.special.item;
 
 import net.minecraft.world.item.Item;
-import net.minecraft.world.level.ItemLike;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Random;
 
 public class SpecialItemList extends ArrayList<SpecialItem> {
 
@@ -53,5 +53,15 @@ public class SpecialItemList extends ArrayList<SpecialItem> {
             if (this.get(i).item == o) return i;
         }
         return -1;
+    }
+
+    public Item getRandomItem(Random rng) {
+        int i = rng.nextInt();
+        return this.get(i).item;
+    }
+
+    public SpecialItem getRandomSpecialItem(Random rng) {
+        int i = rng.nextInt();
+        return this.get(i);
     }
 }
