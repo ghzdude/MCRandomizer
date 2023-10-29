@@ -3,21 +3,21 @@ package com.ghzdude.randomizer.special.generators;
 import com.ghzdude.randomizer.RandomizerCore;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
-import net.minecraft.util.RandomSource;
 import net.minecraft.world.item.DyeColor;
 import net.minecraft.world.item.ItemStack;
 
 import java.util.List;
+import java.util.Random;
 
 public class FireworkGenerator {
     public static void applyFirework(ItemStack stack) {
-        RandomSource random = RandomizerCore.rng;
+        Random random = RandomizerCore.rng;
 
         CompoundTag fireworksTag = new CompoundTag();
         CompoundTag baseTag = new CompoundTag();
         fireworksTag.putInt("Flight", random.nextInt(6) + 1);
 
-        int chance = random.nextInt(100);
+        int chance = random.nextInt(100) + 1;
         if (chance > 25) { // 25% chance to not add explosions
             ListTag explosionTags = new ListTag();
             int numOfEffects = random.nextInt(4) + 1;
@@ -36,7 +36,7 @@ public class FireworkGenerator {
         stack.setTag(baseTag);
     }
     private static CompoundTag applyExplosions() {
-        RandomSource random = RandomizerCore.rng;
+        Random random = RandomizerCore.rng;
         CompoundTag base = new CompoundTag();
 
         int colorIndex = random.nextInt(DyeColor.values().length);
