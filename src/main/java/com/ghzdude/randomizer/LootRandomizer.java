@@ -30,22 +30,22 @@ public class LootRandomizer {
     @SubscribeEvent
     public void start(ServerStartingEvent event) {
         if (RandomizerConfig.lootRandomizerEnabled()) {
-            LootData.INSTANCE = get(event.getServer().overworld().getDataStorage());
-            LootData.INSTANCE.configure(event.getServer().getWorldData().worldGenOptions().seed());
+            ItemRandomMapData.INSTANCE = get(event.getServer().overworld().getDataStorage());
+            ItemRandomMapData.INSTANCE.configure(event.getServer().getWorldData().worldGenOptions().seed());
         }
     }
 
-    public static LootData get(DimensionDataStorage storage){
-        return storage.computeIfAbsent(LootData.factory(), RandomizerCore.MODID + "_loot");
+    public static ItemRandomMapData get(DimensionDataStorage storage){
+        return storage.computeIfAbsent(ItemRandomMapData.factory(), RandomizerCore.MODID + "_loot");
     }
 
-    public static class LootData extends SavedData {
+    public static class ItemRandomMapData extends SavedData {
 
         public static final Map<Item, Item> ITEM_MAP = new Object2ObjectOpenHashMap<>();
-        public static LootData INSTANCE;
+        public static ItemRandomMapData INSTANCE;
 
-        public static SavedData.Factory<LootData> factory() {
-            return new Factory<>(LootData::new, LootData::load, DataFixTypes.LEVEL);
+        public static SavedData.Factory<ItemRandomMapData> factory() {
+            return new Factory<>(ItemRandomMapData::new, ItemRandomMapData::load, DataFixTypes.LEVEL);
         }
 
         @Override
@@ -61,7 +61,7 @@ public class LootRandomizer {
             return tag;
         }
 
-        public static LootData load(CompoundTag tag) {
+        public static ItemRandomMapData load(CompoundTag tag) {
             RandomizerCore.LOGGER.warn("Loading changed loot tables to world data!");
             INSTANCE = factory().constructor().get();
             CompoundTag map = tag.getCompound("item_map");
