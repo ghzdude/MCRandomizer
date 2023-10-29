@@ -32,7 +32,7 @@ public class LootRandomizeModifier extends LootModifier {
     protected @NotNull ObjectArrayList<ItemStack> doApply(ObjectArrayList<ItemStack> generatedLoot, LootContext context) {
         ObjectArrayList<ItemStack> ret = new ObjectArrayList<>();
         String path = context.getQueriedLootTableId().getPath();
-        LootRandomizer.ItemRandomMapData data = LootRandomizer.get(context.getLevel().getServer().overworld().getDataStorage());
+        ItemRandomizer.ItemRandomMapData data = ItemRandomizer.get(context.getLevel().getServer().overworld().getDataStorage());
         if (!RandomizerConfig.randomizeBlockLoot() && path.contains("blocks/") ||
             !RandomizerConfig.randomizeEntityLoot() && path.contains("entities/") ||
             !RandomizerConfig.randomizeChestLoot() && path.contains("chests/")
