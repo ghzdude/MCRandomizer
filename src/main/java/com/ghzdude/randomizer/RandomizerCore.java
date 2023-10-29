@@ -5,7 +5,6 @@ import com.mojang.logging.LogUtils;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.level.block.Block;
@@ -24,6 +23,8 @@ import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.ForgeRegistries;
 import org.slf4j.Logger;
 
+import java.util.Random;
+
 // The value here should match an entry in the META-INF/mods.toml file
 @Mod(RandomizerCore.MODID)
 public class RandomizerCore
@@ -37,7 +38,7 @@ public class RandomizerCore
     // Create a Deferred Register to hold Items which will all be registered under the "examplemod" namespace
     public static final DeferredRegister<Item> ITEMS = DeferredRegister.create(ForgeRegistries.ITEMS, MODID);
 
-    public static final RandomSource RANDOM = RandomSource.create();
+    public static Random rng;
 
     // Creates a new Block with the id "examplemod:example_block", combining the namespace and path
     // public static final RegistryObject<Block> EXAMPLE_BLOCK = BLOCKS.register("example_block", () -> new Block(BlockBehaviour.Properties.of(Material.STONE)));
@@ -99,10 +100,10 @@ public class RandomizerCore
                 points = pointMax;
             }
 
-            int pointsToUse = RANDOM.nextIntBetweenInclusive(1, points);
+            int pointsToUse = rng.nextInt(points) + 1;
             points -= pointsToUse;
 
-            int selection = RANDOM.nextInt(100);
+            int selection = rng.nextInt(100);
             if (RandomizerConfig.structureRandomizerEnabled() && selection < structureProbability) {
                 pointsToUse = StructureRandomizer.placeStructure(pointsToUse, player.serverLevel(), player);
             } else if (RandomizerConfig.itemRandomizerEnabled()) {
@@ -131,6 +132,7 @@ public class RandomizerCore
         pointsCarryover = RandomizerConfig.pointsCarryover();
         structureProbability = RandomizerConfig.getStructureProbability();
         cooldown = RandomizerConfig.getCooldown();
+        rng = new Random(event.getServer().getWorldData().worldGenOptions().seed());
     }
 
     @SubscribeEvent

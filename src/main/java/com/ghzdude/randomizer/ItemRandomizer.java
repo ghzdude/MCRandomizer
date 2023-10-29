@@ -4,15 +4,23 @@ import com.ghzdude.randomizer.special.generators.*;
 import com.ghzdude.randomizer.special.item.SpecialItem;
 import com.ghzdude.randomizer.special.item.SpecialItemList;
 import com.ghzdude.randomizer.special.item.SpecialItems;
+import com.google.common.collect.Lists;
+import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.util.datafix.DataFixTypes;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.level.saveddata.SavedData;
+import net.minecraft.world.level.storage.DimensionDataStorage;
 import net.minecraftforge.registries.ForgeRegistries;
+import org.jetbrains.annotations.NotNull;
 
-import java.util.ArrayList;
-import java.util.Collection;
+import java.util.*;
 
 /* Item Randomizer Description
  * Goal is to give the player a random item every so often DONE
@@ -24,6 +32,12 @@ import java.util.Collection;
  */
 public class ItemRandomizer {
     private static final SpecialItemList VALID_ITEMS = new SpecialItemList(configureValidItem());
+    private static final SpecialItemList SIMPLE_ITEMS = new SpecialItemList(VALID_ITEMS.stream()
+            .filter(specialItem ->
+                    !SpecialItems.EFFECT_ITEMS.contains(specialItem) &&
+                    !SpecialItems.ENCHANTABLE.contains(specialItem.item))
+            .toList()
+    );
 
     private static Collection<SpecialItem> configureValidItem() {
         int lastMatch;
@@ -83,30 +97,25 @@ public class ItemRandomizer {
     }
 
     public static SpecialItem getRandomItem() {
-        int id = RandomizerCore.RANDOM.nextInt(VALID_ITEMS.size());
+        int id = RandomizerCore.rng.nextInt(VALID_ITEMS.size());
         return VALID_ITEMS.get(id);
     }
 
     public static ItemStack getRandomItemStack() {
-        int id = RandomizerCore.RANDOM.nextInt(VALID_ITEMS.size());
+        int id = RandomizerCore.rng.nextInt(VALID_ITEMS.size());
         return specialItemToStack(VALID_ITEMS.get(id));
     }
 
     public static SpecialItem getRandomItem(int points) {
         SpecialItem toReturn;
         do {
-            int id = RandomizerCore.RANDOM.nextInt(VALID_ITEMS.size());
-            toReturn = VALID_ITEMS.get(id);
+            toReturn = VALID_ITEMS.getRandomSpecialItem(RandomizerCore.rng);
         } while (toReturn.value > points);
         return toReturn;
     }
 
     public static SpecialItem getRandomSimpleItem() {
-        SpecialItem item;
-        do {
-            item = getRandomItem();
-        } while (SpecialItems.EFFECT_ITEMS.contains(item) || SpecialItems.ENCHANTABLE.contains(item.item));
-        return item;
+        return SIMPLE_ITEMS.getRandomSpecialItem(RandomizerCore.rng);
     }
 
     public static ItemStack specialItemToStack (SpecialItem item) {
@@ -141,5 +150,73 @@ public class ItemRandomizer {
             inventory.add(stack);
         }
         RandomizerCore.incrementAmtItemsGiven();
+    }
+
+    public static ItemRandomMapData get(DimensionDataStorage storage){
+        return storage.computeIfAbsent(ItemRandomMapData.factory(), RandomizerCore.MODID + "_loot");
+    }
+
+    public static class ItemRandomMapData extends SavedData {
+
+        public static final Map<Item, Item> ITEM_MAP = new Object2ObjectOpenHashMap<>();
+        public static ItemRandomMapData INSTANCE;
+
+        public static SavedData.Factory<ItemRandomMapData> factory() {
+            return new Factory<>(ItemRandomMapData::new, ItemRandomMapData::load, DataFixTypes.LEVEL);
+        }
+
+        @Override
+        public @NotNull CompoundTag save(CompoundTag tag) {
+            RandomizerCore.LOGGER.warn("Saving changed loot tables to world data!");
+            ListTag map = new ListTag();
+            ITEM_MAP.forEach((vanilla, random) -> {
+                CompoundTag itemPair = new CompoundTag();
+                itemPair.putString(vanilla.toString(), random.toString());
+                map.add(itemPair);
+            });
+            tag.put("item_map", map);
+            return tag;
+        }
+
+        public static ItemRandomMapData load(CompoundTag tag) {
+            RandomizerCore.LOGGER.warn("Loading changed loot tables to world data!");
+            INSTANCE = factory().constructor().get();
+            CompoundTag map = tag.getCompound("item_map");
+            ForgeRegistries.ITEMS.forEach((item) -> {
+                Item random = ForgeRegistries.ITEMS.getValue(new ResourceLocation(map.getString(item.toString())));
+                ITEM_MAP.put(item, random);
+            });
+            return INSTANCE;
+        }
+
+        public void configure(long seed) {
+            Random rng = new Random(seed);
+            List<Item> registry = Lists.newArrayList(ForgeRegistries.ITEMS.getValues()
+                    .stream()
+                    .filter(item -> !SpecialItems.BLACKLISTED_ITEMS.contains(item)).toList());
+
+            List<Item> blocks = Lists.newArrayList(registry);
+            Collections.shuffle(blocks, rng);
+
+
+            if (registry.size() != blocks.size()) {
+                RandomizerCore.LOGGER.warn("Registry was modified during server start!");
+                return;
+            }
+
+            for (int i = 0; i < registry.size(); i++) {
+                if (ITEM_MAP.containsKey(registry.get(i)) && SpecialItems.BLACKLISTED_ITEMS.contains(blocks.get(i))) continue;
+
+                ITEM_MAP.put(registry.get(i), blocks.get(i));
+            }
+            setDirty();
+        }
+
+        public ItemStack getStack(ItemStack vanilla) {
+            ItemStack random = new ItemStack(ITEM_MAP.get(vanilla.getItem()));
+            random.setCount(vanilla.getCount());
+            random.setTag(vanilla.getTag());
+            return random;
+        }
     }
 }

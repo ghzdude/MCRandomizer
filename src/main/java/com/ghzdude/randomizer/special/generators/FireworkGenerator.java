@@ -11,7 +11,7 @@ import java.util.List;
 
 public class FireworkGenerator {
     public static void applyFirework(ItemStack stack) {
-        RandomSource random = RandomizerCore.RANDOM;
+        RandomSource random = RandomizerCore.rng;
 
         CompoundTag fireworksTag = new CompoundTag();
         CompoundTag baseTag = new CompoundTag();
@@ -36,7 +36,7 @@ public class FireworkGenerator {
         stack.setTag(baseTag);
     }
     private static CompoundTag applyExplosions() {
-        RandomSource random = RandomizerCore.RANDOM;
+        RandomSource random = RandomizerCore.rng;
         CompoundTag base = new CompoundTag();
 
         int colorIndex = random.nextInt(DyeColor.values().length);
