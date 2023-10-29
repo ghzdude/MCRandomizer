@@ -3,7 +3,6 @@ package com.ghzdude.randomizer;
 import com.ghzdude.randomizer.io.ConfigIO;
 import com.ghzdude.randomizer.special.structure.SpecialStructure;
 import com.ghzdude.randomizer.special.structure.SpecialStructureList;
-import com.ghzdude.randomizer.special.structure.SpecialStructures;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.SectionPos;
 import net.minecraft.network.chat.Component;
@@ -64,7 +63,7 @@ public class StructureRandomizer {
     private static SpecialStructure selectStructure(int points) {
         SpecialStructure structure;
         do {
-            int id = RandomizerCore.RANDOM.nextInt(STRUCTURES.size());
+            int id = RandomizerCore.rng.nextInt(STRUCTURES.size());
             structure = STRUCTURES.get(id);
         } while (structure.value > points);
         return structure;

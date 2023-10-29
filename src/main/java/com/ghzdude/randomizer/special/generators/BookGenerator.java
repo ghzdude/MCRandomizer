@@ -22,7 +22,7 @@ public class BookGenerator {
 
         CompoundTag tag = new CompoundTag();
         ListTag pages = new ListTag();
-        int id = RandomizerCore.RANDOM.nextInt(PASSAGES.size());
+        int id = RandomizerCore.rng.nextInt(PASSAGES.size());
         Passage passage = PASSAGES.get(id);
 
         StringTag title = StringTag.valueOf(String.format(FORMAT, passage.title()));

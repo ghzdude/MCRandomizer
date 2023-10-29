@@ -13,7 +13,6 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.registries.ForgeRegistries;
 
 import java.util.ArrayList;
-import java.util.List;
 
 /* Mob Spawn Randomizer description
  * when a mob is about to spawn, change the mob
@@ -32,7 +31,7 @@ public class MobRandomizer {
     private Entity getRandomMob(Level level) {
         Entity mob;
         do {
-            int id = RandomizerCore.RANDOM.nextInt(entityTypes.size());
+            int id = RandomizerCore.rng.nextInt(entityTypes.size());
             EntityType<?> entityType = entityTypes.get(id);
             mob = entityType.create(level);
         } while (mob == null);

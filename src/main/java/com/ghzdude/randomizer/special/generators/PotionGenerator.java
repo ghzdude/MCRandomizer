@@ -40,7 +40,7 @@ public class PotionGenerator {
 
     public static void applyEffect(ItemStack stack) {
 
-        final RandomSource random = RandomizerCore.RANDOM;
+        final RandomSource random = RandomizerCore.rng;
 
         int id = random.nextInt(VALID_POTIONS.size());
         int numOfEffects = random.nextInt(3) + 1;
