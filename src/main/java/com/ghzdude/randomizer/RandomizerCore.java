@@ -87,6 +87,7 @@ public class RandomizerCore
         rng = new Random(event.getServer().getWorldData().worldGenOptions().seed());
         ItemRandomizer.ItemRandomMapData.INSTANCE = ItemRandomizer.get(event.getServer().overworld().getDataStorage());
         ItemRandomizer.ItemRandomMapData.INSTANCE.configure();
+        StructureRandomizer.configureStructures(event.getServer().registryAccess());
     }
 
     @SubscribeEvent
