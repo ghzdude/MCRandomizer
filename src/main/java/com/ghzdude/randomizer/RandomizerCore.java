@@ -80,6 +80,16 @@ public class RandomizerCore
     }
 
     @SubscribeEvent
+    public void onStart(ServerStartedEvent event) {
+        pointsCarryover = RandomizerConfig.pointsCarryover();
+        structureProbability = RandomizerConfig.getStructureProbability();
+        cooldown = RandomizerConfig.getCooldown();
+        rng = new Random(event.getServer().getWorldData().worldGenOptions().seed());
+        ItemRandomizer.ItemRandomMapData.INSTANCE = ItemRandomizer.get(event.getServer().overworld().getDataStorage());
+        ItemRandomizer.ItemRandomMapData.INSTANCE.configure();
+    }
+
+    @SubscribeEvent
     public void update(TickEvent.PlayerTickEvent event) {
         if (event.side.isClient()) return;
         if (event.phase == TickEvent.Phase.END) return;
@@ -120,15 +130,6 @@ public class RandomizerCore
             pointMax++;
             player.sendSystemMessage(Component.translatable("player.point_max.increased", pointMax));
         }
-    }
-
-    @SubscribeEvent
-    public void onStart(ServerStartedEvent event) {
-        pointsCarryover = RandomizerConfig.pointsCarryover();
-        structureProbability = RandomizerConfig.getStructureProbability();
-        cooldown = RandomizerConfig.getCooldown();
-        rng = new Random(event.getServer().getWorldData().worldGenOptions().seed());
-        ItemRandomizer.ItemRandomMapData.INSTANCE.configure();
     }
 
     @SubscribeEvent
