@@ -178,7 +178,6 @@ public class ItemRandomizer {
 
         public static ItemRandomMapData load(CompoundTag tag) {
             RandomizerCore.LOGGER.warn("Loading changed loot tables to world data!");
-            INSTANCE = factory().constructor().get();
             CompoundTag map = tag.getCompound("item_map");
             ForgeRegistries.ITEMS.forEach((item) -> {
                 Item random = ForgeRegistries.ITEMS.getValue(new ResourceLocation(map.getString(item.toString())));
@@ -192,7 +191,6 @@ public class ItemRandomizer {
 
             List<Item> blocks = Lists.newArrayList(registry);
             Collections.shuffle(blocks, RandomizerCore.rng);
-
 
             if (registry.size() != blocks.size()) {
                 RandomizerCore.LOGGER.warn("Registry was modified during server start!");
