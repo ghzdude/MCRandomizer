@@ -57,12 +57,11 @@ public class SpecialItemList extends ArrayList<SpecialItem> {
     }
 
     public Item getRandomItem(Random rng) {
-        int i = rng.nextInt();
-        return this.get(i).item;
+        return getRandomSpecialItem(rng).item;
     }
 
     public SpecialItem getRandomSpecialItem(Random rng) {
-        int i = rng.nextInt();
+        int i = rng.nextInt(this.size());
         return this.get(i);
     }
 
