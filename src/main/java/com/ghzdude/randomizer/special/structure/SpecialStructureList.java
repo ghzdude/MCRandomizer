@@ -1,6 +1,7 @@
 package com.ghzdude.randomizer.special.structure;
 
 
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.levelgen.structure.Structure;
 import org.jetbrains.annotations.NotNull;
 
@@ -17,42 +18,24 @@ public class SpecialStructureList extends ArrayList<SpecialStructure> {
         super();
     }
 
-    @Override
-    public boolean contains(Object o) {
-        if (o instanceof SpecialStructure) {
-            return contains((SpecialStructure) o);
-        } else if (o instanceof Structure) {
-            return contains((Structure) o);
-        }
-        return false;
-    }
     public boolean contains(SpecialStructure o) {
-        return contains(o.structure);
-    }
-    public boolean contains(Structure o) {
-        for (SpecialStructure structure : this) {
-            if (structure.structure.equals(o)) return true;
-        }
-        return false;
+        return contains(o.key);
     }
 
-    @Override
-    public int indexOf(Object o) {
-        if (o instanceof SpecialStructure) {
-            return indexOf((SpecialStructure) o);
-        } else if (o instanceof Structure) {
-            return indexOf((Structure) o);
+    public boolean contains(ResourceKey<Structure> o) {
+        for (SpecialStructure structure : this) {
+            if (structure.key == o) return true;
         }
-        return -1;
+        return false;
     }
 
     public int indexOf(SpecialStructure o) {
-        return indexOf(o.structure);
+        return indexOf(o.key);
     }
 
-    public int indexOf(Structure o) {
+    public int indexOf(ResourceKey<Structure> o) {
         for (int i = 0; i < this.size(); i++) {
-            if (this.get(i).structure.equals(o)) return i;
+            if (this.get(i).key.equals(o)) return i;
         }
         return -1;
     }
