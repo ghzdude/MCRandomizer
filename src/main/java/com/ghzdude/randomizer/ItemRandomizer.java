@@ -207,7 +207,7 @@ public class ItemRandomizer {
 
         public ItemStack getStack(ItemStack vanilla) {
             ItemStack random = new ItemStack(ITEM_MAP.get(vanilla.getItem()));
-            random.setCount(vanilla.getCount());
+            random.setCount(Math.min(vanilla.getCount(), random.getMaxStackSize()));
             random.setTag(vanilla.getTag());
             return random;
         }
