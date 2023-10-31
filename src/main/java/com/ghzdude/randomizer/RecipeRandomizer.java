@@ -41,7 +41,9 @@ public class RecipeRandomizer {
                 ReflectionUtils.setField(SingleItemRecipe.class, singleItemRecipe, 1, newResult);
             }
 
-            if (!RandomizerConfig.randomizeInputs()) return;
+            // if inputs are not to be randomized, move on to the next recipe
+            if (!RandomizerConfig.randomizeInputs()) continue;
+
             List<Ingredient> ingredients = recipe.getIngredients();
             for (Ingredient i : ingredients) {
                 Ingredient.Value[] values = ReflectionUtils.getField(Ingredient.class, i, 2);
