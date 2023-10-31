@@ -5,11 +5,16 @@ import com.ghzdude.randomizer.io.ConfigIO;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.*;
 import net.minecraft.world.level.Level;
+import net.minecraftforge.event.TickEvent;
+import net.minecraftforge.event.entity.EntityJoinLevelEvent;
+import net.minecraftforge.event.entity.EntityLeaveLevelEvent;
 import net.minecraftforge.event.entity.living.LivingDeathEvent;
 import net.minecraftforge.event.entity.living.MobSpawnEvent;
+import net.minecraftforge.event.level.ChunkEvent;
 import net.minecraftforge.event.server.ServerStartedEvent;
 import net.minecraftforge.eventbus.api.Event;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.LogicalSide;
 import net.minecraftforge.registries.ForgeRegistries;
 
 import java.util.ArrayList;
@@ -24,6 +29,8 @@ public class MobRandomizer {
             .stream().filter(entityType ->
                     !BLACKLISTED_ENTITIES.contains(entityType) && entityType.getCategory() != MobCategory.MISC
             ).toList());
+
+    //todo set entity cap to be a config
     private final int entityCap = 150;
     private int entityCount;
     private boolean isEnabled;
@@ -62,18 +69,34 @@ public class MobRandomizer {
         }
     }
 
-    @SubscribeEvent
-    public void onServerStart(ServerStartedEvent event) {
-        isEnabled = RandomizerConfig.mobRandomizerEnabled();
-        if (isEnabled) {
-            for (ServerLevel level : event.getServer().getAllLevels()) {
-                for (Entity mob : level.getAllEntities()) {
-                    if (level.isLoaded(mob.blockPosition()) && mob.getType().getCategory() != MobCategory.MISC) {
-                        entityCount++;
-                    }
+    private int countEntities(Iterable<ServerLevel> iterable) {
+        int count = 0;
+        for (ServerLevel level : iterable) {
+            for (Entity mob : level.getAllEntities()) {
+                if (level.isLoaded(mob.blockPosition()) && mob.getType().getCategory() != MobCategory.MISC) {
+                    count++;
                 }
             }
         }
+        return count;
+    }
+
+    @SubscribeEvent
+    public void onServerStart(ServerStartedEvent event) {
+        isEnabled = RandomizerConfig.mobRandomizerEnabled();
+    }
+
+    private int TIMER = 0;
+    @SubscribeEvent
+    public void onServerStart(TickEvent.ServerTickEvent event) {
+        if (event.phase == TickEvent.Phase.END || event.side == LogicalSide.CLIENT) return;
+        if (TIMER++ % 200 != 0) return;
+
+        if (isEnabled) {
+            entityCount = countEntities(event.getServer().getAllLevels());
+        }
+
+        if (TIMER < 0) TIMER = 0;
     }
 
     @SubscribeEvent
@@ -97,5 +120,10 @@ public class MobRandomizer {
                 entityCount = 0;
             }
         }
+    }
+
+    @SubscribeEvent
+    public void onUnload(EntityLeaveLevelEvent event) {
+        entityCount--;
     }
 }
