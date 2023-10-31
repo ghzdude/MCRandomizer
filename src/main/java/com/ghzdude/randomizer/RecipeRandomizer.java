@@ -43,7 +43,14 @@ public class RecipeRandomizer {
 
             List<Ingredient> ingredients = recipe.getIngredients();
             for (Ingredient i : ingredients) {
-//                if (i.)
+                Ingredient.Value[] values = ReflectionUtils.getField(Ingredient.class, i, 2);
+                for (int j = 0; j < values.length; j++) {
+                    if (values[j] instanceof Ingredient.ItemValue itemValue) {
+                        values[j] = new Ingredient.ItemValue(ItemRandomizer.getStackFor(itemValue.item()));
+                    } else if (values[j] instanceof Ingredient.TagValue tagValue) {
+                        values[j] = new Ingredient.TagValue(ItemRandomizer.getTagKeyFor(tagValue.tag()));
+                    }
+                }
             }
         }
     }
