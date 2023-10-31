@@ -12,11 +12,12 @@ public class RandomizerConfig {
     private final ForgeConfigSpec.ConfigValue<Boolean> giveMultipleItems;
     private final ForgeConfigSpec.ConfigValue<Integer> cycleBase;
     private final ForgeConfigSpec.ConfigValue<Boolean> randomizeRecipes;
+    private final ForgeConfigSpec.ConfigValue<Boolean> randomizeRecipeInputs;
     private final ForgeConfigSpec.ConfigValue<Boolean> giveRandomItems;
     private final ForgeConfigSpec.ConfigValue<Boolean> generateStructures;
     private final ForgeConfigSpec.ConfigValue<Integer> structureProbability;
     private final ForgeConfigSpec.ConfigValue<Boolean> randomizeLoot;
-    private final ForgeConfigSpec.ConfigValue<Boolean> randomizeBloockLoot;
+    private final ForgeConfigSpec.ConfigValue<Boolean> randomizeBlockLoot;
     private final ForgeConfigSpec.ConfigValue<Boolean> randomizeEntityLoot;
     private final ForgeConfigSpec.ConfigValue<Boolean> randomizeChestLoot;
     private final ForgeConfigSpec.ConfigValue<Boolean> randomizeMobs;
@@ -45,6 +46,8 @@ public class RandomizerConfig {
         builder.push("Recipe Randomizer");
         this.randomizeRecipes = builder.comment("Should recipes be randomized? Defaults to true.")
                 .define("randomize_recipes", true);
+        this.randomizeRecipeInputs = builder.comment("Should recipe inputs also be randomized? Defaults to true.")
+                .define("randomize_recipe_inputs", true);
         builder.pop();
 
         // Structure Randomizer
@@ -60,7 +63,7 @@ public class RandomizerConfig {
         this.randomizeLoot = builder.comment("Should Loot Tables (block drops, entity drops, chest loot) be randomized? Defaults to true.")
                 .define("randomize_loot", true);
 
-        this.randomizeBloockLoot = builder.comment("Should block drops be randomized? Defaults to false.")
+        this.randomizeBlockLoot = builder.comment("Should block drops be randomized? Defaults to false.")
                 .define("randomize_block_loot", false);
 
         this.randomizeEntityLoot = builder.comment("Should mob drops be randomized? Defaults to false.")
@@ -121,13 +124,16 @@ public class RandomizerConfig {
     public static boolean recipeRandomizerEnabled() {
         return getConfig().randomizeRecipes.get();
     }
+    public static boolean randomizeInputs() {
+        return getConfig().randomizeRecipeInputs.get();
+    }
 
     public static boolean lootRandomizerEnabled() {
         return getConfig().randomizeLoot.get();
     }
 
     public static boolean randomizeBlockLoot() {
-        return getConfig().randomizeBloockLoot.get();
+        return getConfig().randomizeBlockLoot.get();
     }
 
     public static boolean randomizeEntityLoot() {
