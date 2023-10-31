@@ -7,7 +7,6 @@ import com.ghzdude.randomizer.special.item.SpecialItems;
 import com.google.common.collect.Lists;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.ListTag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.TagKey;
 import net.minecraft.util.datafix.DataFixTypes;
@@ -40,6 +39,8 @@ public class ItemRandomizer {
                     !SpecialItems.ENCHANTABLE.contains(specialItem.item))
             .toList()
     );
+
+    public static ItemRandomMapData MAP_DATA;
 
     private static Collection<SpecialItem> configureValidItem() {
         int lastMatch;
@@ -167,7 +168,8 @@ public class ItemRandomizer {
     }
 
     public static ItemRandomMapData get(DimensionDataStorage storage){
-        return storage.computeIfAbsent(ItemRandomMapData.factory(), RandomizerCore.MODID + "_loot");
+        MAP_DATA = storage.computeIfAbsent(ItemRandomMapData.factory(), RandomizerCore.MODID + "_loot");
+        return MAP_DATA;
     }
 
     public static class ItemRandomMapData extends SavedData {
@@ -175,7 +177,6 @@ public class ItemRandomizer {
 
         private final Map<Item, Item> ITEM_MAP = new Object2ObjectOpenHashMap<>();
         private final Map<TagKey<Item>, TagKey<Item>> TAGKEY_MAP = new Object2ObjectOpenHashMap<>();
-        public static final ItemRandomMapData INSTANCE = new ItemRandomMapData();
 
         public static SavedData.Factory<ItemRandomMapData> factory() {
             return new Factory<>(ItemRandomMapData::new, ItemRandomMapData::load, DataFixTypes.LEVEL);
@@ -189,31 +190,47 @@ public class ItemRandomizer {
 
         @Override
         public @NotNull CompoundTag save(CompoundTag tag) {
-            RandomizerCore.LOGGER.warn("Saving changed loot tables to world data!");
-            ListTag map = new ListTag();
+            RandomizerCore.LOGGER.warn("Saving randomizations to disk!");
+            CompoundTag itemMap = new CompoundTag();
+            CompoundTag tagKeyMap = new CompoundTag();
+
             this.ITEM_MAP.forEach((vanilla, random) -> {
-                CompoundTag itemPair = new CompoundTag();
                 if (random == Items.AIR) return;
 
-                itemPair.putString(vanilla.toString(), random.toString());
-                map.add(itemPair);
+                itemMap.putString(vanilla.toString(), random.toString());
             });
-            tag.put("item_map", map);
+
+            this.TAGKEY_MAP.forEach((vanilla, random) -> {
+                tagKeyMap.putString(vanilla.location().toString(), random.location().toString());
+            });
+
+            tag.put("item_map", itemMap);
+            tag.put("tag_key_map", tagKeyMap);
             return tag;
         }
 
         public static ItemRandomMapData load(CompoundTag tag) {
-            RandomizerCore.LOGGER.warn("Loading changed loot tables to world data!");
-            CompoundTag map = tag.getCompound("item_map");
-            VALID_ITEMS.forEach((specialItem) -> {
+            MAP_DATA = new ItemRandomMapData();
+            RandomizerCore.LOGGER.warn("Loading randomizations from disk!");
+            CompoundTag itemMap = tag.getCompound("item_map");
+            CompoundTag tagKeyMap = tag.getCompound("tag_key_map");
+            VALID_ITEMS.forEach(specialItem -> {
                 Item vanilla = specialItem.item;
-                Item random = ForgeRegistries.ITEMS.getValue(new ResourceLocation(map.getString(vanilla.toString())));
+                Item random = ForgeRegistries.ITEMS.getValue(new ResourceLocation(itemMap.getString(vanilla.toString())));
                 if (random == Items.AIR) return;
 
-                INSTANCE.ITEM_MAP.put(vanilla, random);
+                MAP_DATA.ITEM_MAP.put(vanilla, random);
             });
-            INSTANCE.setDirty();
-            return INSTANCE;
+
+            ITagManager<Item> tagManager = ForgeRegistries.ITEMS.tags();
+            if (tagManager != null) {
+                tagManager.getTagNames().forEach(vanilla -> {
+                    String rand = tagKeyMap.getString(vanilla.location().toString());
+                    MAP_DATA.TAGKEY_MAP.put(vanilla, tagManager.createTagKey(new ResourceLocation(rand)));
+                });
+                MAP_DATA.setDirty();
+            }
+            return MAP_DATA;
         }
 
         private void generateTagMap() {
@@ -258,7 +275,7 @@ public class ItemRandomizer {
         }
 
         public static ItemStack getStackFor(Item vanilla, int count, CompoundTag tag) {
-            Item randomItem = INSTANCE.ITEM_MAP.get(vanilla);
+            Item randomItem = MAP_DATA.ITEM_MAP.get(vanilla);
             if (randomItem == null) return ItemStack.EMPTY;
 
             ItemStack random = new ItemStack(randomItem);
@@ -268,7 +285,7 @@ public class ItemRandomizer {
         }
 
         public static TagKey<Item> getTagKeyFor(TagKey<Item> vanilla) {
-            return INSTANCE.TAGKEY_MAP.get(vanilla);
+            return MAP_DATA.TAGKEY_MAP.get(vanilla);
         }
     }
 }
