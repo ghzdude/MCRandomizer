@@ -1,5 +1,6 @@
 package com.ghzdude.randomizer;
 
+import com.ghzdude.randomizer.io.ConfigIO;
 import com.ghzdude.randomizer.special.structure.SpecialStructure;
 import com.ghzdude.randomizer.special.structure.SpecialStructureList;
 import com.ghzdude.randomizer.special.structure.SpecialStructures;
@@ -24,7 +25,7 @@ import java.util.Optional;
  * every so often, generate a structure at some random x, z coordinate near the player
  */
 public class StructureRandomizer {
-    private static final ArrayList<ResourceLocation> BLACKLISTED_STRUCTURES = new ArrayList<>(); // ConfigIO.readStructureBlacklist();
+    private static final ArrayList<ResourceLocation> BLACKLISTED_STRUCTURES = ConfigIO.readStructureBlacklist();
     private static final SpecialStructureList VALID_STRUCTURES = new SpecialStructureList();
 
     public static int placeStructure(int pointsToUse, ServerLevel level, Player player) {
