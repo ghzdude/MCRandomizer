@@ -89,7 +89,7 @@ public class ItemRandomizer {
         SpecialItem selectedItem = getRandomSpecialItem(pointsToUse);
 
         int amtToGive = Math.floorDiv(pointsToUse, selectedItem.value);
-        ItemStack stack = specialItemToStack(selectedItem);
+        ItemStack stack = itemToStack(selectedItem.item);
 
         stack.setCount(Math.min(amtToGive, stack.getMaxStackSize()));
 
@@ -103,7 +103,7 @@ public class ItemRandomizer {
     }
 
     public static ItemStack getRandomItemStack() {
-        return specialItemToStack(getRandomSpecialItem());
+        return itemToStack(getRandomSpecialItem().item);
     }
 
     public static SpecialItem getRandomSpecialItem(int points) {
@@ -119,23 +119,33 @@ public class ItemRandomizer {
     }
 
     public static ItemStack specialItemToStack (SpecialItem item) {
-        ItemStack stack = new ItemStack(item.item);
+        return itemToStack(item.item);
+    }
 
-        if (SpecialItems.ENCHANTABLE.contains(item.item)) {
+    public static ItemStack itemToStack(Item item) {
+        ItemStack stack = new ItemStack(item);
+        if (SpecialItems.ENCHANTABLE.contains(item)) {
             EnchantmentGenerator.applyEnchantment(stack);
         } else if (SpecialItems.EFFECT_ITEMS.contains(item)) {
             PotionGenerator.applyEffect(stack);
-        } else if (item.item == Items.WRITTEN_BOOK) {
+        } else if (item == Items.WRITTEN_BOOK) {
             BookGenerator.applyPassages(stack);
-        } else if (item.item == Items.FIREWORK_ROCKET) {
+        } else if (item == Items.FIREWORK_ROCKET) {
             FireworkGenerator.applyFirework(stack);
-        } else if (item.item == Items.FIREWORK_STAR) {
+        } else if (item == Items.FIREWORK_STAR) {
             FireworkGenerator.applyFireworkStar(stack);
-        } else if (item.item == Items.GOAT_HORN) {
+        } else if (item == Items.GOAT_HORN) {
             GoatHornGenerator.applyGoatHornSound(stack);
         }
-
         return stack;
+    }
+
+    public static ItemStack getStackFor(ItemStack stack) {
+        return getStackFor(stack.getItem(), stack.getCount(), stack.getTag());
+    }
+
+    public static ItemStack getStackFor(Item vanilla, int count, CompoundTag tag) {
+        return ItemRandomMapData.getStackFor(vanilla, count, tag);
     }
 
     private static void addStackToPlayer(ItemStack stack, Inventory inventory) {
@@ -237,13 +247,19 @@ public class ItemRandomizer {
 
                 ITEM_MAP.put(vanilla.get(i), randomized.get(i));
             }
-            setDirty();
         }
 
-        public ItemStack getStack(ItemStack vanilla) {
-            ItemStack random = new ItemStack(ITEM_MAP.get(vanilla.getItem()));
-            random.setCount(Math.min(vanilla.getCount(), random.getMaxStackSize()));
-            random.setTag(vanilla.getTag());
+        public static ItemStack getStackFor(ItemStack stack) {
+            return getStackFor(stack.getItem(), stack.getCount(), stack.getTag());
+        }
+
+        public static ItemStack getStackFor(Item vanilla, int count, CompoundTag tag) {
+            Item randomItem = INSTANCE.ITEM_MAP.get(vanilla);
+            if (randomItem == null) return ItemStack.EMPTY;
+
+            ItemStack random = new ItemStack(randomItem);
+            random.setCount(Math.min(random.getMaxStackSize(), count));
+            random.setTag(tag);
             return random;
         }
     }
