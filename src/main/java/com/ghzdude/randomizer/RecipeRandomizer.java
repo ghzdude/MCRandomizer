@@ -31,14 +31,14 @@ public class RecipeRandomizer {
             Recipe<?> recipe = holder.value();
             ItemStack newResult = ItemRandomizer.getStackFor(recipe.getResultItem(access));
 
-            if (recipe instanceof ShapedRecipe) {
-                ReflectionUtils.setField(ShapedRecipe.class, (ShapedRecipe) recipe, 5, newResult);
-            } else if (recipe instanceof ShapelessRecipe) {
-                ReflectionUtils.setField(ShapelessRecipe.class, (ShapelessRecipe) recipe, 2, newResult);
-            } else if (recipe instanceof AbstractCookingRecipe) {
-                ReflectionUtils.setField(AbstractCookingRecipe.class, (AbstractCookingRecipe) recipe, 4, newResult);
-            } else if (recipe instanceof SingleItemRecipe) {
-                ReflectionUtils.setField(SingleItemRecipe.class, (SingleItemRecipe) recipe, 1, newResult);
+            if (recipe instanceof ShapedRecipe shapedRecipe) {
+                ReflectionUtils.setField(ShapedRecipe.class, shapedRecipe, 5, newResult);
+            } else if (recipe instanceof ShapelessRecipe shapelessRecipe) {
+                ReflectionUtils.setField(ShapelessRecipe.class, shapelessRecipe, 2, newResult);
+            } else if (recipe instanceof AbstractCookingRecipe abstractCookingRecipe) {
+                ReflectionUtils.setField(AbstractCookingRecipe.class, abstractCookingRecipe, 4, newResult);
+            } else if (recipe instanceof SingleItemRecipe singleItemRecipe) {
+                ReflectionUtils.setField(SingleItemRecipe.class, singleItemRecipe, 1, newResult);
             }
 
             List<Ingredient> ingredients = recipe.getIngredients();
