@@ -30,6 +30,8 @@ public class LootRandomizeModifier extends LootModifier {
 
     @Override
     protected @NotNull ObjectArrayList<ItemStack> doApply(ObjectArrayList<ItemStack> generatedLoot, LootContext context) {
+        if (!RandomizerConfig.lootRandomizerEnabled()) return generatedLoot;
+
         ObjectArrayList<ItemStack> ret = new ObjectArrayList<>();
         String path = context.getQueriedLootTableId().getPath();
         if (!RandomizerConfig.randomizeBlockLoot() && path.contains("blocks/") ||
