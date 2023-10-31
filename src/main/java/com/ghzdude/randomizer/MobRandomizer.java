@@ -81,7 +81,7 @@ public class MobRandomizer {
         if (isEnabled) {
             randomizeMobSpawn(event.getSpawnType(), event.getEntity());
             if (event.getSpawnType() != MobSpawnType.SPAWN_EGG) {
-                event.setResult(Event.Result.DENY);
+                event.setSpawnCancelled(true);
             }
         }
     }
