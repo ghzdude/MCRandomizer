@@ -148,6 +148,10 @@ public class ItemRandomizer {
         return ItemRandomMapData.getStackFor(vanilla, count, tag);
     }
 
+    public static TagKey<Item> getTagKeyFor(TagKey<Item> vanilla) {
+        return ItemRandomMapData.getTagKeyFor(vanilla);
+    }
+
     private static void addStackToPlayer(ItemStack stack, Inventory inventory) {
         RandomizerCore.LOGGER.warn(String.format("Given %s to %s.",  stack.copy(), inventory.player.getDisplayName().getString()));
         if (inventory.getFreeSlot() == -1) {
@@ -261,6 +265,10 @@ public class ItemRandomizer {
             random.setCount(Math.min(random.getMaxStackSize(), count));
             random.setTag(tag);
             return random;
+        }
+
+        public static TagKey<Item> getTagKeyFor(TagKey<Item> vanilla) {
+            return INSTANCE.TAGKEY_MAP.get(vanilla);
         }
     }
 }
