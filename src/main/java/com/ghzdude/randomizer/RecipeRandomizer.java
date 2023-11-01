@@ -1,24 +1,18 @@
 package com.ghzdude.randomizer;
 
 import com.ghzdude.randomizer.reflection.ReflectionUtils;
-import it.unimi.dsi.fastutil.objects.Object2ObjectArrayMap;
+import net.minecraft.advancements.AdvancementHolder;
+import net.minecraft.advancements.Criterion;
 import net.minecraft.core.RegistryAccess;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.ListTag;
-import net.minecraft.nbt.Tag;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.util.datafix.DataFixTypes;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.*;
-import net.minecraft.world.level.saveddata.SavedData;
-import net.minecraft.world.level.storage.DimensionDataStorage;
 import net.minecraftforge.event.server.ServerStartedEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
-import org.jetbrains.annotations.NotNull;
 
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /* Recipe Randomizer Description
  * on resource re/load, randomize every recipe
@@ -26,7 +20,7 @@ import java.util.Map;
  */
 public class RecipeRandomizer {
 
-    public void randomizeRecipes(Collection<RecipeHolder<?>> recipes, RegistryAccess access) {
+    public void randomizeRecipes(Collection<RecipeHolder<?>> recipes, RegistryAccess access, List<AdvancementHolder> advancementHolders) {
         for (RecipeHolder<?> holder : recipes) {
             Recipe<?> recipe = holder.value();
             ItemStack newResult = ItemRandomizer.getStackFor(recipe.getResultItem(access));
@@ -43,6 +37,16 @@ public class RecipeRandomizer {
 
             // if inputs are not to be randomized, move on to the next recipe
             if (!RandomizerConfig.randomizeInputs()) continue;
+
+            advancementHolders.stream()
+                    .filter(advancementHolder -> advancementHolder.id().getPath().contains(holder.id().getPath()))
+                    .findFirst().ifPresent(advancementHolder -> {
+                        Set<String> keys = advancementHolder.value().criteria().keySet();
+                        Map<String, Criterion<?>> old = advancementHolder.value().criteria();
+                        for (String s: keys) {
+                            Criterion<?> c = old.get(s);
+                        }
+            });
 
             List<Ingredient> ingredients = recipe.getIngredients();
             for (Ingredient i : ingredients) {
@@ -62,7 +66,11 @@ public class RecipeRandomizer {
     public void start(ServerStartedEvent event) {
         if (RandomizerConfig.recipeRandomizerEnabled()) {
             RandomizerCore.LOGGER.warn("Recipe Randomizer Running!");
-            randomizeRecipes(event.getServer().getRecipeManager().getRecipes(), event.getServer().registryAccess());
+            Collection<RecipeHolder<?>> recipeHolders = event.getServer().getRecipeManager().getRecipes();
+            List<AdvancementHolder> advancementHolders = event.getServer().getAdvancements().getAllAdvancements().stream()
+                            .filter(advancementHolder -> advancementHolder.id().getPath().contains("recipes/"))
+                            .toList();
+            randomizeRecipes(recipeHolders, event.getServer().registryAccess(), advancementHolders);
         }
     }
 }
