@@ -13,21 +13,21 @@ public record Passage(String author, String title, String body) {
         ArrayList<String> formatted = new ArrayList<>();
         int pages = Math.floorDiv(body.length(), MAX_CHARS) + 1;
         if (pages > MAX_PAGES) pages = MAX_PAGES;
-        int lastSpace;
-        int lastDot;
+        int lastSpace, lastDot, lastNewLine;
         int start = 0;
 
         for (int i = 0; i < pages; i++) {
-            // diff -= MAX_CHARS - Math.max(lastSpace, lastDot);
             int end = Math.min(start + MAX_CHARS, body.length());
-
-            // int start = (i * MAX_CHARS + i) - diff;
-            // int end = Math.min(start + MAX_CHARS, body.length());
             lastSpace = body.substring(start, end).lastIndexOf(" ");
             lastDot = body.substring(start, end).lastIndexOf(".");
+            lastNewLine = body.substring(start, end).lastIndexOf("\n");
             int index = Math.max(lastSpace,  lastDot) + 1;
+            if (lastNewLine != -1) {
+                index = lastNewLine;
+            }
 
-            formatted.add(body.substring(start, start + index));
+            String page = body.substring(start, start + index);
+            formatted.add(page);
             start += index;
         }
         return formatted;
