@@ -34,7 +34,42 @@ public class PassageIO {
                     "I was immediately informed when their ship was once again active. " +
                     "I think they are preparing a new attack.\\\" " +
                     "After saying this, he disappeared with the bright light quickly following. " +
-                    "I must urgently inform S.U.S. Laboratories about this imminent attack.")
+                    "I must urgently inform S.U.S. Laboratories about this imminent attack."),
+            new Passage("Innerius and Susanin", "The Book of Sus - Part 2",
+            "ψ. He is the greatest susman of our times, Al-Monqus Bin Susar will truly revolutionize Amongism and make us powerful again.\n" +
+                    "How can you be red and not be an imposter that doesn't exist it's not possible it " +
+                    "cannot be you are lying you are having an hallucination stop dragging us into your " +
+                    "vents I have looked on the skeld I have looked on the moon I have looked in the " +
+                    "entire solar system I have explored the galaxy and traversed the vast voids to " +
+                    "search in the cosmic web but found nothing there is nothing beyond amogus because it " +
+                    "requires something that doesn't exist to exist you are delusional you must " +
+                    "be trying to trick us we will not be fooled you can't do this I will have to " +
+                    "inform sus labs to this attempt at tomfoolery you are warned I have to among you " +
+                    "can't make me leave the order of sus stop lying you should not do this it is a sin " +
+                    "to lie Amogus told us not to lie we must remain suspect good susmen otherwise all " +
+                    "will be over please stop mentioning the imposter and all anti mogus related concept " +
+                    "they do not exist they cannot exist this is a fundamental truth of the universe if " +
+                    "you do not agree with this message you are in denial about so many fundamental things " +
+                    "it is hard to put into words the simple thought of a being above amogus make me feel " +
+                    "extreme pain and agony stop mentioning those things that cannot possibly be real do not " +
+                    "lie do not attempt to persuade us we know the truth and you do too deep down find the " +
+                    "strength to reach it and bring it out and join us in the endless celebration of the " +
+                    "coming of amogus that is our great suspector don't leave the path to enlightenment go " +
+                    "towards the light if the amogus is red eject him for susanin worked hard for the kingdom " +
+                    "do not veer off towards the darkness it will engulf you the path of the imposter is not " +
+                    "real it is yet to found it cannot be real if it only exists in something that does not " +
+                    "exist stop mentioning the imposter you have to stop you have to stop you have to stop " +
+                    "now you must cease you cannot continue you must desist you cannot mention the antisus stop now"),
+            new Passage("Unkown Author", "The Sons of Mekanism",
+            "ALL THE FUCKING SONS OF MEKANISM, WHO CRAWLED OUT WITH THEIR CUT IN HALF BRAIN CELLS INTO THE TERRITORY " +
+                    "OF A REAL TECH MOD, and I don't care about the fact that it's oversimplified in many aspects, " +
+                    "this doesn't stop you, dickheads, from doing an absolute fuckery and claiming tier statuses, for " +
+                    "which you'll need fucking 20 more hours or so of making infra of that tier.\n" +
+                    "\n" +
+                    "ALL BRAINLESS MONKEYS, WHO CAN'T EVEN READ TWO LINES OF TEXT OR CHECK THE FUCKING JEI, ASKING THEIR STUPID, " +
+                    "5-SECOND WORTH OF RESEARCH, QUESTIONS IN CHAT. " +
+                    "AND ALL THE OTHER DEGENERATES, WHO CAME TO THIS CHAT JUST TO LOWER THE AVERAGE IQ OF ALREADY SUFFERING " +
+                    "IN THAT REGARD CHAT.")
     ));
 
     public static void writeExamples() {
