@@ -276,7 +276,7 @@ public class ItemRandomizer {
 
         public static ItemStack getStackFor(Item vanilla, int count, CompoundTag tag) {
             Item randomItem = MAP_DATA.ITEM_MAP.get(vanilla);
-            if (randomItem == null) return ItemStack.EMPTY;
+            if (randomItem == null || count < 1) return ItemStack.EMPTY;
 
             ItemStack random = new ItemStack(randomItem);
             random.setCount(Math.min(random.getMaxStackSize(), count));
