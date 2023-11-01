@@ -8,16 +8,10 @@ import com.google.gson.JsonElement;
 import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonToken;
 import net.minecraft.client.Minecraft;
-import net.minecraft.core.Registry;
-import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.core.registries.Registries;
-import net.minecraft.data.worldgen.Structures;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;
-import net.minecraft.world.level.levelgen.structure.BuiltinStructures;
-import net.minecraft.world.level.levelgen.structure.Structure;
 import net.minecraftforge.registries.ForgeRegistries;
 
 import java.io.File;
@@ -25,7 +19,6 @@ import java.io.IOException;
 import java.io.Writer;
 import java.nio.file.Files;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 import java.util.stream.Stream;
@@ -49,12 +42,12 @@ public class ConfigIO {
             Items.JIGSAW
     ).map(Item::toString).toList());
 
-    private static final ArrayList<String> BLACKLISTED_ENTITIES = new ArrayList<>(List.of(
-            EntityType.ENDER_DRAGON.toString(),
-            EntityType.WITHER.toString(),
-            EntityType.WARDEN.toString(),
-            EntityType.GIANT.toString()
-    ));
+    private static final ArrayList<String> BLACKLISTED_ENTITIES = new ArrayList<>(Stream.of(
+            EntityType.ENDER_DRAGON,
+            EntityType.WITHER,
+            EntityType.WARDEN,
+            EntityType.GIANT
+    ).map(EntityType::toString).toList());
 
     private static final ArrayList<String> BLACKLISTED_STRUCTURES =  new ArrayList<>(List.of("namespace:structure_name_here"));
 
