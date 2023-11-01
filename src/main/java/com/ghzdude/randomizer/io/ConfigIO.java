@@ -47,7 +47,7 @@ public class ConfigIO {
             EntityType.WITHER,
             EntityType.WARDEN,
             EntityType.GIANT
-    ).map(EntityType::toString).toList());
+    ).map(entityType -> ForgeRegistries.ENTITY_TYPES.getKey(entityType).toString()).toList());
 
     private static final ArrayList<String> BLACKLISTED_STRUCTURES =  new ArrayList<>(List.of("namespace:structure_name_here"));
 
@@ -88,7 +88,7 @@ public class ConfigIO {
                 if (ForgeRegistries.ITEMS.containsKey(location)) {
                     blacklist.add(ForgeRegistries.ITEMS.getValue(location));
                 } else {
-                    RandomizerCore.LOGGER.warn("Location " + location + "is not a proper item!");
+                    RandomizerCore.LOGGER.warn("Location {} is not a proper item!", location);
                 }
             }
 
@@ -117,7 +117,7 @@ public class ConfigIO {
                 if (ForgeRegistries.ENTITY_TYPES.containsKey(location)) {
                     blacklist.add(ForgeRegistries.ENTITY_TYPES.getValue(location));
                 } else {
-                    RandomizerCore.LOGGER.warn("Location " + location + "is not a proper entity type!");
+                    RandomizerCore.LOGGER.warn("Location {} is not a proper entity type!", location);
                 }
             }
 
