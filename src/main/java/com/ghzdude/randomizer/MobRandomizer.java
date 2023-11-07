@@ -46,7 +46,7 @@ public class MobRandomizer {
         mob.setPos(reference.position());
         mob.setXRot(reference.getXRot());
         mob.setYRot(reference.getYRot());
-        mob.setItemSlot(EquipmentSlot.MAINHAND, ItemRandomizer.getRandomItemStack());
+        mob.setItemSlot(EquipmentSlot.MAINHAND, ItemRandomizer.getRandomItemStack(RandomizerCore.unseededRNG));
         RandomizerCore.LOGGER.warn("Spawned mob " + mob.getType() + " with " + entityCount + " in total.");
         level.addFreshEntity(mob);
     }

@@ -99,8 +99,8 @@ public class ItemRandomizer {
         return pointsToUse;
     }
 
-    public static SpecialItem getRandomSpecialItem() {
-        return VALID_ITEMS.getRandomSpecialItem(RandomizerCore.unseededRNG);
+    public static SpecialItem getRandomSpecialItem(Random rng) {
+        return VALID_ITEMS.getRandomSpecialItem(rng);
     }
 
     public static SpecialItem getRandomSpecialItem(int points) {
@@ -111,8 +111,8 @@ public class ItemRandomizer {
         return toReturn;
     }
 
-    public static ItemStack getRandomItemStack() {
-        return itemToStack(getRandomSpecialItem().item);
+    public static ItemStack getRandomItemStack(Random rng) {
+        return itemToStack(getRandomSpecialItem(rng).item);
     }
 
     public static SpecialItem getRandomSimpleItem() {
@@ -141,9 +141,9 @@ public class ItemRandomizer {
         return stack;
     }
 
-    public static TagKey<Item> getRandomTag() {
+    public static TagKey<Item> getRandomTag(Random rng) {
         List<TagKey<Item>> tags = MAP_DATA.TAGKEY_MAP.values().stream().toList();
-        return tags.get(RandomizerCore.unseededRNG.nextInt(tags.size()));
+        return tags.get(rng.nextInt(tags.size()));
     }
 
     public static ItemStack getStackFor(ItemStack stack) {
