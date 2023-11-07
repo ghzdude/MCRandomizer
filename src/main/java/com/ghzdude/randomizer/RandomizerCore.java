@@ -1,14 +1,20 @@
 package com.ghzdude.randomizer;
 
 import com.ghzdude.randomizer.loot.ModLootModifiers;
+import com.ghzdude.randomizer.special.modifiers.AdvancementModifier;
+import com.ghzdude.randomizer.special.modifiers.RecipeModifier;
 import com.mojang.logging.LogUtils;
+import net.minecraft.core.RegistryAccess;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.ServerAdvancementManager;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
+import net.minecraft.world.item.crafting.RecipeManager;
 import net.minecraft.world.level.block.Block;
 import net.minecraftforge.common.MinecraftForge;
+import net.minecraftforge.event.AddReloadListenerEvent;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.event.server.ServerStartedEvent;
@@ -90,6 +96,24 @@ public class RandomizerCore
         unseededRNG = new Random();
         ItemRandomizer.get(event.getServer().overworld().getDataStorage()).configure();
         StructureRandomizer.configureStructures(event.getServer().registryAccess());
+        serverStarted = true;
+    }
+
+
+    @SubscribeEvent
+    public void reload(AddReloadListenerEvent event) {
+        if (!serverStarted) return;
+        RegistryAccess access = event.getRegistryAccess();
+        RecipeManager recipeManager = event.getServerResources().getRecipeManager();
+        ServerAdvancementManager serverAdvancementManager = event.getServerResources().getAdvancements();
+
+        if (RandomizerConfig.recipeRandomizerEnabled()) {
+            event.addListener(new RecipeModifier(access, recipeManager));
+        }
+
+        if (RandomizerConfig.randomizeInputs()) {
+            event.addListener(new AdvancementModifier(serverAdvancementManager));
+        }
     }
 
     @SubscribeEvent
@@ -108,10 +132,10 @@ public class RandomizerCore
                 points = pointMax;
             }
 
-            int pointsToUse = rng.nextInt(points) + 1;
+            int pointsToUse = seededRNG.nextInt(points) + 1;
             points -= pointsToUse;
 
-            int selection = rng.nextInt(100);
+            int selection = seededRNG.nextInt(100);
             if (RandomizerConfig.structureRandomizerEnabled() && selection < structureProbability) {
                 pointsToUse = StructureRandomizer.placeStructure(pointsToUse, player.serverLevel(), player);
             } else if (RandomizerConfig.itemRandomizerEnabled()) {
