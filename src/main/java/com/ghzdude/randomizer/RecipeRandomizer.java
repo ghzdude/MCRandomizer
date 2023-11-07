@@ -71,7 +71,7 @@ public class RecipeRandomizer {
         ReflectionUtils.setField(ServerAdvancementManager.class, manager, 2, toKeep);
     }
 
-    public void randomizeRecipes(RecipeManager manager, RegistryAccess access) {
+    public static void randomizeRecipes(RecipeManager manager, RegistryAccess access) {
         for (RecipeHolder<?> holder : manager.getRecipes()) {
             Recipe<?> recipe = holder.value();
             ItemStack newResult = ItemRandomizer.getStackFor(recipe.getResultItem(access));
