@@ -18,6 +18,7 @@ import net.minecraftforge.event.AddReloadListenerEvent;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.event.server.ServerStartedEvent;
+import net.minecraftforge.event.server.ServerStoppingEvent;
 import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.ModLoadingContext;
@@ -99,6 +100,10 @@ public class RandomizerCore
         serverStarted = true;
     }
 
+    @SubscribeEvent
+    public void onStop(ServerStoppingEvent event) {
+        serverStarted = false;
+    }
 
     @SubscribeEvent
     public void reload(AddReloadListenerEvent event) {
