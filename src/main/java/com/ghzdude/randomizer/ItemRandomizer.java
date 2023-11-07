@@ -103,16 +103,16 @@ public class ItemRandomizer {
         return VALID_ITEMS.getRandomSpecialItem(RandomizerCore.unseededRNG);
     }
 
-    public static ItemStack getRandomItemStack() {
-        return itemToStack(getRandomSpecialItem().item);
-    }
-
     public static SpecialItem getRandomSpecialItem(int points) {
         SpecialItem toReturn;
         do {
             toReturn = VALID_ITEMS.getRandomSpecialItem(RandomizerCore.unseededRNG);
         } while (toReturn.value > points);
         return toReturn;
+    }
+
+    public static ItemStack getRandomItemStack() {
+        return itemToStack(getRandomSpecialItem().item);
     }
 
     public static SpecialItem getRandomSimpleItem() {
@@ -139,6 +139,11 @@ public class ItemRandomizer {
             GoatHornGenerator.applyGoatHornSound(stack);
         }
         return stack;
+    }
+
+    public static TagKey<Item> getRandomTag() {
+        List<TagKey<Item>> tags = MAP_DATA.TAGKEY_MAP.values().stream().toList();
+        return tags.get(RandomizerCore.unseededRNG.nextInt(tags.size()));
     }
 
     public static ItemStack getStackFor(ItemStack stack) {
@@ -172,18 +177,27 @@ public class ItemRandomizer {
         return MAP_DATA;
     }
 
+    public static boolean isMapLoaded() {
+        return ItemRandomMapData.isLoaded();
+    }
+
     public static class ItemRandomMapData extends SavedData {
         private final Map<Item, Item> ITEM_MAP = new Object2ObjectOpenHashMap<>();
         private final Map<TagKey<Item>, TagKey<Item>> TAGKEY_MAP = new Object2ObjectOpenHashMap<>();
+
+        private static boolean isLoaded = false;
 
         public static SavedData.Factory<ItemRandomMapData> factory() {
             return new Factory<>(ItemRandomMapData::new, ItemRandomMapData::load, DataFixTypes.LEVEL);
         }
 
         public void configure() {
-            generateItemMap();
-            generateTagMap();
-            setDirty();
+            if (!isLoaded()) {
+                generateItemMap();
+                generateTagMap();
+                setDirty();
+                isLoaded = true;
+            }
         }
 
         @Override
@@ -226,8 +240,10 @@ public class ItemRandomizer {
                     String rand = tagKeyMap.getString(vanilla.location().toString());
                     MAP_DATA.TAGKEY_MAP.put(vanilla, tagManager.createTagKey(new ResourceLocation(rand)));
                 });
-                MAP_DATA.setDirty();
             }
+            MAP_DATA.setDirty();
+
+            isLoaded = true;
             return MAP_DATA;
         }
 
@@ -284,6 +300,10 @@ public class ItemRandomizer {
 
         public static TagKey<Item> getTagKeyFor(TagKey<Item> vanilla) {
             return MAP_DATA.TAGKEY_MAP.get(vanilla);
+        }
+
+        public static boolean isLoaded() {
+            return isLoaded;
         }
     }
 }
