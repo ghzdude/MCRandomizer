@@ -14,7 +14,7 @@ public class EnchantmentGenerator {
     private static final ArrayList<Enchantment> VALID_ENCHANTS = new ArrayList<>(ForgeRegistries.ENCHANTMENTS.getValues());
 
     public static void applyEnchantment(ItemStack stack) {
-        final Random rng = RandomizerCore.rng;
+        final Random rng = RandomizerCore.unseededRNG;
         int shouldEnchant = rng.nextInt(0, 100);
         if (shouldEnchant < 80 && !stack.is(Items.ENCHANTED_BOOK)) return;
 

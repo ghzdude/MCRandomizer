@@ -67,7 +67,7 @@ public class StructureRandomizer {
     private static SpecialStructure selectStructure(int points) {
         SpecialStructure structure;
         do {
-            int id = RandomizerCore.rng.nextInt(VALID_STRUCTURES.size());
+            int id = RandomizerCore.seededRNG.nextInt(VALID_STRUCTURES.size());
             structure = VALID_STRUCTURES.get(id);
         } while (structure.value > points);
         return structure;
