@@ -160,14 +160,8 @@ public class ItemRandomizer {
 
     private static void addStackToPlayer(ItemStack stack, Inventory inventory) {
         RandomizerCore.LOGGER.warn(String.format("Given %s to %s.",  stack.copy(), inventory.player.getDisplayName().getString()));
-        if (inventory.getFreeSlot() == -1) {
-            Entity itemEnt = stack.getEntityRepresentation();
-            if (itemEnt != null) {
-                itemEnt.setPos(inventory.player.position());
-                inventory.player.level().addFreshEntity(itemEnt);
-            }
-        } else {
-            inventory.add(stack);
+        if (!inventory.add(stack)) {
+            inventory.player.drop(stack, false);
         }
         RandomizerCore.incrementAmtItemsGiven();
     }
