@@ -4,7 +4,6 @@ import com.ghzdude.randomizer.RandomizerCore;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.StringTag;
-import net.minecraft.util.RandomSource;
 import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.effect.MobEffectCategory;
 import net.minecraft.world.item.ItemStack;
@@ -41,7 +40,7 @@ public class PotionGenerator {
 
     public static void applyEffect(ItemStack stack) {
 
-        final Random random = RandomizerCore.rng;
+        final Random random = RandomizerCore.seededRNG;
 
         int id = random.nextInt(VALID_POTIONS.size());
         int numOfEffects = random.nextInt(3) + 1;

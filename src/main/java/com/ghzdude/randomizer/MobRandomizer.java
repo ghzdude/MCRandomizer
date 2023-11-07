@@ -6,13 +6,10 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.*;
 import net.minecraft.world.level.Level;
 import net.minecraftforge.event.TickEvent;
-import net.minecraftforge.event.entity.EntityJoinLevelEvent;
 import net.minecraftforge.event.entity.EntityLeaveLevelEvent;
 import net.minecraftforge.event.entity.living.LivingDeathEvent;
 import net.minecraftforge.event.entity.living.MobSpawnEvent;
-import net.minecraftforge.event.level.ChunkEvent;
 import net.minecraftforge.event.server.ServerStartedEvent;
-import net.minecraftforge.eventbus.api.Event;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.LogicalSide;
 import net.minecraftforge.registries.ForgeRegistries;
@@ -38,7 +35,7 @@ public class MobRandomizer {
     private Entity getRandomMob(Level level) {
         Entity mob;
         do {
-            int id = RandomizerCore.rng.nextInt(entityTypes.size());
+            int id = RandomizerCore.seededRNG.nextInt(entityTypes.size());
             EntityType<?> entityType = entityTypes.get(id);
             mob = entityType.create(level);
         } while (mob == null);

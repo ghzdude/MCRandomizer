@@ -100,7 +100,7 @@ public class ItemRandomizer {
     }
 
     public static SpecialItem getRandomSpecialItem() {
-        return VALID_ITEMS.getRandomSpecialItem(RandomizerCore.rng);
+        return VALID_ITEMS.getRandomSpecialItem(RandomizerCore.unseededRNG);
     }
 
     public static ItemStack getRandomItemStack() {
@@ -110,13 +110,13 @@ public class ItemRandomizer {
     public static SpecialItem getRandomSpecialItem(int points) {
         SpecialItem toReturn;
         do {
-            toReturn = VALID_ITEMS.getRandomSpecialItem(RandomizerCore.rng);
+            toReturn = VALID_ITEMS.getRandomSpecialItem(RandomizerCore.unseededRNG);
         } while (toReturn.value > points);
         return toReturn;
     }
 
     public static SpecialItem getRandomSimpleItem() {
-        return SIMPLE_ITEMS.getRandomSpecialItem(RandomizerCore.rng);
+        return SIMPLE_ITEMS.getRandomSpecialItem(RandomizerCore.unseededRNG);
     }
 
     public static ItemStack specialItemToStack (SpecialItem item) {
@@ -173,8 +173,6 @@ public class ItemRandomizer {
     }
 
     public static class ItemRandomMapData extends SavedData {
-
-
         private final Map<Item, Item> ITEM_MAP = new Object2ObjectOpenHashMap<>();
         private final Map<TagKey<Item>, TagKey<Item>> TAGKEY_MAP = new Object2ObjectOpenHashMap<>();
 
@@ -239,7 +237,7 @@ public class ItemRandomizer {
 
             List<TagKey<Item>> vanilla = tagManager.getTagNames().toList();
             List<TagKey<Item>> randomized = Lists.newArrayList(vanilla);
-            Collections.shuffle(randomized, RandomizerCore.rng);
+            Collections.shuffle(randomized, RandomizerCore.seededRNG);
 
             if (vanilla.size() != randomized.size()) {
                 RandomizerCore.LOGGER.warn("Tagkey registry was modified during server start!");
@@ -256,7 +254,7 @@ public class ItemRandomizer {
         private void generateItemMap() {
             List<Item> vanilla = Lists.newArrayList(VALID_ITEMS.asItems());
             List<Item> randomized = Lists.newArrayList(vanilla);
-            Collections.shuffle(randomized, RandomizerCore.rng);
+            Collections.shuffle(randomized, RandomizerCore.seededRNG);
 
             if (vanilla.size() != randomized.size()) {
                 RandomizerCore.LOGGER.warn("Item registry was modified during server start!");

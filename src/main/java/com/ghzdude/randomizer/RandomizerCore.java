@@ -38,7 +38,9 @@ public class RandomizerCore
     // Create a Deferred Register to hold Items which will all be registered under the "examplemod" namespace
     public static final DeferredRegister<Item> ITEMS = DeferredRegister.create(ForgeRegistries.ITEMS, MODID);
 
-    public static Random rng;
+    public static Random seededRNG;
+    public static Random unseededRNG;
+    public static boolean serverStarted = false;
 
     // Creates a new Block with the id "examplemod:example_block", combining the namespace and path
     // public static final RegistryObject<Block> EXAMPLE_BLOCK = BLOCKS.register("example_block", () -> new Block(BlockBehaviour.Properties.of(Material.STONE)));
