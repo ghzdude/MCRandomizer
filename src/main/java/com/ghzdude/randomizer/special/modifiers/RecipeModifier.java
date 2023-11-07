@@ -31,61 +31,6 @@ public class RecipeModifier implements ResourceManagerReloadListener {
 
     @Override
     public void onResourceManagerReload(ResourceManager p_10758_) {
-        randomizeRecipes();
-    }
-
-    private void randomizeRecipes() {
-        RandomizerCore.LOGGER.warn("Randomizing Recipes!");
-        for (RecipeHolder<?> holder : manager.getRecipes()) {
-            Recipe<?> recipe = holder.value();
-            ItemStack newResult = ItemRandomizer.getStackFor(recipe.getResultItem(this.access));
-
-            modifyRecipeOutputs(recipe, newResult);
-
-            // if inputs are not to be randomized, move on to the next recipe
-            if (RandomizerConfig.randomizeInputs()) {
-                modifyRecipeInputs(
-                        recipe.getIngredients().stream()
-                                .distinct().filter(ingredient -> !ingredient.isEmpty()).toList(), holder.id()
-                );
-            }
-        }
-    }
-
-    private void modifyRecipeOutputs(Recipe<?> recipe, ItemStack newResult) {
-        if (recipe instanceof ShapedRecipe shapedRecipe) {
-            ReflectionUtils.setField(ShapedRecipe.class, shapedRecipe, 5, newResult);
-        } else if (recipe instanceof ShapelessRecipe shapelessRecipe) {
-            ReflectionUtils.setField(ShapelessRecipe.class, shapelessRecipe, 2, newResult);
-        } else if (recipe instanceof AbstractCookingRecipe abstractCookingRecipe) {
-            ReflectionUtils.setField(AbstractCookingRecipe.class, abstractCookingRecipe, 4, newResult);
-        } else if (recipe instanceof SingleItemRecipe singleItemRecipe) {
-            ReflectionUtils.setField(SingleItemRecipe.class, singleItemRecipe, 1, newResult);
-        }
-    }
-
-    private void modifyRecipeInputs(List<Ingredient> ingredients, ResourceLocation recipe) {
-        IForgeRegistry<Item> registry = ForgeRegistries.ITEMS;
-
-        for (int k = 0; k < ingredients.size(); k++) {
-            Ingredient.Value[] values = ReflectionUtils.getField(Ingredient.class, ingredients.get(k), 2);
-            if (values.length == 0 || Arrays.stream(values).allMatch(Objects::isNull)) continue;
-            ResourceLocation ingredient = null;
-
-            for (int j = 0; j < values.length; j++) {
-                if (values[j] instanceof Ingredient.ItemValue itemValue) {
-                    ItemStack stack = ItemRandomizer.getStackFor(itemValue.item());
-                    ingredient = registry.getKey(stack.getItem());
-                    values[j] = new Ingredient.ItemValue(stack);
-                } else if (values[j] instanceof Ingredient.TagValue tagValue) {
-                    TagKey<Item> key = ItemRandomizer.getTagKeyFor(tagValue.tag());
-                    ingredient = key.location();
-                    values[j] = new Ingredient.TagValue(key);
-                }
-                if (ingredient == null) return;
-
-            }
-            RecipeRandomizer.addToMap(recipe, ingredient);
-        }
+        RecipeRandomizer.randomizeRecipes(manager, access);
     }
 }
