@@ -7,13 +7,20 @@ import net.minecraft.advancements.AdvancementHolder;
 import net.minecraft.advancements.AdvancementRewards;
 import net.minecraft.advancements.critereon.InventoryChangeTrigger;
 import net.minecraft.core.RegistryAccess;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.StringTag;
+import net.minecraft.nbt.Tag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.ServerAdvancementManager;
 import net.minecraft.tags.TagKey;
+import net.minecraft.util.datafix.DataFixTypes;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.crafting.*;
+import net.minecraft.world.level.saveddata.SavedData;
+import net.minecraft.world.level.storage.DimensionDataStorage;
 import net.minecraftforge.event.server.ServerStartedEvent;
 import net.minecraftforge.event.server.ServerStoppingEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -24,6 +31,7 @@ import net.minecraftforge.registries.tags.ITagManager;
 
 import javax.annotation.Nonnull;
 import java.util.*;
+import java.util.stream.Stream;
 
 /* Recipe Randomizer Description.
  * on resource re/load, randomize every recipe.
@@ -40,12 +48,15 @@ import java.util.*;
  *
  */
 public class RecipeRandomizer {
-    private static final Map<ResourceLocation, List<ResourceLocation>> MODIFIED = new Object2ObjectOpenHashMap<>();
+
+    private static RecipeData INSTANCE;
 
     @SubscribeEvent
     public void start(ServerStartedEvent event) {
         if (RandomizerConfig.recipeRandomizerEnabled()) {
+
             RandomizerCore.LOGGER.warn("Recipe Randomizer Running!");
+            INSTANCE = get(event.getServer().overworld().getDataStorage());
             randomizeRecipes(
                     event.getServer().getRecipeManager(),
                     event.getServer().registryAccess()
@@ -57,7 +68,7 @@ public class RecipeRandomizer {
 
     @SubscribeEvent
     public void stop(ServerStoppingEvent event) {
-        MODIFIED.clear();
+        INSTANCE.getMap().clear();
     }
 
     public static void setAdvancements(ServerAdvancementManager manager) {
@@ -85,10 +96,11 @@ public class RecipeRandomizer {
                         .distinct().filter(ingredient -> !ingredient.isEmpty()).toList(), holder.id()
                 );
             }
+            INSTANCE.setDirty();
         }
     }
 
-    private void modifyRecipeOutputs(Recipe<?> recipe, ItemStack newResult) {
+    private static void modifyRecipeOutputs(Recipe<?> recipe, ItemStack newResult) {
         if (recipe instanceof ShapedRecipe shapedRecipe) {
             ReflectionUtils.setField(ShapedRecipe.class, shapedRecipe, 5, newResult);
         } else if (recipe instanceof ShapelessRecipe shapelessRecipe) {
@@ -100,46 +112,66 @@ public class RecipeRandomizer {
         }
     }
 
-    private void modifyRecipeInputs(List<Ingredient> ingredients, ResourceLocation recipe) {
-        IForgeRegistry<Item> registry = ForgeRegistries.ITEMS;
-
+    private static void modifyRecipeInputs(List<Ingredient> ingredients, ResourceLocation recipe) {
         for (int k = 0; k < ingredients.size(); k++) {
             Ingredient.Value[] values = ReflectionUtils.getField(Ingredient.class, ingredients.get(k), 2);
             if (values.length == 0 || Arrays.stream(values).allMatch(Objects::isNull)) continue;
-            ResourceLocation ingredient = null;
+            // each slot of a recipe has an ingredient
+            // each ingredient can have multiple values
+            Ingredient toReplace;
 
-            for (int j = 0; j < values.length; j++) {
-                if (values[j] instanceof Ingredient.ItemValue itemValue) {
-                    ItemStack stack = ItemRandomizer.getStackFor(itemValue.item());
-                    ingredient = registry.getKey(stack.getItem());
-                    values[j] = new Ingredient.ItemValue(stack);
-                } else if (values[j] instanceof Ingredient.TagValue tagValue) {
-                    TagKey<Item> key = ItemRandomizer.getTagKeyFor(tagValue.tag());
-                    ingredient = key.location();
-                    values[j] = new Ingredient.TagValue(key);
-                }
-                if (ingredient == null) return;
+
+            // if an ingredient has only one item, it's probably an item value
+            if (ingredients.get(k).getItems().length == 1) {
+
+            } else {// otherwise it's probably a tag value
 
             }
-            addToMap(recipe, ingredient);
+
+            for (int j = 0; j < values.length; j++) {
+                values[j] = getValue(recipe);
+            }
         }
     }
 
-    public static void addToMap(@Nonnull ResourceLocation recipe, @Nonnull ResourceLocation ingredient) {
-        if (RecipeRandomizer.MODIFIED.containsKey(ingredient)) {
-            RecipeRandomizer.MODIFIED.get(ingredient).add(recipe);
-        } else {
-            List<ResourceLocation> list = new ArrayList<>();
-            list.add(recipe);
-            RecipeRandomizer.MODIFIED.put(ingredient, list);
+    private static Ingredient.Value getValue(ResourceLocation recipe) {
+        IForgeRegistry<Item> registry = ForgeRegistries.ITEMS;
+        Ingredient.Value value;
+        ResourceLocation ingredient;
+        if (INSTANCE.mapContains(recipe)) {
+            ingredient = INSTANCE.getIngredient(recipe);
+            var holder = registry.getHolder(ingredient);
+            if (holder.isPresent()) {
+                ItemStack stack = ItemRandomizer.itemToStack(registry.getValue(ingredient));
+                value = new Ingredient.ItemValue(stack);
+            } else {
+                TagKey<Item> key = registry.tags().createTagKey(ingredient);
+                value = new Ingredient.TagValue(key);
+            }
+            return value;
         }
+
+        if (RandomizerCore.seededRNG.nextBoolean()) {
+            ItemStack stack = ItemRandomizer.getRandomItemStack(RandomizerCore.seededRNG);
+            ingredient = registry.getKey(stack.getItem());
+            value = new Ingredient.ItemValue(stack);
+        } else {
+            TagKey<Item> key = ItemRandomizer.getRandomTag(RandomizerCore.seededRNG);
+            ingredient = key.location();
+            value = new Ingredient.TagValue(key);
+        }
+
+        if (ingredient == null) return null;
+        INSTANCE.addToMap(recipe, ingredient);
+        return value;
     }
+
 
     private static void buildAdvancements(Map<ResourceLocation, AdvancementHolder> map) {
         ITagManager<Item> tagManager = ForgeRegistries.ITEMS.tags();
         if (tagManager == null) return;
 
-        MODIFIED.forEach((ing, recipes) -> {
+        INSTANCE.getMap().forEach((ing, recipes) -> {
             Item[] changedItems;
             Item item = ForgeRegistries.ITEMS.getValue(ing);
             Optional<ITag<Item>> tag = tagManager.getTagNames()
@@ -164,5 +196,68 @@ public class RecipeRandomizer {
             AdvancementHolder toAdd = builder.build(new ResourceLocation(RandomizerCore.MODID, ing.getNamespace() + "-" + ing.getPath() + "_gives_recipes"));
             map.put(toAdd.id(), toAdd);
         });
+    }
+
+    public static RecipeData get(DimensionDataStorage storage) {
+        INSTANCE = storage.computeIfAbsent(RecipeData.factory(), RandomizerCore.MODID + "_recipes");
+        return INSTANCE;
+    }
+
+    private static class RecipeData extends SavedData {
+        private final Map<ResourceLocation, List<ResourceLocation>> MODIFIED = new Object2ObjectOpenHashMap<>();
+
+        public static SavedData.Factory<RecipeData> factory() {
+            return new Factory<>(RecipeData::new, RecipeData::load, DataFixTypes.LEVEL);
+        }
+        @Override
+        public CompoundTag save(CompoundTag tag) {
+            CompoundTag data = new CompoundTag();
+            MODIFIED.forEach((ingredient, recipes) -> {
+                var recipesTag = new ListTag();
+                recipes.forEach(recipe -> recipesTag.add(StringTag.valueOf(recipe.toString())));
+                data.put(ingredient.toString(), recipesTag);
+            });
+            tag.put("recipe_data", data);
+            return tag;
+        }
+
+        public static RecipeData load(CompoundTag tag) {
+            INSTANCE = new RecipeData();
+            CompoundTag data = tag.getCompound("recipe_data");
+            data.getAllKeys().forEach(s -> {
+                ListTag recipesTag = data.getList(s, Tag.TAG_STRING);
+                recipesTag.forEach(tag1 -> {
+                    StringTag recipe = (StringTag) tag1;
+                    ResourceLocation recipeLocation = new ResourceLocation(recipe.getAsString());
+                    INSTANCE.addToMap(new ResourceLocation(s), recipeLocation);
+                });
+            });
+            INSTANCE.setDirty();
+            return INSTANCE;
+        }
+
+        public void addToMap(@Nonnull ResourceLocation recipe, @Nonnull ResourceLocation ingredient) {
+            if (!MODIFIED.containsKey(ingredient)) {
+                List<ResourceLocation> list = new ArrayList<>();
+                list.add(recipe);
+                MODIFIED.put(ingredient, list);
+            } else if (!getMap().get(ingredient).contains(ingredient)){
+                MODIFIED.get(ingredient).add(recipe);
+            }
+        }
+        public Map<ResourceLocation, List<ResourceLocation>> getMap() {
+            return MODIFIED;
+        }
+        public Stream<Map.Entry<ResourceLocation, List<ResourceLocation>>> stream() {
+            return MODIFIED.entrySet().stream();
+        }
+
+        public boolean mapContains(ResourceLocation recipe) {
+            return stream().anyMatch(entry -> entry.getValue().contains(recipe));
+        }
+
+        public ResourceLocation getIngredient(ResourceLocation recipe) {
+            return stream().filter(entry -> entry.getValue().contains(recipe)).findFirst().get().getKey();
+        }
     }
 }
