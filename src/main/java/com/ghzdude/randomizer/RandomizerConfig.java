@@ -46,7 +46,7 @@ public class RandomizerConfig {
         builder.push("Recipe Randomizer");
         this.randomizeRecipes = builder.comment("Should recipes be randomized? Defaults to true.")
                 .define("randomize_recipes", true);
-        this.randomizeRecipeInputs = builder.comment("Should recipe inputs also be randomized? Defaults to true.")
+        this.randomizeRecipeInputs = builder.comment("Should recipe inputs also be randomized? This also attempts to change advancements for unlocking recipes. Defaults to true.")
                 .define("randomize_recipe_inputs", true);
         builder.pop();
 
@@ -75,7 +75,7 @@ public class RandomizerConfig {
 
         builder.push("Mob Randomizer");
 
-        this.randomizeMobs = builder.comment("Should mobs be randomized when spawning? Note that this completely overrides vanilla spawning logic. Ignores spawn egss. Defaults to false.")
+        this.randomizeMobs = builder.comment("Should mobs be randomized when spawning? Note that this completely overrides vanilla spawning logic. Ignores spawn egss. Defaults to false, I would not recommend enabling this.")
                 .define("randomize_mobs", false);
         builder.pop();
     }
