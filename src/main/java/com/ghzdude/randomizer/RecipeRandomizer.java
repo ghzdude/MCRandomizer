@@ -88,7 +88,7 @@ public class RecipeRandomizer {
         }
     }
 
-    private void modifyRecipeOutputs(Recipe<?> recipe, ItemStack newResult) {
+    private static void modifyRecipeOutputs(Recipe<?> recipe, ItemStack newResult) {
         if (recipe instanceof ShapedRecipe shapedRecipe) {
             ReflectionUtils.setField(ShapedRecipe.class, shapedRecipe, 5, newResult);
         } else if (recipe instanceof ShapelessRecipe shapelessRecipe) {
@@ -100,7 +100,7 @@ public class RecipeRandomizer {
         }
     }
 
-    private void modifyRecipeInputs(List<Ingredient> ingredients, ResourceLocation recipe) {
+    private static void modifyRecipeInputs(List<Ingredient> ingredients, ResourceLocation recipe) {
         IForgeRegistry<Item> registry = ForgeRegistries.ITEMS;
 
         for (int k = 0; k < ingredients.size(); k++) {
