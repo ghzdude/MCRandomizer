@@ -86,7 +86,8 @@ public class RandomizerCore
         pointsCarryover = RandomizerConfig.pointsCarryover();
         structureProbability = RandomizerConfig.getStructureProbability();
         cooldown = RandomizerConfig.getCooldown();
-        rng = new Random(event.getServer().getWorldData().worldGenOptions().seed());
+        seededRNG = new Random(event.getServer().getWorldData().worldGenOptions().seed());
+        unseededRNG = new Random();
         ItemRandomizer.get(event.getServer().overworld().getDataStorage()).configure();
         StructureRandomizer.configureStructures(event.getServer().registryAccess());
     }
