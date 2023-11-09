@@ -4,22 +4,14 @@ import com.ghzdude.randomizer.special.generators.*;
 import com.ghzdude.randomizer.special.item.SpecialItem;
 import com.ghzdude.randomizer.special.item.SpecialItemList;
 import com.ghzdude.randomizer.special.item.SpecialItems;
-import com.google.common.collect.Lists;
-import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.TagKey;
-import net.minecraft.util.datafix.DataFixTypes;
-import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
-import net.minecraft.world.level.saveddata.SavedData;
 import net.minecraft.world.level.storage.DimensionDataStorage;
 import net.minecraftforge.registries.ForgeRegistries;
-import net.minecraftforge.registries.tags.ITagManager;
-import org.jetbrains.annotations.NotNull;
 
 import java.util.*;
 
@@ -40,7 +32,11 @@ public class ItemRandomizer {
             .toList()
     );
 
-    public static ItemRandomMapData MAP_DATA;
+    private static RandomizationMapData INSTANCE;
+
+    public static void init(DimensionDataStorage storage) {
+        INSTANCE = RandomizationMapData.configure(storage, "item");
+    }
 
     private static Collection<SpecialItem> configureValidItem() {
         int lastMatch;
@@ -142,8 +138,7 @@ public class ItemRandomizer {
     }
 
     public static TagKey<Item> getRandomTag(Random rng) {
-        List<TagKey<Item>> tags = MAP_DATA.TAGKEY_MAP.values().stream().toList();
-        return tags.get(rng.nextInt(tags.size()));
+        return INSTANCE.getRandomTag(rng);
     }
 
     public static ItemStack getStackFor(ItemStack stack) {
@@ -151,11 +146,11 @@ public class ItemRandomizer {
     }
 
     public static ItemStack getStackFor(Item vanilla, int count, CompoundTag tag) {
-        return ItemRandomMapData.getStackFor(vanilla, count, tag);
+        return INSTANCE.getStackFor(vanilla, count, tag);
     }
 
     public static TagKey<Item> getTagKeyFor(TagKey<Item> vanilla) {
-        return ItemRandomMapData.getTagKeyFor(vanilla);
+        return INSTANCE.getTagKeyFor(vanilla);
     }
 
     private static void addStackToPlayer(ItemStack stack, Inventory inventory) {
