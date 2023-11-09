@@ -35,7 +35,7 @@ public class ItemRandomizer {
     private static RandomizationMapData INSTANCE;
 
     public static void init(DimensionDataStorage storage) {
-        INSTANCE = RandomizationMapData.configure(storage, "item");
+        INSTANCE = RandomizationMapData.get(storage, "item");
     }
 
     private static Collection<SpecialItem> configureValidItem() {
