@@ -42,9 +42,13 @@ import java.util.*;
 public class RecipeRandomizer {
     private static final Map<ResourceLocation, List<ResourceLocation>> MODIFIED = new Object2ObjectOpenHashMap<>();
 
+    private static RandomizationMapData INSTANCE;
+
     @SubscribeEvent
     public void start(ServerStartedEvent event) {
         if (RandomizerConfig.recipeRandomizerEnabled()) {
+            INSTANCE = RandomizationMapData.configure(event.getServer().overworld().getDataStorage(), "recipes");
+
             RandomizerCore.LOGGER.warn("Recipe Randomizer Running!");
             randomizeRecipes(
                     event.getServer().getRecipeManager(),
@@ -74,7 +78,7 @@ public class RecipeRandomizer {
     public static void randomizeRecipes(RecipeManager manager, RegistryAccess access) {
         for (RecipeHolder<?> holder : manager.getRecipes()) {
             Recipe<?> recipe = holder.value();
-            ItemStack newResult = ItemRandomizer.getStackFor(recipe.getResultItem(access));
+            ItemStack newResult = INSTANCE.getStackFor(recipe.getResultItem(access));
 
             modifyRecipeOutputs(recipe, newResult);
 
@@ -110,11 +114,11 @@ public class RecipeRandomizer {
 
             for (int j = 0; j < values.length; j++) {
                 if (values[j] instanceof Ingredient.ItemValue itemValue) {
-                    ItemStack stack = ItemRandomizer.getStackFor(itemValue.item());
+                    ItemStack stack = INSTANCE.getStackFor(itemValue.item());
                     ingredient = registry.getKey(stack.getItem());
                     values[j] = new Ingredient.ItemValue(stack);
                 } else if (values[j] instanceof Ingredient.TagValue tagValue) {
-                    TagKey<Item> key = ItemRandomizer.getTagKeyFor(tagValue.tag());
+                    TagKey<Item> key = INSTANCE.getTagKeyFor(tagValue.tag());
                     ingredient = key.location();
                     values[j] = new Ingredient.TagValue(key);
                 }
