@@ -29,8 +29,8 @@ public class RandomizerConfig {
         this.giveRandomItems = builder.comment("Should random items be given to the player? Defaults to true.")
                 .define("give_random_items", true);
 
-        this.itemCooldown = builder.comment("Time between items given (measured in ticks, 20 ticks is one second). Default value is 600.")
-                .define("item_cooldown", 600);
+        this.itemCooldown = builder.comment("Time between items given (measured in ticks, 20 ticks is one second). Default value is 800.")
+                .define("item_cooldown", 800);
 
         this.pointsCarryover = builder.comment("Should unused points carry over after a cycle? : Default value is false.")
                 .define("points_carryover", false);
@@ -38,8 +38,8 @@ public class RandomizerConfig {
         this.giveMultipleItems = builder.comment("Should the randomizer attempt to give the player more items if there are still points to use. Defaults to false.")
                 .define("give_multiple_items", false);
 
-        this.cycleBase = builder.comment("Amount of cycles needed to reach the first point max increment. Default value is 5.")
-                        .define("cycle_base", 5);
+        this.cycleBase = builder.comment("Amount of cycles needed to reach the first point max increment. Default value is 10.")
+                        .define("cycle_base", 10);
         builder.pop();
 
         // Recipe Randomizer
@@ -63,11 +63,11 @@ public class RandomizerConfig {
         this.randomizeLoot = builder.comment("Should Loot Tables (block drops, entity drops, chest loot) be randomized? Defaults to true.")
                 .define("randomize_loot", true);
 
-        this.randomizeBlockLoot = builder.comment("Should block drops be randomized? Defaults to false.")
-                .define("randomize_block_loot", false);
+        this.randomizeBlockLoot = builder.comment("Should block drops be randomized? Defaults to true.")
+                .define("randomize_block_loot", true);
 
-        this.randomizeEntityLoot = builder.comment("Should mob drops be randomized? Defaults to false.")
-                .define("randomize_entity_loot", false);
+        this.randomizeEntityLoot = builder.comment("Should mob drops be randomized? Defaults to true.")
+                .define("randomize_entity_loot", true);
 
         this.randomizeChestLoot = builder.comment("Should chest loot be randomized? Defaults to true.")
                         .define("randomize_chest_loot", true);
