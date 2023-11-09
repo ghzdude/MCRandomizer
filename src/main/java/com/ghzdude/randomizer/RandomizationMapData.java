@@ -160,8 +160,16 @@ public class RandomizationMapData extends SavedData {
         return tags.get(rng.nextInt(tags.size()));
     }
 
+    public Item getRandomItem(Random rng) {
+        List<Item> items = streamItems().toList();
+        return items.get(rng.nextInt(items.size()));
+    }
+
     public Stream<TagKey<Item>> streamTags() {
         return TAGKEY_MAP.values().stream();
+    }
+    public Stream<Item> streamItems() {
+        return ITEM_MAP.values().stream();
     }
 
     public boolean isLoaded() {
