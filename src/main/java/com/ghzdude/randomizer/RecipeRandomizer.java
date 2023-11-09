@@ -47,7 +47,7 @@ public class RecipeRandomizer {
     @SubscribeEvent
     public void start(ServerStartedEvent event) {
         if (RandomizerConfig.recipeRandomizerEnabled()) {
-            INSTANCE = RandomizationMapData.configure(event.getServer().overworld().getDataStorage(), "recipes");
+            INSTANCE = RandomizationMapData.get(event.getServer().overworld().getDataStorage(), "recipes");
 
             RandomizerCore.LOGGER.warn("Recipe Randomizer Running!");
             randomizeRecipes(

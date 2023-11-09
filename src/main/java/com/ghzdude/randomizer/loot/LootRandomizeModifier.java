@@ -37,7 +37,7 @@ public class LootRandomizeModifier extends LootModifier {
 
         if (INSTANCE == null) {
             DimensionDataStorage storage = context.getLevel().getServer().overworld().getDataStorage();
-            INSTANCE = RandomizationMapData.configure(storage, "loot");
+            INSTANCE = RandomizationMapData.get(storage, "loot");
         }
 
         ObjectArrayList<ItemStack> ret = new ObjectArrayList<>();
