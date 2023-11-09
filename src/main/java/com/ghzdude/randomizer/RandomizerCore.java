@@ -117,10 +117,10 @@ public class RandomizerCore
         if (event.phase == TickEvent.Phase.END) return;
         if (OFFSET < 0) OFFSET = 0;
         OFFSET++;
+
         ServerPlayer player = (ServerPlayer) event.player;
 
-        if (player.gameMode.isSurvival() && OFFSET % cooldown == 0) {
-
+        if (shouldUsePoints(player)) {
             if (pointsCarryover) {
                 points += pointMax;
             } else {
@@ -142,6 +142,10 @@ public class RandomizerCore
             increaseCycle(player);
             points += pointsToUse;
         }
+    }
+
+    private boolean shouldUsePoints(ServerPlayer player) {
+        return player.gameMode.isSurvival() && OFFSET % cooldown == 0;
     }
 
     private void increaseCycle(Player player) {
