@@ -39,7 +39,8 @@ public class ConfigIO {
             Items.STRUCTURE_BLOCK,
             Items.STRUCTURE_VOID,
             Items.KNOWLEDGE_BOOK,
-            Items.JIGSAW
+            Items.JIGSAW,
+            Items.DEBUG_STICK
     ).map(Item::toString).toList());
 
     private static final ArrayList<String> BLACKLISTED_ENTITIES = new ArrayList<>(Stream.of(
