@@ -137,22 +137,6 @@ public class ItemRandomizer {
         return stack;
     }
 
-    public static TagKey<Item> getRandomTag(Random rng) {
-        return INSTANCE.getRandomTag(rng);
-    }
-
-    public static ItemStack getStackFor(ItemStack stack) {
-        return getStackFor(stack.getItem(), stack.getCount(), stack.getTag());
-    }
-
-    public static ItemStack getStackFor(Item vanilla, int count, CompoundTag tag) {
-        return INSTANCE.getStackFor(vanilla, count, tag);
-    }
-
-    public static TagKey<Item> getTagKeyFor(TagKey<Item> vanilla) {
-        return INSTANCE.getTagKeyFor(vanilla);
-    }
-
     private static void addStackToPlayer(ItemStack stack, Inventory inventory) {
         RandomizerCore.LOGGER.warn(String.format("Given %s to %s.",  stack.copy(), inventory.player.getDisplayName().getString()));
         if (!inventory.add(stack)) {
