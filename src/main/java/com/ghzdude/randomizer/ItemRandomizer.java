@@ -142,7 +142,6 @@ public class ItemRandomizer {
         if (!inventory.add(stack)) {
             inventory.player.drop(stack, false);
         }
-        RandomizerCore.incrementAmtItemsGiven();
     }
 
     public static SpecialItemList getValidItems() {
