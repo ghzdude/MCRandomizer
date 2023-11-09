@@ -75,7 +75,6 @@ public class RandomizerCore
 
     private void commonSetup(final FMLCommonSetupEvent event) {
         MinecraftForge.EVENT_BUS.register(new RecipeRandomizer());
-        MinecraftForge.EVENT_BUS.register(new LootRandomizer());
         MinecraftForge.EVENT_BUS.register(new MobRandomizer());
     }
 
@@ -90,7 +89,7 @@ public class RandomizerCore
         cooldown = RandomizerConfig.getCooldown();
         seededRNG = new Random(event.getServer().getWorldData().worldGenOptions().seed());
         unseededRNG = new Random();
-        ItemRandomizer.get(event.getServer().overworld().getDataStorage()).configure();
+        ItemRandomizer.init(event.getServer().overworld().getDataStorage());
         StructureRandomizer.configureStructures(event.getServer().registryAccess());
         serverStarted = true;
     }
