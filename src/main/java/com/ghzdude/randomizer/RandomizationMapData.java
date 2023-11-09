@@ -31,8 +31,8 @@ public class RandomizationMapData extends SavedData {
         return new Factory<>(RandomizationMapData::new, RandomizationMapData::load, DataFixTypes.LEVEL);
     }
 
-    public static RandomizationMapData configure(DimensionDataStorage storage, String prefix) {
-        RandomizationMapData data = get(storage, prefix);
+    public static RandomizationMapData get(DimensionDataStorage storage, String prefix) {
+        RandomizationMapData data = storage.computeIfAbsent(RandomizationMapData.factory(), RandomizerCore.MODID + "_" + prefix);
         if (!data.isLoaded()) {
             Random rng = new Random();
             data.generateItemMap(rng);
@@ -41,10 +41,6 @@ public class RandomizationMapData extends SavedData {
             data.isLoaded = true;
         }
         return data;
-    }
-
-    public static RandomizationMapData get(DimensionDataStorage storage, String prefix){
-        return storage.computeIfAbsent(RandomizationMapData.factory(), RandomizerCore.MODID + "_" + prefix);
     }
 
     @Override
