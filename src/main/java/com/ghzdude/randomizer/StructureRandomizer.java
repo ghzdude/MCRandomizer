@@ -55,10 +55,10 @@ public class StructureRandomizer {
         if (!success) {
             player.sendSystemMessage(Component.translatable("structure.spawning.failed", structure.key.location()));
             if (RandomizerConfig.itemRandomizerEnabled()) {
-                return pointsToUse - ItemRandomizer.giveRandomItem(pointsToUse, player.getInventory());
-            } else {
-                return pointsToUse;
+                pointsToUse -= ItemRandomizer.giveRandomItem(pointsToUse, player.getInventory());
+                RandomizerCore.incrementAmtItemsGiven();
             }
+            return pointsToUse;
         }
         player.sendSystemMessage(Component.translatable("structure.spawning.success", structure.key.location(), target));
         return pointsToUse - structure.value;
