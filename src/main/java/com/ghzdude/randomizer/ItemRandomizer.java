@@ -4,8 +4,6 @@ import com.ghzdude.randomizer.special.generators.*;
 import com.ghzdude.randomizer.special.item.SpecialItem;
 import com.ghzdude.randomizer.special.item.SpecialItemList;
 import com.ghzdude.randomizer.special.item.SpecialItems;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.tags.TagKey;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -13,7 +11,9 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.level.storage.DimensionDataStorage;
 import net.minecraftforge.registries.ForgeRegistries;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Random;
 
 /* Item Randomizer Description
  * Goal is to give the player a random item every so often DONE
@@ -85,10 +85,7 @@ public class ItemRandomizer {
     private static int giveOnce(int pointsToUse, Inventory playerInventory) {
         SpecialItem selectedItem = getRandomSpecialItem(pointsToUse);
 
-        int amtToGive = Math.floorDiv(pointsToUse, selectedItem.value);
-        ItemStack stack = itemToStack(selectedItem.item);
-
-        stack.setCount(Math.min(amtToGive, stack.getMaxStackSize()));
+        ItemStack stack = specialItemToStack(selectedItem, pointsToUse);
 
         pointsToUse -= stack.getCount() * selectedItem.value;
         addStackToPlayer(stack, playerInventory);
@@ -115,18 +112,26 @@ public class ItemRandomizer {
         return SIMPLE_ITEMS.getRandomSpecialItem(RandomizerCore.unseededRNG);
     }
 
-    public static ItemStack specialItemToStack (SpecialItem item) {
-        return itemToStack(item.item);
+    public static ItemStack specialItemToStack (SpecialItem item, int points) {
+        int amtToGive = Math.floorDiv(points, item.value);
+        return itemToStack(item.item, amtToGive);
     }
 
     public static ItemStack itemToStack(Item item) {
+        return itemToStack(item, 1);
+    }
+
+    public static ItemStack itemToStack(Item item, int size) {
         ItemStack stack = new ItemStack(item);
+        stack.setCount(Math.min(size, stack.getMaxStackSize()));
+
         if (SpecialItems.ENCHANTABLE.contains(item)) {
             EnchantmentGenerator.applyEnchantment(stack);
         } else if (SpecialItems.EFFECT_ITEMS.contains(item)) {
             PotionGenerator.applyEffect(stack);
         } else if (item == Items.WRITTEN_BOOK) {
             BookGenerator.applyPassages(stack);
+            stack.setCount(1);
         } else if (item == Items.FIREWORK_ROCKET) {
             FireworkGenerator.applyFirework(stack);
         } else if (item == Items.FIREWORK_STAR) {
