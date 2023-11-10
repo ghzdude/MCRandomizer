@@ -23,7 +23,7 @@ public class PassageIO {
             new Passage("Innerius and Susanin", "The Book of Sus - Part 1",
             "ξ. Innerius and Susanin, the blessed witnesses of Amogus. " +
                     "They helped build the Holy Temple, the one which brought us closer to the Holy Prophet. " +
-                    "Without him, we would've been uncivilized nomads, like the primitive Imposters. " +
+                    "Without him, we would've been uncivilized nomads, like the primitive Imposters.\n" +
                     "Last night I was awoken by a bright light coming from outside around 3 AM. " +
                     "In my door, stood a large white and silver figure, but as my eyes adjusted, I identified it as an astronaut. " +
                     "He began to speak and told me his name, \\\"Amogus\\\", and that he was here to send an important warning. " +
@@ -72,7 +72,7 @@ public class PassageIO {
                     "IN THAT REGARD CHAT.")
     ));
 
-    public static void writeExamples() {
+    private static void writeExamples() {
         for (Passage passage : EXAMPLES) {
             File passageFile = createFileName(directory, passage.title());
 
