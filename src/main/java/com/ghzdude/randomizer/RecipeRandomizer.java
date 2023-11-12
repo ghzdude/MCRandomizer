@@ -6,7 +6,6 @@ import net.minecraft.advancements.Advancement;
 import net.minecraft.advancements.AdvancementHolder;
 import net.minecraft.advancements.AdvancementRewards;
 import net.minecraft.advancements.critereon.InventoryChangeTrigger;
-import net.minecraft.core.RegistryAccess;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.ServerAdvancementManager;
 import net.minecraft.tags.TagKey;
@@ -51,8 +50,7 @@ public class RecipeRandomizer {
 
             RandomizerCore.LOGGER.warn("Recipe Randomizer Running!");
             randomizeRecipes(
-                    event.getServer().getRecipeManager(),
-                    event.getServer().registryAccess()
+                    event.getServer().getRecipeManager()
             );
 
             setAdvancements(event.getServer().getAdvancements());
@@ -75,10 +73,9 @@ public class RecipeRandomizer {
         ReflectionUtils.setField(ServerAdvancementManager.class, manager, 2, toKeep);
     }
 
-    public static void randomizeRecipes(RecipeManager manager, RegistryAccess access) {
-        for (RecipeHolder<?> holder : manager.getRecipes()) {
-            Recipe<?> recipe = holder.value();
-            ItemStack newResult = INSTANCE.getStackFor(recipe.getResultItem(access));
+    public static void randomizeRecipes(RecipeManager manager) {
+        for (var recipe : manager.getRecipes()) {
+            ItemStack newResult = INSTANCE.getStackFor(recipe.getResultItem());
 
             modifyRecipeOutputs(recipe, newResult);
 
@@ -86,7 +83,7 @@ public class RecipeRandomizer {
             if (RandomizerConfig.randomizeInputs()) {
                 modifyRecipeInputs(
                         recipe.getIngredients().stream()
-                        .distinct().filter(ingredient -> !ingredient.isEmpty()).toList(), holder.id()
+                        .distinct().filter(ingredient -> !ingredient.isEmpty()).toList(), recipe.id()
                 );
             }
         }

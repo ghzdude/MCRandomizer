@@ -83,7 +83,7 @@ public class RandomizerCore
         pointsCarryover = RandomizerConfig.pointsCarryover();
         structureProbability = RandomizerConfig.getStructureProbability();
         cooldown = RandomizerConfig.getCooldown();
-        seededRNG = new Random(event.getServer().getWorldData().worldGenOptions().seed());
+        seededRNG = new Random(event.getServer().getWorldData().worldGenSettings().seed());
         unseededRNG = new Random();
         ItemRandomizer.init(event.getServer().overworld().getDataStorage());
         StructureRandomizer.configureStructures(event.getServer().registryAccess());
@@ -98,12 +98,12 @@ public class RandomizerCore
     @SubscribeEvent
     public void reload(AddReloadListenerEvent event) {
         if (!serverStarted) return;
-        RegistryAccess access = event.getRegistryAccess();
+//        RegistryAccess access = event;
         RecipeManager recipeManager = event.getServerResources().getRecipeManager();
         ServerAdvancementManager serverAdvancementManager = event.getServerResources().getAdvancements();
 
         if (RandomizerConfig.recipeRandomizerEnabled()) {
-            event.addListener(new RecipeModifier(access, recipeManager));
+            event.addListener(new RecipeModifier(recipeManager));
         }
 
         if (RandomizerConfig.randomizeInputs()) {
@@ -132,7 +132,7 @@ public class RandomizerCore
 
             int selection = seededRNG.nextInt(100);
             if (RandomizerConfig.structureRandomizerEnabled() && selection < structureProbability) {
-                pointsToUse = StructureRandomizer.placeStructure(pointsToUse, player.serverLevel(), player);
+                pointsToUse = StructureRandomizer.placeStructure(pointsToUse, player.getLevel(), player);
             } else if (RandomizerConfig.itemRandomizerEnabled()) {
                 player.displayClientMessage(Component.literal("Giving Item..."), true);
                 pointsToUse = ItemRandomizer.giveRandomItem(pointsToUse, player.getInventory());
