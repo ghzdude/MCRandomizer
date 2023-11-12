@@ -9,6 +9,6 @@ import net.minecraftforge.fml.common.Mod;
 public class DataGenerators {
     @SubscribeEvent
     public static void runData(GatherDataEvent event) {
-        event.getGenerator().addProvider(event.includeServer(), new GlobalLootProvider(event.getGenerator().getPackOutput()));
+        event.getGenerator().addProvider(event.includeServer(), new GlobalLootProvider(event.getGenerator()));
     }
 }
