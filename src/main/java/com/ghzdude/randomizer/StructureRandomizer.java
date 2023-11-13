@@ -4,8 +4,10 @@ import com.ghzdude.randomizer.io.ConfigIO;
 import com.ghzdude.randomizer.special.structure.SpecialStructure;
 import com.ghzdude.randomizer.special.structure.SpecialStructureList;
 import com.ghzdude.randomizer.special.structure.SpecialStructures;
-import net.minecraft.core.*;
-import net.minecraft.core.registries.Registries;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Registry;
+import net.minecraft.core.RegistryAccess;
+import net.minecraft.core.SectionPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
@@ -126,7 +128,7 @@ public class StructureRandomizer {
     }
 
     public static Registry<Structure> getStructures(RegistryAccess access) {
-        Optional<Registry<Structure>> optional = access.registry(Registries.STRUCTURE);
+        var optional = access.registry(Registry.STRUCTURE_REGISTRY);
         if (optional.isEmpty()) {
             RandomizerCore.LOGGER.warn("Structure Registry cannot be found!", new IllegalStateException());
             return null;
