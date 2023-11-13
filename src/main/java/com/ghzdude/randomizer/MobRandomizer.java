@@ -8,8 +8,10 @@ import net.minecraft.world.level.Level;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.entity.EntityLeaveLevelEvent;
 import net.minecraftforge.event.entity.living.LivingDeathEvent;
-import net.minecraftforge.event.entity.living.MobSpawnEvent;
+import net.minecraftforge.event.entity.living.LivingEvent;
+import net.minecraftforge.event.entity.living.LivingSpawnEvent;
 import net.minecraftforge.event.server.ServerStartedEvent;
+import net.minecraftforge.eventbus.api.Event;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.LogicalSide;
 import net.minecraftforge.registries.ForgeRegistries;
@@ -53,7 +55,7 @@ public class MobRandomizer {
 
     private void randomizeMobSpawn(MobSpawnType reason, Entity toSpawn) {
         if (entityCount <= entityCap) {
-            ServerLevel level = (ServerLevel) toSpawn.level();
+            ServerLevel level = (ServerLevel) toSpawn.getLevel();
 
             if (reason == MobSpawnType.CHUNK_GENERATION ||
                     reason == MobSpawnType.NATURAL ||
@@ -97,11 +99,11 @@ public class MobRandomizer {
     }
 
     @SubscribeEvent
-    public void onMobSpawn(MobSpawnEvent.FinalizeSpawn event) {
+    public void onMobSpawn(LivingSpawnEvent.CheckSpawn event) {
         if (isEnabled) {
-            randomizeMobSpawn(event.getSpawnType(), event.getEntity());
-            if (event.getSpawnType() != MobSpawnType.SPAWN_EGG) {
-                event.setSpawnCancelled(true);
+            randomizeMobSpawn(event.getSpawnReason(), event.getEntity());
+            if (event.getSpawnReason() != MobSpawnType.SPAWN_EGG) {
+                event.setResult(Event.Result.DENY);
             }
         }
     }
