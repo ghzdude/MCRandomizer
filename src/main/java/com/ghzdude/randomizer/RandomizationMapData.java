@@ -27,12 +27,8 @@ public class RandomizationMapData extends SavedData {
 
     private boolean isLoaded = false;
 
-    public static Factory<RandomizationMapData> factory() {
-        return new Factory<>(RandomizationMapData::new, RandomizationMapData::load, DataFixTypes.LEVEL);
-    }
-
     public static RandomizationMapData get(DimensionDataStorage storage, String prefix) {
-        RandomizationMapData data = storage.computeIfAbsent(RandomizationMapData.factory(), RandomizerCore.MODID + "_" + prefix);
+        RandomizationMapData data = storage.computeIfAbsent(RandomizationMapData::load, RandomizationMapData::new, RandomizerCore.MODID + "_" + prefix);
         if (!data.isLoaded()) {
             Random rng = new Random();
             data.generateItemMap(rng);
