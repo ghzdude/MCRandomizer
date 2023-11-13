@@ -4,6 +4,7 @@ import com.ghzdude.randomizer.reflection.ReflectionUtils;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import net.minecraft.advancements.Advancement;
 import net.minecraft.advancements.AdvancementHolder;
+import net.minecraft.advancements.AdvancementList;
 import net.minecraft.advancements.AdvancementRewards;
 import net.minecraft.advancements.critereon.InventoryChangeTrigger;
 import net.minecraft.resources.ResourceLocation;
@@ -63,10 +64,11 @@ public class RecipeRandomizer {
     }
 
     public static void setAdvancements(ServerAdvancementManager manager) {
-        Map<ResourceLocation, AdvancementHolder> holders = ReflectionUtils.getField(ServerAdvancementManager.class, manager, 2);
-        Map<ResourceLocation, AdvancementHolder> toKeep = new Object2ObjectOpenHashMap<>();
+        AdvancementList list = ReflectionUtils.getField(ServerAdvancementManager.class, manager, 2);
+        Map<ResourceLocation, Advancement> holders = ReflectionUtils.getField(AdvancementList.class, list, 1);
+        Map<ResourceLocation, Advancement> toKeep = new Object2ObjectOpenHashMap<>();
         holders.forEach(((resourceLocation, holder) -> {
-            if (!holder.id().getPath().contains("recipes/")) toKeep.put(resourceLocation, holder);
+            if (!holder.getId().getPath().contains("recipes/")) toKeep.put(resourceLocation, holder);
         }));
 
         buildAdvancements(toKeep);
@@ -83,7 +85,7 @@ public class RecipeRandomizer {
             if (RandomizerConfig.randomizeInputs()) {
                 modifyRecipeInputs(
                         recipe.getIngredients().stream()
-                        .distinct().filter(ingredient -> !ingredient.isEmpty()).toList(), recipe.id()
+                        .distinct().filter(ingredient -> !ingredient.isEmpty()).toList(), recipe.getId()
                 );
             }
         }
@@ -111,11 +113,13 @@ public class RecipeRandomizer {
 
             for (int j = 0; j < values.length; j++) {
                 if (values[j] instanceof Ingredient.ItemValue itemValue) {
-                    ItemStack stack = INSTANCE.getStackFor(itemValue.item());
+                    ItemStack vanilla = ReflectionUtils.getField(Ingredient.ItemValue.class, itemValue, 0);
+                    ItemStack stack = INSTANCE.getStackFor(vanilla);
                     ingredient = registry.getKey(stack.getItem());
                     values[j] = new Ingredient.ItemValue(stack);
                 } else if (values[j] instanceof Ingredient.TagValue tagValue) {
-                    TagKey<Item> key = INSTANCE.getTagKeyFor(tagValue.tag());
+                    TagKey<Item> vanilla = ReflectionUtils.getField(Ingredient.TagValue.class, tagValue, 0);
+                    TagKey<Item> key = INSTANCE.getTagKeyFor(vanilla);
                     ingredient = key.location();
                     values[j] = new Ingredient.TagValue(key);
                 }
@@ -136,7 +140,7 @@ public class RecipeRandomizer {
         }
     }
 
-    private static void buildAdvancements(Map<ResourceLocation, AdvancementHolder> map) {
+    private static void buildAdvancements(Map<ResourceLocation, Advancement> map) {
         ITagManager<Item> tagManager = ForgeRegistries.ITEMS.tags();
         if (tagManager == null) return;
 
@@ -157,13 +161,13 @@ public class RecipeRandomizer {
                 return;
             }
 
-            Advancement.Builder builder = new Advancement.Builder();
+            Advancement.Builder builder = Advancement.Builder.advancement();
             for (ResourceLocation recipe : recipes) {
                 builder.rewards(AdvancementRewards.Builder.recipe(recipe));
             }
             builder.addCriterion("has_item", InventoryChangeTrigger.TriggerInstance.hasItems(changedItems));
-            AdvancementHolder toAdd = builder.build(new ResourceLocation(RandomizerCore.MODID, ing.getNamespace() + "-" + ing.getPath() + "_gives_recipes"));
-            map.put(toAdd.id(), toAdd);
+            Advancement toAdd = builder.build(new ResourceLocation(RandomizerCore.MODID, ing.getNamespace() + "-" + ing.getPath() + "_gives_recipes"));
+            map.put(toAdd.getId(), toAdd);
         });
     }
 }
