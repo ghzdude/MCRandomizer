@@ -71,7 +71,7 @@ public class RecipeRandomizer {
         }));
 
         buildAdvancements(toKeep);
-        ReflectionUtils.setField(ServerAdvancementManager.class, manager, 2, toKeep);
+        ReflectionUtils.setField(AdvancementList.class, list, 1, toKeep);
     }
 
     public static void randomizeRecipes(RecipeManager manager) {
