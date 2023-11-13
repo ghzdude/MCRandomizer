@@ -15,14 +15,13 @@ public class BookGenerator {
     private static final String FORMAT = "%s";
     private static final String PAGE_FORMAT = "\"%s\"";
 
-    public static final ArrayList<Passage> PASSAGES = new ArrayList<>();
+    public static final ArrayList<Passage> PASSAGES = PassageIO.readPassages();
 
     public static void applyPassages(ItemStack stack) {
-        PASSAGES.addAll(PassageIO.readPassages());
 
         CompoundTag tag = new CompoundTag();
         ListTag pages = new ListTag();
-        int id = RandomizerCore.RANDOM.nextInt(PASSAGES.size());
+        int id = RandomizerCore.unseededRNG.nextInt(PASSAGES.size());
         Passage passage = PASSAGES.get(id);
 
         StringTag title = StringTag.valueOf(String.format(FORMAT, passage.title()));

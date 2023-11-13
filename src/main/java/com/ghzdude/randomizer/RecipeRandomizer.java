@@ -1,119 +1,172 @@
 package com.ghzdude.randomizer;
 
 import com.ghzdude.randomizer.reflection.ReflectionUtils;
-import it.unimi.dsi.fastutil.objects.Object2ObjectArrayMap;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.ListTag;
-import net.minecraft.nbt.Tag;
+import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
+import net.minecraft.advancements.Advancement;
+import net.minecraft.advancements.AdvancementList;
+import net.minecraft.advancements.AdvancementRewards;
+import net.minecraft.advancements.critereon.InventoryChangeTrigger;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.ServerAdvancementManager;
+import net.minecraft.tags.TagKey;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.item.crafting.*;
-import net.minecraft.world.level.saveddata.SavedData;
-import net.minecraft.world.level.storage.DimensionDataStorage;
 import net.minecraftforge.event.server.ServerStartedEvent;
+import net.minecraftforge.event.server.ServerStoppingEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
-import org.jetbrains.annotations.NotNull;
+import net.minecraftforge.registries.ForgeRegistries;
+import net.minecraftforge.registries.IForgeRegistry;
+import net.minecraftforge.registries.tags.ITag;
+import net.minecraftforge.registries.tags.ITagManager;
 
-import java.util.Collection;
-import java.util.Map;
+import javax.annotation.Nonnull;
+import java.util.*;
 
-/* Recipe Randomizer Description
- * on resource re/load, randomize every recipe
- * each world would have a unique set of randomized recipes
+/* Recipe Randomizer Description.
+ * on resource re/load, randomize every recipe.
+ * each world would have a unique set of randomized recipes.
+ *
+ * for advancements, picking up item A gives you recipes whose input is also item A.
+ * to be more precise, picking up item A gives you a recipe by resource location
+ * the inputs and output can change, but the resource location does not
+ * if the recipe inputs are modified, the advancement rewards needs to change.
+ * if recipe A with item A as input becomes item B, then picking item B should unlock recipe A.
+ * an item can unlock multiple recipes.
+ * for a given advancement for an item, i need to find all recipes whose inputs match.
+ * then update the rewards for the advancement
+ *
  */
 public class RecipeRandomizer {
-    private RecipeData data;
+    private static final Map<ResourceLocation, List<ResourceLocation>> MODIFIED = new Object2ObjectOpenHashMap<>();
 
-    public void randomizeRecipes(Collection<Recipe<?>> recipes) {
-        for (Recipe<?> recipe : recipes) {
-            ItemStack newResult;
-            if (data.hasRecipe(recipe.getId())) {
-                newResult = data.getStack(recipe.getId());
-            } else {
-                newResult = ItemRandomizer.specialItemToStack(ItemRandomizer.getRandomItem());
-                newResult.setCount(Math.min(recipe.getResultItem().getCount(), newResult.getMaxStackSize()));
-                RandomizerCore.LOGGER.warn("No data for " + recipe.getId() + ", generating new data!");
-                data.put(recipe.getId(), newResult);
-            }
-
-            if (recipe instanceof ShapedRecipe) {
-                ReflectionUtils.setField(ShapedRecipe.class, (ShapedRecipe) recipe, 5, newResult);
-            } else if (recipe instanceof ShapelessRecipe) {
-                ReflectionUtils.setField(ShapelessRecipe.class, (ShapelessRecipe) recipe, 2, newResult);
-            } else if (recipe instanceof AbstractCookingRecipe) {
-                ReflectionUtils.setField(AbstractCookingRecipe.class, (AbstractCookingRecipe) recipe, 4, newResult);
-            } else if (recipe instanceof SingleItemRecipe) {
-                ReflectionUtils.setField(SingleItemRecipe.class, (SingleItemRecipe) recipe, 1, newResult);
-            }
-        }
-    }
+    private static RandomizationMapData INSTANCE;
 
     @SubscribeEvent
     public void start(ServerStartedEvent event) {
         if (RandomizerConfig.recipeRandomizerEnabled()) {
-            data = get(event.getServer().overworld().getDataStorage());
+            INSTANCE = RandomizationMapData.get(event.getServer().overworld().getDataStorage(), "recipes");
 
             RandomizerCore.LOGGER.warn("Recipe Randomizer Running!");
-            randomizeRecipes(event.getServer().getRecipeManager().getRecipes());
+            randomizeRecipes(
+                    event.getServer().getRecipeManager()
+            );
 
-            data.setDirty();
+            setAdvancements(event.getServer().getAdvancements());
         }
     }
 
-    public static RecipeData get(DimensionDataStorage storage){
-        return storage.computeIfAbsent(RecipeData::load, RecipeData::create, RandomizerCore.MODID + "_recipes");
+    @SubscribeEvent
+    public void stop(ServerStoppingEvent event) {
+        MODIFIED.clear();
     }
 
-    protected static class RecipeData extends SavedData {
+    public static void setAdvancements(ServerAdvancementManager manager) {
+        AdvancementList list = ReflectionUtils.getField(ServerAdvancementManager.class, manager, 2);
+        Map<ResourceLocation, Advancement> holders = ReflectionUtils.getField(AdvancementList.class, list, 1);
+        Map<ResourceLocation, Advancement> toKeep = new Object2ObjectOpenHashMap<>();
+        holders.forEach(((resourceLocation, holder) -> {
+            if (!holder.getId().getPath().contains("recipes/")) toKeep.put(resourceLocation, holder);
+        }));
 
-        private final Map<ResourceLocation, ItemStack> changedRecipes = new Object2ObjectArrayMap<>();
+        buildAdvancements(toKeep);
+        ReflectionUtils.setField(AdvancementList.class, list, 1, toKeep);
+    }
 
-        @Override
-        public @NotNull CompoundTag save(CompoundTag tag) {
-            RandomizerCore.LOGGER.warn("Saving changed recipes to world data!");
-            ListTag changedRecipesTag = new ListTag();
+    public static void randomizeRecipes(RecipeManager manager) {
+        for (var recipe : manager.getRecipes()) {
+            ItemStack newResult = INSTANCE.getStackFor(recipe.getResultItem());
 
-            changedRecipes.forEach((key, value) -> {
-                CompoundTag kvPair = new CompoundTag();
-                kvPair.putString("recipe_id", key.toString());
-                kvPair.put("item", value.serializeNBT());
-                changedRecipesTag.add(kvPair);
-            });
+            modifyRecipeOutputs(recipe, newResult);
 
-            tag.put("changed_recipes", changedRecipesTag);
-
-            return tag;
-        }
-
-        public static RecipeData create() {
-            return new RecipeData();
-        }
-
-        public static RecipeData load(CompoundTag tag) {
-            RecipeData data = create();
-            RandomizerCore.LOGGER.warn("Loading changed recipes to world data!");
-
-            ListTag listTag = tag.getList("changed_recipes", Tag.TAG_COMPOUND);
-            for (int i = 0; i < listTag.size(); i++) {
-                CompoundTag kvPair = listTag.getCompound(i);
-                data.changedRecipes.put(
-                        ResourceLocation.tryParse(kvPair.getString("recipe_id")),
-                        ItemStack.of(kvPair.getCompound("item"))
+            // if inputs are not to be randomized, move on to the next recipe
+            if (RandomizerConfig.randomizeInputs()) {
+                modifyRecipeInputs(
+                        recipe.getIngredients().stream()
+                        .distinct().filter(ingredient -> !ingredient.isEmpty()).toList(), recipe.getId()
                 );
             }
-            return data;
         }
+    }
 
-        public boolean hasRecipe(ResourceLocation location) {
-            return changedRecipes.containsKey(location);
+    private static void modifyRecipeOutputs(Recipe<?> recipe, ItemStack newResult) {
+        if (recipe instanceof ShapedRecipe shapedRecipe) {
+            ReflectionUtils.setField(ShapedRecipe.class, shapedRecipe, 5, newResult);
+        } else if (recipe instanceof ShapelessRecipe shapelessRecipe) {
+            ReflectionUtils.setField(ShapelessRecipe.class, shapelessRecipe, 2, newResult);
+        } else if (recipe instanceof AbstractCookingRecipe abstractCookingRecipe) {
+            ReflectionUtils.setField(AbstractCookingRecipe.class, abstractCookingRecipe, 4, newResult);
+        } else if (recipe instanceof SingleItemRecipe singleItemRecipe) {
+            ReflectionUtils.setField(SingleItemRecipe.class, singleItemRecipe, 1, newResult);
         }
+    }
 
-        public ItemStack getStack(ResourceLocation location) {
-            return changedRecipes.get(location);
-        }
+    private static void modifyRecipeInputs(List<Ingredient> ingredients, ResourceLocation recipe) {
+        IForgeRegistry<Item> registry = ForgeRegistries.ITEMS;
 
-        public void put(ResourceLocation location, ItemStack stack) {
-            changedRecipes.put(location, stack);
+        for (int k = 0; k < ingredients.size(); k++) {
+            Ingredient.Value[] values = ReflectionUtils.getField(Ingredient.class, ingredients.get(k), 2);
+            if (values.length == 0 || Arrays.stream(values).allMatch(Objects::isNull)) continue;
+            ResourceLocation ingredient = null;
+
+            for (int j = 0; j < values.length; j++) {
+                if (values[j] instanceof Ingredient.ItemValue itemValue) {
+                    ItemStack vanilla = ReflectionUtils.getField(Ingredient.ItemValue.class, itemValue, 0);
+                    ItemStack stack = INSTANCE.getStackFor(vanilla);
+                    ingredient = registry.getKey(stack.getItem());
+                    values[j] = new Ingredient.ItemValue(stack);
+                } else if (values[j] instanceof Ingredient.TagValue tagValue) {
+                    TagKey<Item> vanilla = ReflectionUtils.getField(Ingredient.TagValue.class, tagValue, 0);
+                    TagKey<Item> key = INSTANCE.getTagKeyFor(vanilla);
+                    ingredient = key.location();
+                    values[j] = new Ingredient.TagValue(key);
+                }
+                if (ingredient == null) return;
+
+            }
+            addToMap(recipe, ingredient);
         }
+    }
+
+    public static void addToMap(@Nonnull ResourceLocation recipe, @Nonnull ResourceLocation ingredient) {
+        if (RecipeRandomizer.MODIFIED.containsKey(ingredient)) {
+            RecipeRandomizer.MODIFIED.get(ingredient).add(recipe);
+        } else {
+            List<ResourceLocation> list = new ArrayList<>();
+            list.add(recipe);
+            RecipeRandomizer.MODIFIED.put(ingredient, list);
+        }
+    }
+
+    private static void buildAdvancements(Map<ResourceLocation, Advancement> map) {
+        ITagManager<Item> tagManager = ForgeRegistries.ITEMS.tags();
+        if (tagManager == null) return;
+
+        MODIFIED.forEach((ing, recipes) -> {
+            Item[] changedItems;
+            Item item = ForgeRegistries.ITEMS.getValue(ing);
+            Optional<ITag<Item>> tag = tagManager.getTagNames()
+                    .filter(key -> key.location().equals(ing))
+                    .map(tagManager::getTag)
+                    .findFirst();
+
+            if (item != Items.AIR) {
+                changedItems = new Item[]{item};
+            } else if (tag.isPresent()) {
+                changedItems = tag.get().stream().toArray(Item[]::new);
+            } else {
+                RandomizerCore.LOGGER.warn("{} is not a valid item or tag!", ing);
+                return;
+            }
+
+            Advancement.Builder builder = Advancement.Builder.advancement();
+            for (ResourceLocation recipe : recipes) {
+                builder.rewards(AdvancementRewards.Builder.recipe(recipe));
+            }
+            builder.addCriterion("has_item", InventoryChangeTrigger.TriggerInstance.hasItems(changedItems));
+            Advancement toAdd = builder.build(new ResourceLocation(RandomizerCore.MODID, ing.getNamespace() + "-" + ing.getPath() + "_gives_recipes"));
+            map.put(toAdd.getId(), toAdd);
+        });
     }
 }

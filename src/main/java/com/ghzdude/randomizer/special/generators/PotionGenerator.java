@@ -4,7 +4,7 @@ import com.ghzdude.randomizer.RandomizerCore;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.StringTag;
-import net.minecraft.util.RandomSource;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.effect.MobEffectCategory;
 import net.minecraft.world.item.ItemStack;
@@ -13,9 +13,7 @@ import net.minecraft.world.item.alchemy.Potion;
 import net.minecraft.world.item.alchemy.Potions;
 import net.minecraftforge.registries.ForgeRegistries;
 
-import java.util.ArrayList;
-import java.util.HexFormat;
-import java.util.List;
+import java.util.*;
 
 public class PotionGenerator {
     public static final ArrayList<Potion> BLACKLISTED_POTIONS = new ArrayList<>(List.of(
@@ -25,55 +23,63 @@ public class PotionGenerator {
             Potions.WATER
     ));
 
-    public static ArrayList<Potion> VALID_POTIONS = new ArrayList<>(
-            ForgeRegistries.POTIONS.getValues()
-                    .stream()
-                    .filter(PotionGenerator.BLACKLISTED_POTIONS::contains)
+    public static ArrayList<Map.Entry<ResourceKey<Potion>, Potion>> VALID_POTIONS = new ArrayList<>(
+            ForgeRegistries.POTIONS.getEntries().stream()
+                    .filter(entry -> !BLACKLISTED_POTIONS.contains(entry.getValue()))
                     .toList()
     );
-    public static ArrayList<MobEffect> VALID_EFFECTS = new ArrayList<>(
-            ForgeRegistries.MOB_EFFECTS.getValues()
-                    .stream()
-                    .filter(mobEffect -> mobEffect.getCategory() != MobEffectCategory.NEUTRAL)
+    public static ArrayList<Map.Entry<ResourceKey<MobEffect>, MobEffect>> VALID_EFFECTS = new ArrayList<>(
+            ForgeRegistries.MOB_EFFECTS.getEntries().stream()
+                    .filter(entry -> entry.getValue().getCategory() != MobEffectCategory.NEUTRAL)
                     .toList()
     );
 
     public static void applyEffect(ItemStack stack) {
 
-        final RandomSource random = RandomizerCore.RANDOM;
+        final Random rng = RandomizerCore.seededRNG;
 
-        int id = random.nextInt(VALID_POTIONS.size());
-        int numOfEffects = random.nextInt(3) + 1;
+        int numOfEffects = rng.nextInt(3) + 1;
 
         CompoundTag baseTag = new CompoundTag();
 
         if (stack.getItem() == Items.SUSPICIOUS_STEW) {
             ListTag effects = new ListTag();
-            CompoundTag effect = new CompoundTag();
 
             for (int i = 1; i <= numOfEffects; i++) {
-                effect.putInt("EffectDuration", random.nextIntBetweenInclusive(100, 2000));
-                effect.putString("forge:effect_id", VALID_POTIONS.get(id).getName("minecraft:"));
+                int id = rng.nextInt(VALID_POTIONS.size());
+
+                CompoundTag effect = new CompoundTag();
+                effect.putInt("EffectDuration", rng.nextInt(100, 2001));
+                effect.putString("forge:effect_id", VALID_POTIONS.get(id).getKey().location().toString());
                 effects.add(effect);
             }
+            baseTag.put("effects", effects);
 
-            baseTag.put("Effects", effects);
+            CompoundTag displayTag = new CompoundTag();
+
+            ListTag lore = new ListTag();
+            lore.add(StringTag.valueOf("\"A randomly generated stew from the Gods!\""));
+            lore.add(StringTag.valueOf(String.format("\"Has [%d] effect(s)\"", numOfEffects)));
+            displayTag.put("Lore", lore);
+            baseTag.put("display", displayTag);
 
         } else {
             ListTag effects = new ListTag();
 
             for (int i = 1; i <= numOfEffects; i++) {
+                int id = rng.nextInt(VALID_EFFECTS.size());
+
                 CompoundTag effect = new CompoundTag();
-                effect.putInt("Id", random.nextInt(VALID_EFFECTS.size()));
-                effect.putInt("Amplifier", random.nextInt(4) + 1);
-                effect.putInt("Duration",random.nextIntBetweenInclusive(200, 2000));
+                effect.putString("Id", VALID_EFFECTS.get(id).getKey().location().toString());
+                effect.putInt("Duration",rng.nextInt(200, 2001));
+                effect.putInt("Amplifier", rng.nextInt(4) + 1);
                 effect.putBoolean("ShowIcon", true);
                 effects.add(effect);
             }
             baseTag.put("CustomPotionEffects", effects);
             baseTag.putString("Potion", "minecraft:water");
 
-            baseTag.putInt("CustomPotionColor", random.nextInt(HexFormat.fromHexDigits("00FFFFFF")));
+            baseTag.putInt("CustomPotionColor", rng.nextInt(HexFormat.fromHexDigits("00FFFFFF")));
 
             CompoundTag displayTag = new CompoundTag();
 
@@ -81,7 +87,7 @@ public class PotionGenerator {
             displayTag.putString("Name", String.format("\"Randomly Generated %s\"", itemType));
 
             ListTag lore = new ListTag();
-            lore.add(StringTag.valueOf(String.format("\"A randomly generated %s from the Gods\"", itemType)));
+            lore.add(StringTag.valueOf(String.format("\"A randomly generated %s from the Gods!\"", itemType)));
             displayTag.put("Lore", lore);
             baseTag.put("display", displayTag);
 

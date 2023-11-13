@@ -1,18 +1,22 @@
 package com.ghzdude.randomizer;
 
-import com.ghzdude.randomizer.io.PassageIO;
+import com.ghzdude.randomizer.loot.ModLootModifiers;
+import com.ghzdude.randomizer.special.modifiers.AdvancementModifier;
+import com.ghzdude.randomizer.special.modifiers.RecipeModifier;
 import com.mojang.logging.LogUtils;
+import net.minecraft.core.RegistryAccess;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.ServerAdvancementManager;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.level.block.Block;
+import net.minecraft.world.item.crafting.RecipeManager;
 import net.minecraftforge.common.MinecraftForge;
+import net.minecraftforge.event.AddReloadListenerEvent;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.event.server.ServerStartedEvent;
+import net.minecraftforge.event.server.ServerStoppingEvent;
 import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.ModLoadingContext;
@@ -20,9 +24,9 @@ import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.config.ModConfig;
 import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
-import net.minecraftforge.registries.DeferredRegister;
-import net.minecraftforge.registries.ForgeRegistries;
 import org.slf4j.Logger;
+
+import java.util.Random;
 
 // The value here should match an entry in the META-INF/mods.toml file
 @Mod(RandomizerCore.MODID)
@@ -32,11 +36,9 @@ public class RandomizerCore
     public static final String MODID = "randomizer";
     // Directly reference a slf4j logger
     public static final Logger LOGGER = LogUtils.getLogger();
-    // Create a Deferred Register to hold Blocks which will all be registered under the "examplemod" namespace
-    public static final DeferredRegister<Block> BLOCKS = DeferredRegister.create(ForgeRegistries.BLOCKS, MODID);
-    // Create a Deferred Register to hold Items which will all be registered under the "examplemod" namespace
-    public static final DeferredRegister<Item> ITEMS = DeferredRegister.create(ForgeRegistries.ITEMS, MODID);
-    public static final RandomSource RANDOM = RandomSource.create();
+    public static Random seededRNG;
+    public static Random unseededRNG;
+    public static boolean serverStarted = false;
 
     // Creates a new Block with the id "examplemod:example_block", combining the namespace and path
     // public static final RegistryObject<Block> EXAMPLE_BLOCK = BLOCKS.register("example_block", () -> new Block(BlockBehaviour.Properties.of(Material.STONE)));
@@ -61,11 +63,7 @@ public class RandomizerCore
 
         // Register the commonSetup method for modloading
         modEventBus.addListener(this::commonSetup);
-
-        // Register the Deferred Register to the mod event bus so blocks get registered
-        // BLOCKS.register(modEventBus);
-        // Register the Deferred Register to the mod event bus so items get registered
-        // ITEMS.register(modEventBus);
+        ModLootModifiers.register(modEventBus);
 
         // Register ourselves for server and other game events we are interested in
         MinecraftForge.EVENT_BUS.register(this);
@@ -73,7 +71,6 @@ public class RandomizerCore
 
     private void commonSetup(final FMLCommonSetupEvent event) {
         MinecraftForge.EVENT_BUS.register(new RecipeRandomizer());
-        MinecraftForge.EVENT_BUS.register(new LootRandomizer());
         MinecraftForge.EVENT_BUS.register(new MobRandomizer());
     }
 
@@ -82,35 +79,73 @@ public class RandomizerCore
     }
 
     @SubscribeEvent
+    public void onStart(ServerStartedEvent event) {
+        pointsCarryover = RandomizerConfig.pointsCarryover();
+        structureProbability = RandomizerConfig.getStructureProbability();
+        cooldown = RandomizerConfig.getCooldown();
+        seededRNG = new Random(event.getServer().getWorldData().worldGenSettings().seed());
+        unseededRNG = new Random();
+        ItemRandomizer.init(event.getServer().overworld().getDataStorage());
+        StructureRandomizer.configureStructures(event.getServer().registryAccess());
+        serverStarted = true;
+    }
+
+    @SubscribeEvent
+    public void onStop(ServerStoppingEvent event) {
+        serverStarted = false;
+    }
+
+    @SubscribeEvent
+    public void reload(AddReloadListenerEvent event) {
+        if (!serverStarted) return;
+//        RegistryAccess access = event;
+        RecipeManager recipeManager = event.getServerResources().getRecipeManager();
+        ServerAdvancementManager serverAdvancementManager = event.getServerResources().getAdvancements();
+
+        if (RandomizerConfig.recipeRandomizerEnabled()) {
+            event.addListener(new RecipeModifier(recipeManager));
+        }
+
+        if (RandomizerConfig.randomizeInputs()) {
+            event.addListener(new AdvancementModifier(serverAdvancementManager));
+        }
+    }
+
+    @SubscribeEvent
     public void update(TickEvent.PlayerTickEvent event) {
         if (event.side.isClient()) return;
         if (event.phase == TickEvent.Phase.END) return;
         if (OFFSET < 0) OFFSET = 0;
         OFFSET++;
+
         ServerPlayer player = (ServerPlayer) event.player;
 
-        if (player.gameMode.isSurvival() && OFFSET % cooldown == 0) {
-
+        if (shouldUsePoints(player)) {
             if (pointsCarryover) {
                 points += pointMax;
             } else {
                 points = pointMax;
             }
 
-            int pointsToUse = RANDOM.nextIntBetweenInclusive(1, points);
+            int pointsToUse = seededRNG.nextInt(points) + 1;
             points -= pointsToUse;
 
-            int selection = RANDOM.nextInt(100);
+            int selection = seededRNG.nextInt(100);
             if (RandomizerConfig.structureRandomizerEnabled() && selection < structureProbability) {
                 pointsToUse = StructureRandomizer.placeStructure(pointsToUse, player.getLevel(), player);
             } else if (RandomizerConfig.itemRandomizerEnabled()) {
                 player.displayClientMessage(Component.literal("Giving Item..."), true);
                 pointsToUse = ItemRandomizer.giveRandomItem(pointsToUse, player.getInventory());
+                incrementAmtItemsGiven();
             }
 
             increaseCycle(player);
             points += pointsToUse;
         }
+    }
+
+    private boolean shouldUsePoints(ServerPlayer player) {
+        return player.gameMode.isSurvival() && OFFSET % cooldown == 0;
     }
 
     private void increaseCycle(Player player) {
@@ -122,13 +157,6 @@ public class RandomizerCore
             pointMax++;
             player.sendSystemMessage(Component.translatable("player.point_max.increased", pointMax));
         }
-    }
-
-    @SubscribeEvent
-    public void onStart(ServerStartedEvent event) {
-        pointsCarryover = RandomizerConfig.pointsCarryover();
-        structureProbability = RandomizerConfig.getStructureProbability();
-        cooldown = RandomizerConfig.getCooldown();
     }
 
     @SubscribeEvent

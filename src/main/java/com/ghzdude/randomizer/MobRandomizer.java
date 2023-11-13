@@ -5,15 +5,18 @@ import com.ghzdude.randomizer.io.ConfigIO;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.*;
 import net.minecraft.world.level.Level;
+import net.minecraftforge.event.TickEvent;
+import net.minecraftforge.event.entity.EntityLeaveLevelEvent;
 import net.minecraftforge.event.entity.living.LivingDeathEvent;
+import net.minecraftforge.event.entity.living.LivingEvent;
 import net.minecraftforge.event.entity.living.LivingSpawnEvent;
 import net.minecraftforge.event.server.ServerStartedEvent;
 import net.minecraftforge.eventbus.api.Event;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.LogicalSide;
 import net.minecraftforge.registries.ForgeRegistries;
 
 import java.util.ArrayList;
-import java.util.List;
 
 /* Mob Spawn Randomizer description
  * when a mob is about to spawn, change the mob
@@ -25,6 +28,8 @@ public class MobRandomizer {
             .stream().filter(entityType ->
                     !BLACKLISTED_ENTITIES.contains(entityType) && entityType.getCategory() != MobCategory.MISC
             ).toList());
+
+    //todo set entity cap to be a config
     private final int entityCap = 150;
     private int entityCount;
     private boolean isEnabled;
@@ -32,7 +37,7 @@ public class MobRandomizer {
     private Entity getRandomMob(Level level) {
         Entity mob;
         do {
-            int id = RandomizerCore.RANDOM.nextInt(entityTypes.size());
+            int id = RandomizerCore.seededRNG.nextInt(entityTypes.size());
             EntityType<?> entityType = entityTypes.get(id);
             mob = entityType.create(level);
         } while (mob == null);
@@ -43,7 +48,7 @@ public class MobRandomizer {
         mob.setPos(reference.position());
         mob.setXRot(reference.getXRot());
         mob.setYRot(reference.getYRot());
-        mob.setItemSlot(EquipmentSlot.MAINHAND, ItemRandomizer.getRandomItemStack());
+        mob.setItemSlot(EquipmentSlot.MAINHAND, ItemRandomizer.getRandomItemStack(RandomizerCore.unseededRNG));
         RandomizerCore.LOGGER.warn("Spawned mob " + mob.getType() + " with " + entityCount + " in total.");
         level.addFreshEntity(mob);
     }
@@ -63,18 +68,34 @@ public class MobRandomizer {
         }
     }
 
-    @SubscribeEvent
-    public void onServerStart(ServerStartedEvent event) {
-        isEnabled = RandomizerConfig.mobRandomizerEnabled();
-        if (isEnabled) {
-            for (ServerLevel level : event.getServer().getAllLevels()) {
-                for (Entity mob : level.getAllEntities()) {
-                    if (level.isLoaded(mob.blockPosition()) && mob.getType().getCategory() != MobCategory.MISC) {
-                        entityCount++;
-                    }
+    private int countEntities(Iterable<ServerLevel> iterable) {
+        int count = 0;
+        for (ServerLevel level : iterable) {
+            for (Entity mob : level.getAllEntities()) {
+                if (level.isLoaded(mob.blockPosition()) && mob.getType().getCategory() != MobCategory.MISC) {
+                    count++;
                 }
             }
         }
+        return count;
+    }
+
+    @SubscribeEvent
+    public void onServerStart(ServerStartedEvent event) {
+        isEnabled = RandomizerConfig.mobRandomizerEnabled();
+    }
+
+    private int TIMER = 0;
+    @SubscribeEvent
+    public void onServerStart(TickEvent.ServerTickEvent event) {
+        if (event.phase == TickEvent.Phase.END || event.side == LogicalSide.CLIENT) return;
+        if (TIMER++ % 200 != 0) return;
+
+        if (isEnabled) {
+            entityCount = countEntities(event.getServer().getAllLevels());
+        }
+
+        if (TIMER < 0) TIMER = 0;
     }
 
     @SubscribeEvent
@@ -83,16 +104,6 @@ public class MobRandomizer {
             randomizeMobSpawn(event.getSpawnReason(), event.getEntity());
             if (event.getSpawnReason() != MobSpawnType.SPAWN_EGG) {
                 event.setResult(Event.Result.DENY);
-            }
-        }
-    }
-
-    @SubscribeEvent
-    public void onSpecialSpawn(LivingSpawnEvent.SpecialSpawn event) {
-        if (isEnabled) {
-            randomizeMobSpawn(event.getSpawnReason(), event.getEntity());
-            if (event.getSpawnReason() != MobSpawnType.SPAWN_EGG) {
-                event.setCanceled(true);
             }
         }
     }
@@ -108,5 +119,10 @@ public class MobRandomizer {
                 entityCount = 0;
             }
         }
+    }
+
+    @SubscribeEvent
+    public void onUnload(EntityLeaveLevelEvent event) {
+        entityCount--;
     }
 }
