@@ -46,11 +46,11 @@ public class PotionGenerator {
             ListTag effects = new ListTag();
 
             for (int i = 1; i <= numOfEffects; i++) {
-                int id = rng.nextInt(VALID_EFFECTS.size());
+                int id = rng.nextInt(VALID_POTIONS.size());
 
                 CompoundTag effect = new CompoundTag();
-                effect.putInt("duration", rng.nextInt(100, 2001));
-                effect.putString("id", VALID_EFFECTS.get(id).getKey().location().toString());
+                effect.putInt("EffectDuration", rng.nextInt(100, 2001));
+                effect.putString("forge:effect_id", VALID_POTIONS.get(id).getKey().location().toString());
                 effects.add(effect);
             }
             baseTag.put("effects", effects);
@@ -70,13 +70,13 @@ public class PotionGenerator {
                 int id = rng.nextInt(VALID_EFFECTS.size());
 
                 CompoundTag effect = new CompoundTag();
-                effect.putString("id", VALID_EFFECTS.get(id).getKey().location().toString());
-                effect.putInt("duration",rng.nextInt(200, 2001));
-                effect.putInt("amplifier", rng.nextInt(4) + 1);
-                effect.putBoolean("show_icon", true);
+                effect.putString("Id", VALID_EFFECTS.get(id).getKey().location().toString());
+                effect.putInt("Duration",rng.nextInt(200, 2001));
+                effect.putInt("Amplifier", rng.nextInt(4) + 1);
+                effect.putBoolean("ShowIcon", true);
                 effects.add(effect);
             }
-            baseTag.put("custom_potion_effects", effects);
+            baseTag.put("CustomPotionEffects", effects);
             baseTag.putString("Potion", "minecraft:water");
 
             baseTag.putInt("CustomPotionColor", rng.nextInt(HexFormat.fromHexDigits("00FFFFFF")));
