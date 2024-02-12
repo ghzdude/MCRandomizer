@@ -15,26 +15,11 @@ import net.minecraftforge.common.loot.IGlobalLootModifier;
 import net.minecraftforge.common.loot.LootModifier;
 import org.jetbrains.annotations.NotNull;
 
-public class LootRandomizeModifier extends LootModifier {
+public class LootRandomizeModifier {
 
     private static RandomizationMapData INSTANCE = null;
-    public static final Supplier<Codec<LootRandomizeModifier>> CODEC = Suppliers.memoize(() ->
-            RecordCodecBuilder.create(inst ->
-                    codecStart(inst).apply(inst, LootRandomizeModifier::new))
-    );
 
-    public LootRandomizeModifier(LootItemCondition[] c) {
-        super(new LootItemCondition[]{});
-    }
-
-    public LootRandomizeModifier() {
-        this(new LootItemCondition[]{});
-    }
-
-    @Override
-    protected @NotNull ObjectArrayList<ItemStack> doApply(ObjectArrayList<ItemStack> generatedLoot, LootContext context) {
-        if (!RandomizerConfig.lootRandomizerEnabled()) return generatedLoot;
-
+    public static @NotNull ObjectArrayList<ItemStack> randomizeLoot(ObjectArrayList<ItemStack> generatedLoot, LootContext context) {
         if (INSTANCE == null) {
             DimensionDataStorage storage = context.getLevel().getServer().overworld().getDataStorage();
             INSTANCE = RandomizationMapData.get(storage, "loot");
@@ -55,10 +40,5 @@ public class LootRandomizeModifier extends LootModifier {
         });
 
         return ret;
-    }
-
-    @Override
-    public Codec<? extends IGlobalLootModifier> codec() {
-        return CODEC.get();
     }
 }

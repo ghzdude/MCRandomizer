@@ -1,6 +1,5 @@
 package com.ghzdude.randomizer;
 
-import com.ghzdude.randomizer.loot.ModLootModifiers;
 import com.ghzdude.randomizer.special.modifiers.AdvancementModifier;
 import com.ghzdude.randomizer.special.modifiers.RecipeModifier;
 import com.mojang.logging.LogUtils;
@@ -63,7 +62,6 @@ public class RandomizerCore
 
         // Register the commonSetup method for modloading
         modEventBus.addListener(this::commonSetup);
-        ModLootModifiers.register(modEventBus);
 
         // Register ourselves for server and other game events we are interested in
         MinecraftForge.EVENT_BUS.register(this);

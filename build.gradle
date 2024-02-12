@@ -154,6 +154,8 @@ mixin {
     // MixinGradle Settings
     add sourceSets.main, 'mixins.randomizer.refmap.json'
     config 'mixins.randomizer.json'
+
+    debug.export = true
 }
 
 // This block of code expands all declared replace properties in the specified resource targets.
