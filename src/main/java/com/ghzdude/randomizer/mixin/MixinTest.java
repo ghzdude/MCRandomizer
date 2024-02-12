@@ -19,7 +19,8 @@ public abstract class MixinTest {
 
     @Unique
     private static final LootModifier randomizer$modifier = new LootRandomizeModifier();
-    @Inject(method = "modifyLoot", at = @At("TAIL"), cancellable = true)
+
+    @Inject(method = "modifyLoot", at = @At("TAIL"), cancellable = true, remap = false)
     private static void test(ResourceLocation lootTableId,
                              ObjectArrayList<ItemStack> generatedLoot,
                              LootContext context, CallbackInfoReturnable<ObjectArrayList<ItemStack>> cir) {
