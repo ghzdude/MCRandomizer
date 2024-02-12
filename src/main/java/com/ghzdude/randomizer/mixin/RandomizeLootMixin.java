@@ -1,7 +1,7 @@
 package com.ghzdude.randomizer.mixin;
 
 import com.ghzdude.randomizer.RandomizerConfig;
-import com.ghzdude.randomizer.loot.LootRandomizeModifier;
+import com.ghzdude.randomizer.loot.LootRandomizer;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
@@ -21,7 +21,7 @@ public abstract class RandomizeLootMixin {
                              ObjectArrayList<ItemStack> generatedLoot,
                              LootContext context, CallbackInfoReturnable<ObjectArrayList<ItemStack>> cir) {
         if (RandomizerConfig.lootRandomizerEnabled()) {
-            var list = LootRandomizeModifier.randomizeLoot(generatedLoot, context);
+            var list = LootRandomizer.randomizeLoot(generatedLoot, context);
             cir.setReturnValue(list);
         }
     }
