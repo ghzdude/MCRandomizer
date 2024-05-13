@@ -5,14 +5,12 @@ import com.ghzdude.randomizer.io.ConfigIO;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.*;
 import net.minecraft.world.level.Level;
-import net.minecraftforge.event.TickEvent;
-import net.minecraftforge.event.entity.EntityLeaveLevelEvent;
-import net.minecraftforge.event.entity.living.LivingDeathEvent;
-import net.minecraftforge.event.entity.living.MobSpawnEvent;
+import net.minecraft.world.level.NaturalSpawner;
+import net.minecraftforge.event.entity.EntityJoinLevelEvent;
 import net.minecraftforge.event.server.ServerStartedEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.fml.LogicalSide;
 import net.minecraftforge.registries.ForgeRegistries;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
 
@@ -23,15 +21,14 @@ import java.util.ArrayList;
 public class MobRandomizer {
     private static final ArrayList<EntityType<?>> BLACKLISTED_ENTITIES = ConfigIO.readMobBlacklist();
     private final ArrayList<EntityType<?>> entityTypes = new ArrayList<>(ForgeRegistries.ENTITY_TYPES.getValues()
-            .stream().filter(entityType ->
+            .stream()
+            .filter(entityType ->
                     !BLACKLISTED_ENTITIES.contains(entityType) && entityType.getCategory() != MobCategory.MISC
             ).toList());
-
-    //todo set entity cap to be a config
-    private final int entityCap = 150;
-    private int entityCount;
     private boolean isEnabled;
+    static final int MAGIC_NUMBER = (int)Math.pow(17.0D, 2.0D);
 
+    @NotNull
     private Entity getRandomMob(Level level) {
         Entity mob;
         do {
@@ -42,40 +39,30 @@ public class MobRandomizer {
         return mob;
     }
 
-    private void spawnMob(Level level, Entity mob, Entity reference) {
+    private boolean spawnMob(ServerLevel level, Entity mob, Entity reference) {
         mob.setPos(reference.position());
         mob.setXRot(reference.getXRot());
         mob.setYRot(reference.getYRot());
         mob.setItemSlot(EquipmentSlot.MAINHAND, ItemRandomizer.getRandomItemStack(RandomizerCore.unseededRNG));
-        RandomizerCore.LOGGER.warn("Spawned mob " + mob.getType() + " with " + entityCount + " in total.");
-        level.addFreshEntity(mob);
-    }
 
-    private void randomizeMobSpawn(MobSpawnType reason, Entity toSpawn) {
-        if (entityCount <= entityCap) {
-            ServerLevel level = (ServerLevel) toSpawn.level();
-
-            if (reason == MobSpawnType.CHUNK_GENERATION ||
-                    reason == MobSpawnType.NATURAL ||
-                    reason == MobSpawnType.SPAWNER
-            ) {
-                Entity mob = getRandomMob(level);
-                spawnMob(level, mob, toSpawn);
-                entityCount++;
+        mob.getPersistentData().putBoolean("randomized", true);
+        var state = level.getChunkSource().getLastSpawnState();
+        if (state != null) {
+            var category = mob.getType().getCategory();
+            int count = state.getMobCategoryCounts().getOrDefault(category, 0);
+            if (count <= category.getMaxInstancesPerChunk() * state.getSpawnableChunkCount() / MAGIC_NUMBER) {
+                level.addFreshEntity(mob);
+                return true;
             }
         }
+        return false;
     }
 
-    private int countEntities(Iterable<ServerLevel> iterable) {
-        int count = 0;
-        for (ServerLevel level : iterable) {
-            for (Entity mob : level.getAllEntities()) {
-                if (level.isLoaded(mob.blockPosition()) && mob.getType().getCategory() != MobCategory.MISC) {
-                    count++;
-                }
-            }
-        }
-        return count;
+    private boolean randomizeMobSpawn(Entity toSpawn) {
+        ServerLevel level = (ServerLevel) toSpawn.level();
+
+        Entity mob = getRandomMob(level);
+        return spawnMob(level, mob, toSpawn);
     }
 
     @SubscribeEvent
@@ -83,44 +70,16 @@ public class MobRandomizer {
         isEnabled = RandomizerConfig.mobRandomizerEnabled();
     }
 
-    private int TIMER = 0;
     @SubscribeEvent
-    public void onServerStart(TickEvent.ServerTickEvent event) {
-        if (event.phase == TickEvent.Phase.END || event.side == LogicalSide.CLIENT) return;
-        if (TIMER++ % 200 != 0) return;
+    public void onEntityJoin(EntityJoinLevelEvent event) {
+        if (!isEnabled || event.getLevel().isClientSide) return;
 
-        if (isEnabled) {
-            entityCount = countEntities(event.getServer().getAllLevels());
+        var mob = event.getEntity();
+        if (mob.getType().getCategory() == MobCategory.MISC) return;
+        var randomized = mob.getPersistentData().contains("randomized");
+        if (!randomized && !event.loadedFromDisk()) {
+            if (randomizeMobSpawn(mob))
+                event.setCanceled(true);
         }
-
-        if (TIMER < 0) TIMER = 0;
-    }
-
-    @SubscribeEvent
-    public void onMobSpawn(MobSpawnEvent.FinalizeSpawn event) {
-        if (isEnabled) {
-            randomizeMobSpawn(event.getSpawnType(), event.getEntity());
-            if (event.getSpawnType() != MobSpawnType.SPAWN_EGG) {
-                event.setSpawnCancelled(true);
-            }
-        }
-    }
-
-    @SubscribeEvent
-    public void onDeath(LivingDeathEvent event) {
-        if (isEnabled) {
-            EntityType<?> type = event.getEntity().getType();
-            if (entityTypes.contains(type)) {
-                entityCount--;
-            }
-            if (entityCount < 0) {
-                entityCount = 0;
-            }
-        }
-    }
-
-    @SubscribeEvent
-    public void onUnload(EntityLeaveLevelEvent event) {
-        entityCount--;
     }
 }

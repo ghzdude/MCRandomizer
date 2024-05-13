@@ -22,6 +22,7 @@ public class EnchantmentGenerator {
 
         List<Enchantment> applicable = VALID_ENCHANTS.stream().filter(stack::canApplyAtEnchantingTable).collect(Collectors.toList());
 
+        if (applicable.isEmpty()) return;
         int numOfEnchants = rng.nextInt(applicable.size()) + 1;
         for (int i = 0; i < numOfEnchants; i++) {
             int id = rng.nextInt(applicable.size());
