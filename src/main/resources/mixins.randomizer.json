@@ -8,10 +8,7 @@
     "RandomizeLootMixin"
   ],
   "client": [],
-  "server": [
-    "ServerLevelMixin",
-    "EntitySectionManagerMixin"
-  ],
+  "server": [],
   "verbose": true,
   "required": true
 }
