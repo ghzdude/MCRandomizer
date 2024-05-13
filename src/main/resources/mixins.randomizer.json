@@ -1,6 +1,6 @@
 {
   "package": "com.ghzdude.randomizer.mixin",
-  "refmap": "mixins.ghzbackpacks.refmap.json",
+  "refmap": "mixins.randomizer.refmap.json",
   "target": "@env(DEFAULT)",
   "minVersion": "0.8",
   "compatibilityLevel": "JAVA_8",

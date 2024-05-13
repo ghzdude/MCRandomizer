@@ -17,7 +17,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 public abstract class RandomizeLootMixin {
 
     @Inject(method = "modifyLoot", at = @At("TAIL"), cancellable = true, remap = false)
-    private static void test(ResourceLocation lootTableId,
+    private static void InjectLootRandomizer(ResourceLocation lootTableId,
                              ObjectArrayList<ItemStack> generatedLoot,
                              LootContext context, CallbackInfoReturnable<ObjectArrayList<ItemStack>> cir) {
         if (RandomizerConfig.lootRandomizerEnabled()) {
