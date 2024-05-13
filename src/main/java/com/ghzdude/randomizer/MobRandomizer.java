@@ -52,9 +52,6 @@ public class MobRandomizer {
             int count = state.getMobCategoryCounts().getOrDefault(category, 0);
             if (count <= category.getMaxInstancesPerChunk() * state.getSpawnableChunkCount() / MAGIC_NUMBER) {
                 level.addFreshEntity(mob);
-                RandomizerCore.LOGGER.warn("Spawned mob [{}] with [{}] in total.", mob.getType(), count);
-//                level.getChunkSource().addEntity(mob);
-//                reference.discard();
                 return true;
             }
         }
