@@ -65,7 +65,7 @@ public class ItemRandomizer {
     }
 
     public static int giveRandomItem(int pointsToUse, Inventory inventory){
-        if (RandomizerConfig.giveMultipleItems()) {
+        if (RandomizerConfig.giveMultipleItems.get()) {
             pointsToUse = giveMultiple(pointsToUse, inventory);
         } else {
             pointsToUse = giveOnce(pointsToUse, inventory);

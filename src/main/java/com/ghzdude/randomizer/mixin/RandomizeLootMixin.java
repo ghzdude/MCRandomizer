@@ -20,7 +20,7 @@ public abstract class RandomizeLootMixin {
     private static void InjectLootRandomizer(ResourceLocation lootTableId,
                              ObjectArrayList<ItemStack> generatedLoot,
                              LootContext context, CallbackInfoReturnable<ObjectArrayList<ItemStack>> cir) {
-        if (RandomizerConfig.lootRandomizerEnabled()) {
+        if (RandomizerConfig.randomizeLoot.get()) {
             var list = LootRandomizer.randomizeLoot(generatedLoot, context);
             cir.setReturnValue(list);
         }

@@ -78,9 +78,9 @@ public class RandomizerCore
 
     @SubscribeEvent
     public void onStart(ServerStartedEvent event) {
-        pointsCarryover = RandomizerConfig.pointsCarryover();
-        structureProbability = RandomizerConfig.getStructureProbability();
-        cooldown = RandomizerConfig.getCooldown();
+        pointsCarryover = RandomizerConfig.pointsCarryover.get();
+        structureProbability = RandomizerConfig.structureProbability.get();
+        cooldown = RandomizerConfig.itemCooldown.get();
         seededRNG = new Random(event.getServer().getWorldData().worldGenOptions().seed());
         unseededRNG = new Random();
         ItemRandomizer.init(event.getServer().overworld().getDataStorage());
@@ -100,11 +100,11 @@ public class RandomizerCore
         RecipeManager recipeManager = event.getServerResources().getRecipeManager();
         ServerAdvancementManager serverAdvancementManager = event.getServerResources().getAdvancements();
 
-        if (RandomizerConfig.recipeRandomizerEnabled()) {
+        if (RandomizerConfig.randomizeRecipes.get()) {
             event.addListener(new RecipeModifier(access, recipeManager));
         }
 
-        if (RandomizerConfig.randomizeInputs()) {
+        if (RandomizerConfig.randomizeRecipeInputs.get()) {
             event.addListener(new AdvancementModifier(serverAdvancementManager));
         }
     }
@@ -129,9 +129,9 @@ public class RandomizerCore
             points -= pointsToUse;
 
             int selection = seededRNG.nextInt(100);
-            if (RandomizerConfig.structureRandomizerEnabled() && selection < structureProbability) {
+            if (RandomizerConfig.generateStructures.get() && selection < structureProbability) {
                 pointsToUse = StructureRandomizer.placeStructure(pointsToUse, player.serverLevel(), player);
-            } else if (RandomizerConfig.itemRandomizerEnabled()) {
+            } else if (RandomizerConfig.giveRandomItems.get()) {
                 player.displayClientMessage(Component.literal("Giving Item..."), true);
                 pointsToUse = ItemRandomizer.giveRandomItem(pointsToUse, player.getInventory());
                 incrementAmtItemsGiven();
@@ -170,7 +170,7 @@ public class RandomizerCore
         pointMax = Math.max(pointMax, 1);
         amtItemsGiven = Math.max(amtItemsGiven, 0);
         cycle = Math.max(cycle, 0);
-        cycleCounter = Math.max(cycleCounter, RandomizerConfig.getCycleBase());
+        cycleCounter = Math.max(cycleCounter, RandomizerConfig.cycleBase.get());
     }
 
     @SubscribeEvent

@@ -54,7 +54,7 @@ public class StructureRandomizer {
         boolean success = tryPlaceStructure(level, structure.key.location(), target);
         if (!success) {
             player.sendSystemMessage(Component.translatable("structure.spawning.failed", structure.key.location()));
-            if (RandomizerConfig.itemRandomizerEnabled()) {
+            if (RandomizerConfig.giveRandomItems.get()) {
                 pointsToUse -= ItemRandomizer.giveRandomItem(pointsToUse, player.getInventory());
                 RandomizerCore.incrementAmtItemsGiven();
             }

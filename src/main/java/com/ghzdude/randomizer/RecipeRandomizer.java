@@ -46,7 +46,7 @@ public class RecipeRandomizer {
 
     @SubscribeEvent
     public void start(ServerStartedEvent event) {
-        if (RandomizerConfig.recipeRandomizerEnabled()) {
+        if (RandomizerConfig.randomizeRecipes.get()) {
             INSTANCE = RandomizationMapData.get(event.getServer().overworld().getDataStorage(), "recipes");
 
             RandomizerCore.LOGGER.warn("Recipe Randomizer Running!");
@@ -83,7 +83,7 @@ public class RecipeRandomizer {
             modifyRecipeOutputs(recipe, newResult);
 
             // if inputs are not to be randomized, move on to the next recipe
-            if (RandomizerConfig.randomizeInputs()) {
+            if (RandomizerConfig.randomizeRecipeInputs.get()) {
                 modifyRecipeInputs(
                         recipe.getIngredients().stream()
                         .distinct().filter(ingredient -> !ingredient.isEmpty()).toList(), holder.id()
