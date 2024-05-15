@@ -2,6 +2,8 @@ package com.ghzdude.randomizer;
 
 import com.google.common.collect.Lists;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
+import net.minecraft.core.HolderLookup;
+import net.minecraft.core.component.DataComponentMap;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.TagKey;
@@ -44,7 +46,7 @@ public class RandomizationMapData extends SavedData {
     }
 
     @Override
-    public @NotNull CompoundTag save(CompoundTag tag) {
+    public CompoundTag save(CompoundTag tag, HolderLookup.Provider provider) {
         RandomizerCore.LOGGER.warn("Saving randomizations to disk!");
         CompoundTag itemMap = new CompoundTag();
         CompoundTag tagKeyMap = new CompoundTag();
@@ -64,7 +66,7 @@ public class RandomizationMapData extends SavedData {
         return tag;
     }
 
-    public static RandomizationMapData load(CompoundTag tag) {
+    public static RandomizationMapData load(CompoundTag tag, HolderLookup.Provider provider) {
         RandomizationMapData data = new RandomizationMapData();
         RandomizerCore.LOGGER.warn("Loading from disk!");
 
@@ -138,16 +140,16 @@ public class RandomizationMapData extends SavedData {
     }
 
     public ItemStack getStackFor(ItemStack stack) {
-        return getStackFor(stack.getItem(), stack.getCount(), stack.getTag());
+        return getStackFor(stack.getItem(), stack.getCount(), stack.getComponents());
     }
 
-    public ItemStack getStackFor(Item vanilla, int count, CompoundTag tag) {
+    public ItemStack getStackFor(Item vanilla, int count, DataComponentMap components) {
         Item randomItem = ITEM_MAP.get(vanilla);
         if (randomItem == null || count < 1) return ItemStack.EMPTY;
 
         ItemStack random = new ItemStack(randomItem);
         random.setCount(Math.min(random.getMaxStackSize(), count));
-        random.setTag(tag);
+        random.applyComponents(components);
         return random;
     }
 
