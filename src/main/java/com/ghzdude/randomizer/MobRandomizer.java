@@ -43,7 +43,7 @@ public class MobRandomizer {
         mob.setPos(reference.position());
         mob.setXRot(reference.getXRot());
         mob.setYRot(reference.getYRot());
-        mob.setItemSlot(EquipmentSlot.MAINHAND, ItemRandomizer.getRandomItemStack(RandomizerCore.unseededRNG));
+        mob.getSlot(EquipmentSlot.MAINHAND.getIndex()).set(ItemRandomizer.getRandomItemStack(RandomizerCore.unseededRNG));
 
         mob.getPersistentData().putBoolean("randomized", true);
         var state = level.getChunkSource().getLastSpawnState();

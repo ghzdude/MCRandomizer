@@ -3,9 +3,11 @@ package com.ghzdude.randomizer.special.generators;
 import com.ghzdude.randomizer.RandomizerCore;
 import com.ghzdude.randomizer.io.PassageIO;
 import com.ghzdude.randomizer.special.passages.Passage;
+import net.minecraft.core.component.DataComponentType;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.StringTag;
+import net.minecraft.world.item.BookItem;
 import net.minecraft.world.item.ItemStack;
 
 import java.util.ArrayList;
@@ -19,6 +21,7 @@ public class BookGenerator {
 
     public static void applyPassages(ItemStack stack) {
 
+//        var s = stack.getComponents().get()
         CompoundTag tag = new CompoundTag();
         ListTag pages = new ListTag();
         int id = RandomizerCore.unseededRNG.nextInt(PASSAGES.size());
@@ -34,6 +37,6 @@ public class BookGenerator {
         tag.put("author", author);
         tag.put("title", title);
         tag.put("pages", pages);
-        stack.setTag(tag);
+//        stack.setTag(tag);
     }
 }

@@ -1,6 +1,7 @@
 package com.ghzdude.randomizer.special.generators;
 
 import com.ghzdude.randomizer.RandomizerCore;
+import net.minecraft.core.Holder;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.StringTag;
@@ -16,18 +17,17 @@ import net.minecraftforge.registries.ForgeRegistries;
 import java.util.*;
 
 public class PotionGenerator {
-    public static final ArrayList<Potion> BLACKLISTED_POTIONS = new ArrayList<>(List.of(
-            Potions.EMPTY,
+    public static final ArrayList<Holder<Potion>> BLACKLISTED_POTIONS = new ArrayList<>(List.of(
             Potions.AWKWARD,
             Potions.THICK,
             Potions.WATER
     ));
 
-    public static ArrayList<Map.Entry<ResourceKey<Potion>, Potion>> VALID_POTIONS = new ArrayList<>(
-            ForgeRegistries.POTIONS.getEntries().stream()
-                    .filter(entry -> !BLACKLISTED_POTIONS.contains(entry.getValue()))
-                    .toList()
-    );
+//    public static ArrayList<Map.Entry<ResourceKey<Potion>, Potion>> VALID_POTIONS = new ArrayList<>(
+//            ForgeRegistries.POTIONS.getEntries().stream()
+//                    .filter(entry -> !BLACKLISTED_POTIONS.contains(entry.getValue()))
+//                    .toList()
+//    );
     public static ArrayList<Map.Entry<ResourceKey<MobEffect>, MobEffect>> VALID_EFFECTS = new ArrayList<>(
             ForgeRegistries.MOB_EFFECTS.getEntries().stream()
                     .filter(entry -> entry.getValue().getCategory() != MobEffectCategory.NEUTRAL)
@@ -92,6 +92,6 @@ public class PotionGenerator {
             baseTag.put("display", displayTag);
 
         }
-        stack.setTag(baseTag);
+//        stack.setTag(baseTag);
     }
 }

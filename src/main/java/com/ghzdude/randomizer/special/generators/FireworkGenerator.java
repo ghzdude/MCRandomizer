@@ -28,12 +28,12 @@ public class FireworkGenerator {
             fireworksTag.put("Explosions", explosionTags);
         }
         baseTag.put("Fireworks", fireworksTag);
-        stack.setTag(baseTag);
+//        stack.setTag(baseTag);
     }
     public static void applyFireworkStar(ItemStack stack) {
         CompoundTag baseTag = new CompoundTag();
         baseTag.put("Explosion", applyExplosions());
-        stack.setTag(baseTag);
+//        stack.setTag(baseTag);
     }
     private static CompoundTag applyExplosions() {
         Random random = RandomizerCore.unseededRNG;

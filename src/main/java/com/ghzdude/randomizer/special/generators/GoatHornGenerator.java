@@ -14,6 +14,6 @@ public class GoatHornGenerator {
         CompoundTag baseTag = new CompoundTag();
         int id = RandomizerCore.unseededRNG.nextInt(INSTRUMENT_LIST.size());
         baseTag.putString("instrument", INSTRUMENT_LIST.get(id).toString());
-        stack.setTag(baseTag);
+//        stack.setTag(baseTag);
     }
 }
