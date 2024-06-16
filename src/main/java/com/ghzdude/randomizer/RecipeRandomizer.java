@@ -1,5 +1,6 @@
 package com.ghzdude.randomizer;
 
+import com.ghzdude.randomizer.api.AdvancementModify;
 import com.ghzdude.randomizer.api.IngredientRandomizable;
 import com.ghzdude.randomizer.reflection.ReflectionUtils;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
@@ -66,17 +67,9 @@ public class RecipeRandomizer {
     }
 
     public static void setAdvancements(ServerAdvancementManager manager) {
-        //todo replace reflection with mixin
-        Map<ResourceLocation, AdvancementHolder> holders = ReflectionUtils.getField(ServerAdvancementManager.class, manager, 2);
-        Map<ResourceLocation, AdvancementHolder> toKeep = new Object2ObjectOpenHashMap<>();
-        holders.forEach(((resourceLocation, holder) -> {
-            if (!holder.id().getPath().contains("recipes/")) toKeep.put(resourceLocation, holder);
-        }));
-
-        buildAdvancements(toKeep);
-        manager.tree().clear();
-        ReflectionUtils.setField(ServerAdvancementManager.class, manager, 2, toKeep);
-        manager.tree().addAll(toKeep.values());
+        if (manager instanceof AdvancementModify modify) {
+            modify.randomizer$randomizeRecipeAdvancements();
+        }
     }
 
     public static void randomizeRecipes(RecipeManager manager, RegistryAccess access) {
@@ -142,7 +135,7 @@ public class RecipeRandomizer {
                 .add(recipe);
     }
 
-    private static void buildAdvancements(Map<ResourceLocation, AdvancementHolder> map) {
+    public static void buildAdvancements(Map<ResourceLocation, AdvancementHolder> map) {
         ITagManager<Item> tagManager = ForgeRegistries.ITEMS.tags();
         if (tagManager == null) return;
 

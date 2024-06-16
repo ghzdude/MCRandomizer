@@ -6,7 +6,8 @@
   "compatibilityLevel": "JAVA_8",
   "mixins": [
     "IngredientMixin",
-    "RandomizeLootMixin"
+    "RandomizeLootMixin",
+    "AdvancementManagerMixin"
   ],
   "client": [],
   "server": [],
