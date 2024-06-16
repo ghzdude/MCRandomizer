@@ -2,7 +2,7 @@ package com.ghzdude.randomizer;
 
 import com.ghzdude.randomizer.api.AdvancementModify;
 import com.ghzdude.randomizer.api.IngredientRandomizable;
-import com.ghzdude.randomizer.reflection.ReflectionUtils;
+import com.ghzdude.randomizer.api.OutputSetter;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import net.minecraft.advancements.Advancement;
 import net.minecraft.advancements.AdvancementHolder;
@@ -91,14 +91,8 @@ public class RecipeRandomizer {
 
     private static void modifyRecipeOutputs(Recipe<?> recipe, ItemStack newResult) {
         // todo replace with mixin
-        if (recipe instanceof ShapedRecipe shapedRecipe) {
-            ReflectionUtils.setField(ShapedRecipe.class, shapedRecipe, 3, newResult);
-        } else if (recipe instanceof ShapelessRecipe shapelessRecipe) {
-            ReflectionUtils.setField(ShapelessRecipe.class, shapelessRecipe, 2, newResult);
-        } else if (recipe instanceof AbstractCookingRecipe abstractCookingRecipe) {
-            ReflectionUtils.setField(AbstractCookingRecipe.class, abstractCookingRecipe, 4, newResult);
-        } else if (recipe instanceof SingleItemRecipe singleItemRecipe) {
-            ReflectionUtils.setField(SingleItemRecipe.class, singleItemRecipe, 1, newResult);
+        if (recipe instanceof OutputSetter setter) {
+            setter.randomizer$setResult(newResult);
         }
     }
 
