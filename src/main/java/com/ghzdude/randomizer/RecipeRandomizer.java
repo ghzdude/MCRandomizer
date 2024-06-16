@@ -165,7 +165,7 @@ public class RecipeRandomizer {
                 builder.rewards(AdvancementRewards.Builder.recipe(recipe));
             }
             builder.addCriterion("has_item", InventoryChangeTrigger.TriggerInstance.hasItems(changedItems));
-            AdvancementHolder toAdd = builder.build(new ResourceLocation(RandomizerCore.MODID, ing.getNamespace() + "-" + ing.getPath() + "_gives_recipes"));
+            AdvancementHolder toAdd = builder.build(ResourceLocation.fromNamespaceAndPath(RandomizerCore.MODID, ing.getNamespace() + "-" + ing.getPath() + "_gives_recipes"));
             map.put(toAdd.id(), toAdd);
         });
     }

@@ -85,7 +85,7 @@ public class ConfigIO {
             reader.beginArray();
 
             while (reader.peek() == JsonToken.STRING) {
-                ResourceLocation location = new ResourceLocation(reader.nextString());
+                ResourceLocation location = ResourceLocation.parse(reader.nextString());
                 if (ForgeRegistries.ITEMS.containsKey(location)) {
                     blacklist.add(ForgeRegistries.ITEMS.getValue(location));
                 } else {
@@ -114,7 +114,7 @@ public class ConfigIO {
             reader.beginArray();
 
             while (reader.peek() == JsonToken.STRING) {
-                ResourceLocation location = new ResourceLocation(reader.nextString());
+                ResourceLocation location = ResourceLocation.parse(reader.nextString());
                 if (ForgeRegistries.ENTITY_TYPES.containsKey(location)) {
                     blacklist.add(ForgeRegistries.ENTITY_TYPES.getValue(location));
                 } else {
@@ -143,7 +143,7 @@ public class ConfigIO {
             reader.beginArray();
 
             while (reader.peek() == JsonToken.STRING) {
-                ResourceLocation location = new ResourceLocation(reader.nextString());
+                ResourceLocation location = ResourceLocation.parse(reader.nextString());
                 blacklist.add(location);
             }
 

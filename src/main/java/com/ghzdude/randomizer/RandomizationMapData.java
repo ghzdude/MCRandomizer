@@ -75,7 +75,7 @@ public class RandomizationMapData extends SavedData {
 
         ItemRandomizer.getValidItems().forEach(specialItem -> {
             Item vanilla = specialItem.item;
-            Item random = ForgeRegistries.ITEMS.getValue(new ResourceLocation(itemMap.getString(vanilla.toString())));
+            Item random = ForgeRegistries.ITEMS.getValue(ResourceLocation.parse(itemMap.getString(vanilla.toString())));
             if (random == Items.AIR) return;
 
             data.put(vanilla, random);
@@ -85,7 +85,7 @@ public class RandomizationMapData extends SavedData {
         if (tagManager != null) {
             tagManager.getTagNames().forEach(vanilla -> {
                 String rand = tagKeyMap.getString(vanilla.location().toString());
-                data.put(vanilla, tagManager.createTagKey(new ResourceLocation(rand)));
+                data.put(vanilla, tagManager.createTagKey(ResourceLocation.parse(rand)));
             });
         }
         data.setDirty();
