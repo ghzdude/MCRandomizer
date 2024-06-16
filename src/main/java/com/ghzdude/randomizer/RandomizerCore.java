@@ -1,9 +1,11 @@
 package com.ghzdude.randomizer;
 
+import com.ghzdude.randomizer.special.generators.EnchantmentGenerator;
 import com.ghzdude.randomizer.special.modifiers.AdvancementModifier;
 import com.ghzdude.randomizer.special.modifiers.RecipeModifier;
 import com.mojang.logging.LogUtils;
 import net.minecraft.core.RegistryAccess;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.ServerAdvancementManager;
@@ -26,6 +28,7 @@ import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 import org.slf4j.Logger;
 
 import java.util.Random;
+import java.util.stream.Collectors;
 
 // The value here should match an entry in the META-INF/mods.toml file
 @Mod(RandomizerCore.MODID)
@@ -85,6 +88,9 @@ public class RandomizerCore
         unseededRNG = new Random();
         ItemRandomizer.init(event.getServer().overworld().getDataStorage());
         StructureRandomizer.configureStructures(event.getServer().registryAccess());
+        event.getServer().registryAccess()
+                .registry(Registries.ENCHANTMENT)
+                .ifPresent(EnchantmentGenerator::init);
         serverStarted = true;
     }
 

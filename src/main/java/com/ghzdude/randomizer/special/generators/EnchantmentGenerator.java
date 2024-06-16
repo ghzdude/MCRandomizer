@@ -2,6 +2,7 @@ package com.ghzdude.randomizer.special.generators;
 
 import com.ghzdude.randomizer.RandomizerCore;
 import net.minecraft.core.Holder;
+import net.minecraft.core.Registry;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -20,8 +21,10 @@ public class EnchantmentGenerator {
 
     private static final ArrayList<Holder<Enchantment>> VALID_ENCHANTS = new ArrayList<>();
 
-    public static void init(Collection<Holder<Enchantment>> enchantments) {
-        VALID_ENCHANTS.addAll(enchantments);
+    public static void init(Registry<Enchantment> enchantments) {
+        enchantments.stream()
+                .map(enchantments::wrapAsHolder)
+                .forEach(VALID_ENCHANTS::add);
     }
 
     public static void applyEnchantment(ItemStack stack) {
