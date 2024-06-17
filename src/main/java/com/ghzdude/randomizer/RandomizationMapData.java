@@ -1,5 +1,6 @@
 package com.ghzdude.randomizer;
 
+import com.ghzdude.randomizer.special.item.SpecialItems;
 import com.google.common.collect.Lists;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import net.minecraft.core.HolderLookup;
@@ -115,7 +116,10 @@ public class RandomizationMapData extends SavedData {
     }
 
     private void generateItemMap(Random rng) {
-        List<Item> vanilla = Lists.newArrayList(ItemRandomizer.getValidItems().asItems());
+        List<Item> vanilla = ForgeRegistries.ITEMS.getValues().stream()
+                .filter(item -> !SpecialItems.BLACKLISTED_ITEMS.contains(item))
+                .toList();
+
         List<Item> randomized = Lists.newArrayList(vanilla);
         Collections.shuffle(randomized, rng);
 

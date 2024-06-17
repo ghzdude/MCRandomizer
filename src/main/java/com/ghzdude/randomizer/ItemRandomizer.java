@@ -2,7 +2,6 @@ package com.ghzdude.randomizer;
 
 import com.ghzdude.randomizer.special.generators.*;
 import com.ghzdude.randomizer.special.item.SpecialItem;
-import com.ghzdude.randomizer.special.item.SpecialItemList;
 import com.ghzdude.randomizer.special.item.SpecialItems;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.Item;
@@ -12,7 +11,8 @@ import net.minecraft.world.level.storage.DimensionDataStorage;
 import net.minecraftforge.registries.ForgeRegistries;
 
 import java.util.ArrayList;
-import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
 import java.util.Random;
 
 /* Item Randomizer Description
@@ -24,13 +24,12 @@ import java.util.Random;
  * items have a defined value, otherwise stacksize is used
  */
 public class ItemRandomizer {
-    private static final SpecialItemList VALID_ITEMS = new SpecialItemList(configureValidItem());
-    private static final SpecialItemList SIMPLE_ITEMS = new SpecialItemList(VALID_ITEMS.stream()
+    private static final List<SpecialItem> VALID_ITEMS = configureValidItem();
+    private static final List<SpecialItem> SIMPLE_ITEMS = VALID_ITEMS.stream()
             .filter(specialItem ->
                     !SpecialItems.EFFECT_ITEMS.contains(specialItem) &&
                     !SpecialItems.ENCHANTABLE.contains(specialItem.item))
-            .toList()
-    );
+            .toList();
 
     private static RandomizationMapData INSTANCE;
 
@@ -38,25 +37,19 @@ public class ItemRandomizer {
         INSTANCE = RandomizationMapData.get(storage, "item");
     }
 
-    private static Collection<SpecialItem> configureValidItem() {
-        int lastMatch;
+    private static List<SpecialItem> configureValidItem() {
         ArrayList<SpecialItem> validItems = new ArrayList<>();
 
-        for (Item item : ForgeRegistries.ITEMS.getValues()) {
-            if (SpecialItems.BLACKLISTED_ITEMS.contains(item)) continue;
-            SpecialItem toUpdate;
+        for (SpecialItem item : ForgeRegistries.ITEMS.getValues().stream().map(SpecialItem::new).toList()) {
+            if (SpecialItems.BLACKLISTED_ITEMS.contains(item.item)) continue;
+            SpecialItem toUpdate = item;
 
             if (SpecialItems.SPECIAL_ITEMS.contains(item)) {
                 toUpdate = SpecialItems.SPECIAL_ITEMS.get(SpecialItems.SPECIAL_ITEMS.indexOf(item));
             } else if (SpecialItems.EFFECT_ITEMS.contains(item)) {
                 toUpdate = SpecialItems.EFFECT_ITEMS.get(SpecialItems.EFFECT_ITEMS.indexOf(item));
-            } else {
-                toUpdate = new SpecialItem(item);
-            }
-
-            if (toUpdate.item.toString().contains("shulker_box")) {
-                lastMatch = SpecialItems.SPECIAL_ITEMS.indexOf(Items.SHULKER_BOX);
-                toUpdate.value = SpecialItems.SPECIAL_ITEMS.get(lastMatch).value;
+            } else if (SpecialItems.SHULKER_BOXES.contains(toUpdate.item)) {
+                toUpdate.value = 6;
             }
 
             validItems.add(toUpdate);
@@ -92,24 +85,24 @@ public class ItemRandomizer {
         return pointsToUse;
     }
 
-    public static SpecialItem getRandomSpecialItem(Random rng) {
-        return VALID_ITEMS.getRandomSpecialItem(rng);
+    public static SpecialItem getRandomItemFrom(List<SpecialItem> list, Random rng) {
+        return list.get(rng.nextInt(list.size()));
     }
 
-    public static SpecialItem getRandomSpecialItem(int points) {
+    public static SpecialItem getRandomSpecialItem(Random rng, int points) {
         SpecialItem toReturn;
         do {
-            toReturn = VALID_ITEMS.getRandomSpecialItem(RandomizerCore.unseededRNG);
+            toReturn = getRandomItemFrom(VALID_ITEMS, rng);
         } while (toReturn.value > points);
         return toReturn;
     }
 
-    public static ItemStack getRandomItemStack(Random rng) {
-        return itemToStack(INSTANCE.getRandomItem(rng));
+    public static SpecialItem getRandomSpecialItem(int points) {
+        return getRandomSpecialItem(RandomizerCore.unseededRNG, points);
     }
 
-    public static SpecialItem getRandomSimpleItem() {
-        return SIMPLE_ITEMS.getRandomSpecialItem(RandomizerCore.unseededRNG);
+    public static ItemStack getRandomItemStack(Random rng) {
+        return itemToStack(INSTANCE.getRandomItem(rng));
     }
 
     public static ItemStack specialItemToStack (SpecialItem item, int points) {
@@ -149,7 +142,7 @@ public class ItemRandomizer {
         }
     }
 
-    public static SpecialItemList getValidItems() {
-        return VALID_ITEMS;
+    public static List<SpecialItem> getValidItems() {
+        return Collections.unmodifiableList(VALID_ITEMS);
     }
 }
