@@ -16,10 +16,12 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.chunk.ChunkGenerator;
 import net.minecraft.world.level.levelgen.structure.BoundingBox;
 import net.minecraft.world.level.levelgen.structure.Structure;
 import net.minecraft.world.level.levelgen.structure.StructureStart;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -90,7 +92,6 @@ public class StructureRandomizer {
         ChunkGenerator chunkgenerator = serverLevel.getChunkSource().getGenerator();
 
         Registry<Structure> registry = getStructures(serverLevel.registryAccess());
-        if (registry == null) return false;
         Structure structure = registry.get(location);
         if (structure == null) return false;
 
@@ -115,6 +116,8 @@ public class StructureRandomizer {
                     chunkPos.getMinBlockX(), serverLevel.getMinBuildHeight(), chunkPos.getMinBlockZ(),
                     chunkPos.getMaxBlockX(), serverLevel.getMaxBuildHeight(), chunkPos.getMaxBlockZ()
             );
+            // todo maybe place blocks here?
+
             structurestart.placeInChunk(
                     serverLevel, serverLevel.structureManager(), chunkgenerator,
                     serverLevel.getRandom(), bb, chunkPos
@@ -127,7 +130,6 @@ public class StructureRandomizer {
         VALID_STRUCTURES.addAll(SpecialStructures.CONFIGURED_STRUCTURES);
 
         Registry<Structure> structures = getStructures(access);
-        if (structures == null) return;
 
         for (ResourceKey<Structure> key : structures.registryKeySet()) {
             SpecialStructure toAdd;
@@ -138,6 +140,7 @@ public class StructureRandomizer {
         }
     }
 
+    @NotNull
     public static Registry<Structure> getStructures(RegistryAccess access) {
         Optional<Registry<Structure>> optional = access.registry(Registries.STRUCTURE);
         if (optional.isEmpty()) {

@@ -2,6 +2,7 @@ package com.ghzdude.randomizer.special.item;
 
 import com.ghzdude.randomizer.io.ConfigIO;
 import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 
 import java.util.ArrayList;
@@ -124,6 +125,7 @@ public class SpecialItems {
             Items.PINK_SHULKER_BOX
     ));
 
+    // todo move to map and read from config
     public static final List<SpecialItem> SPECIAL_ITEMS = new ArrayList<>(List.of(
             new SpecialItem(Items.NETHER_STAR, 15),
             new SpecialItem(Items.CHEST, 3),
@@ -168,7 +170,8 @@ public class SpecialItems {
 
     private static void addItem(Item item, int value) {
         SPECIAL_ITEMS.add(new SpecialItem(item, value));
-        ENCHANTABLE.add(item);
+        if (item.isEnchantable(new ItemStack(item)))
+            ENCHANTABLE.add(item);
     }
 
 }
