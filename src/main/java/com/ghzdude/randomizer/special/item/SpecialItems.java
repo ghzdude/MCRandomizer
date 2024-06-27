@@ -1,6 +1,7 @@
 package com.ghzdude.randomizer.special.item;
 
 import com.ghzdude.randomizer.io.ConfigIO;
+import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -8,17 +9,15 @@ import net.minecraft.world.item.Items;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
 public class SpecialItems {
     public static final List<Item> BLACKLISTED_ITEMS = ConfigIO.readItemBlacklist();
 
-    public static final List<SpecialItem> EFFECT_ITEMS = new ArrayList<>(List.of(
-            new SpecialItem(Items.POTION, 4),
-            new SpecialItem(Items.SPLASH_POTION, 6),
-            new SpecialItem(Items.LINGERING_POTION, 6),
-            new SpecialItem(Items.TIPPED_ARROW, 6),
-            new SpecialItem(Items.SUSPICIOUS_STEW, 4)
-    ));
+    public static final Map<Item, Integer> EFFECT_ITEMS = new Object2IntOpenHashMap<>();
+
+    // todo read from config
+    public static final Map<Item, Integer> SPECIAL_ITEMS = new Object2IntOpenHashMap<>();
 
     public static final List<Item> LEATHER_ARMOR = new ArrayList<>(List.of(
             Items.LEATHER_HELMET,
@@ -125,34 +124,6 @@ public class SpecialItems {
             Items.PINK_SHULKER_BOX
     ));
 
-    // todo move to map and read from config
-    public static final List<SpecialItem> SPECIAL_ITEMS = new ArrayList<>(List.of(
-            new SpecialItem(Items.NETHER_STAR, 15),
-            new SpecialItem(Items.CHEST, 3),
-            new SpecialItem(Items.TRAPPED_CHEST, 3),
-            new SpecialItem(Items.BUNDLE, 6),
-            new SpecialItem(Items.WRITTEN_BOOK, 4),
-            new SpecialItem(Items.END_PORTAL_FRAME, 7),
-
-            // villager stations
-            new SpecialItem(Items.GRINDSTONE, 6),
-            new SpecialItem(Items.FLETCHING_TABLE, 3),
-            new SpecialItem(Items.ANVIL, 6),
-            new SpecialItem(Items.CHIPPED_ANVIL, 4),
-            new SpecialItem(Items.DAMAGED_ANVIL, 2),
-            new SpecialItem(Items.COMPOSTER, 8),
-            new SpecialItem(Items.STONECUTTER, 6),
-            new SpecialItem(Items.BLAST_FURNACE, 3),
-            new SpecialItem(Items.SMOKER, 3),
-
-            new SpecialItem(Items.CAMPFIRE, 2),
-            new SpecialItem(Items.SOUL_CAMPFIRE, 2),
-
-            // weapons
-            new SpecialItem(Items.MACE, 10),
-            new SpecialItem(Items.HEAVY_CORE, 8)
-    ));
-
     static {
         WOODEN_TOOLS.forEach(item -> addItem(item, 1));
         STONE_TOOLS.forEach(item -> addItem(item, 2));
@@ -166,10 +137,40 @@ public class SpecialItems {
         IRON_ARMOR.forEach(item -> addItem(item, 3));
         DIAMOND_ARMOR.forEach(item -> addItem(item, 5));
         NETHERITE_ARMOR.forEach(item -> addItem(item, 9));
+
+        EFFECT_ITEMS.put(Items.POTION, 4);
+        EFFECT_ITEMS.put(Items.SPLASH_POTION, 6);
+        EFFECT_ITEMS.put(Items.LINGERING_POTION, 6);
+        EFFECT_ITEMS.put(Items.TIPPED_ARROW, 6);
+        EFFECT_ITEMS.put(Items.SUSPICIOUS_STEW, 4);
+
+        // misc
+        SPECIAL_ITEMS.put(Items.NETHER_STAR, 15);
+        SPECIAL_ITEMS.put(Items.CHEST, 3);
+        SPECIAL_ITEMS.put(Items.TRAPPED_CHEST, 3);
+        SPECIAL_ITEMS.put(Items.BUNDLE, 6);
+        SPECIAL_ITEMS.put(Items.WRITTEN_BOOK, 4);
+        SPECIAL_ITEMS.put(Items.END_PORTAL_FRAME, 7);
+        SPECIAL_ITEMS.put(Items.MACE, 10);
+        SPECIAL_ITEMS.put(Items.HEAVY_CORE, 8);
+
+        // villager stations
+        SPECIAL_ITEMS.put(Items.GRINDSTONE, 6);
+        SPECIAL_ITEMS.put(Items.FLETCHING_TABLE, 3);
+        SPECIAL_ITEMS.put(Items.ANVIL, 6);
+        SPECIAL_ITEMS.put(Items.CHIPPED_ANVIL, 4);
+        SPECIAL_ITEMS.put(Items.DAMAGED_ANVIL, 2);
+        SPECIAL_ITEMS.put(Items.COMPOSTER, 8);
+        SPECIAL_ITEMS.put(Items.STONECUTTER, 6);
+        SPECIAL_ITEMS.put(Items.BLAST_FURNACE, 3);
+        SPECIAL_ITEMS.put(Items.SMOKER, 3);
+
+        SPECIAL_ITEMS.put(Items.CAMPFIRE, 2);
+        SPECIAL_ITEMS.put(Items.SOUL_CAMPFIRE, 2);
     }
 
     private static void addItem(Item item, int value) {
-        SPECIAL_ITEMS.add(new SpecialItem(item, value));
+        SPECIAL_ITEMS.put(item, value);
         if (item.isEnchantable(new ItemStack(item)))
             ENCHANTABLE.add(item);
     }

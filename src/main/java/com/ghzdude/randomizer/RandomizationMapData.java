@@ -74,12 +74,11 @@ public class RandomizationMapData extends SavedData {
         CompoundTag itemMap = tag.getCompound("item_map");
         CompoundTag tagKeyMap = tag.getCompound("tag_key_map");
 
-        ItemRandomizer.getValidItems().forEach(specialItem -> {
-            Item vanilla = specialItem.item;
-            Item random = ForgeRegistries.ITEMS.getValue(ResourceLocation.parse(itemMap.getString(vanilla.toString())));
+        ItemRandomizer.getValidItems().forEach(item -> {
+            Item random = ForgeRegistries.ITEMS.getValue(ResourceLocation.parse(itemMap.getString(item.toString())));
             if (random == Items.AIR) return;
 
-            data.put(vanilla, random);
+            data.put(item, random);
         });
 
         ITagManager<Item> tagManager = ForgeRegistries.ITEMS.tags();
