@@ -31,9 +31,11 @@ public class FireworkGenerator {
 
         stack.set(DataComponents.FIREWORKS, new Fireworks(random.nextInt(6) + 1, explosions));
     }
+
     public static void applyFireworkStar(ItemStack stack) {
         stack.set(DataComponents.FIREWORK_EXPLOSION, createExplosion());
     }
+
     private static FireworkExplosion createExplosion() {
         Random random = RandomizerCore.unseededRNG;
 
