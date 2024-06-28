@@ -25,29 +25,20 @@ import net.minecraftforge.registries.ForgeRegistries;
 import java.util.*;
 
 public class PotionGenerator {
-    public static final ArrayList<Potion> BLACKLISTED_POTIONS = new ArrayList<>(List.of(
+    public static final List<Potion> BLACKLISTED_POTIONS = List.of(
             Potions.AWKWARD.get(),
             Potions.THICK.get(),
             Potions.WATER.get(),
             Potions.MUNDANE.get()
-    ));
+    );
 
     public static Map<ResourceLocation, Potion> VALID_POTIONS = new HashMap<>();
     public static List<ResourceLocation> POTION_NAMES = new ArrayList<>();
 
-//    public static ArrayList<Map.Entry<ResourceKey<Potion>, Potion>> VALID_POTIONS = new ArrayList<>(
-//            ForgeRegistries.POTIONS.getEntries().stream()
-//                    .filter(entry -> !BLACKLISTED_POTIONS.contains(entry.getValue()))
-//                    .toList()
-//    );
-//    public static ArrayList<Map.Entry<ResourceKey<MobEffect>, MobEffect>> VALID_EFFECTS = new ArrayList<>(
-//            ForgeRegistries.MOB_EFFECTS.getEntries().stream()
-//                    .filter(entry -> entry.getValue().getCategory() != MobEffectCategory.NEUTRAL)
-//                    .toList()
-//    );
-
     public static final Map<ResourceLocation, MobEffect> VALID_EFFECTS = new HashMap<>();
     public static List<ResourceLocation> EFFECT_NAMES = new ArrayList<>();
+
+    private static Registry<MobEffect> EFFECT_REGISTRY;
 
     public static void initPotions(Registry<Potion> potions) {
         potions.stream()
@@ -64,6 +55,7 @@ public class PotionGenerator {
             VALID_EFFECTS.put(loc, mobEffect);
             EFFECT_NAMES.add(loc);
         });
+        EFFECT_REGISTRY = effects;
     }
 
     public static void applyEffect(ItemStack stack) {
@@ -89,7 +81,9 @@ public class PotionGenerator {
             }
 
             var effects = list.stream()
-                    .map(loc -> Holder.direct(VALID_EFFECTS.get(loc)))
+                    .map(EFFECT_REGISTRY::get)
+                    .filter(Objects::nonNull)
+                    .map(EFFECT_REGISTRY::wrapAsHolder)
                     .map(holder -> new SuspiciousStewEffects.Entry(holder, rng.nextInt(100, 2001)))
                     .toList();
 
@@ -106,12 +100,6 @@ public class PotionGenerator {
                     continue;
                 }
                 list.add(loc);
-//                CompoundTag effect = new CompoundTag();
-//                effect.putString("id", VALID_EFFECTS.get(id).getKey().location().toString());
-//                effect.putInt("duration",rng.nextInt(200, 2001));
-//                effect.putInt("amplifier", rng.nextInt(4) + 1);
-//                effect.putBoolean("show_icon", true);
-//                effects.add(effect);
             }
 
             var effects = list.stream()
