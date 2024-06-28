@@ -1,7 +1,6 @@
 package com.ghzdude.randomizer;
 
 import com.ghzdude.randomizer.special.generators.*;
-import com.ghzdude.randomizer.special.item.SpecialItem;
 import com.ghzdude.randomizer.special.item.SpecialItems;
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 import net.minecraft.world.entity.player.Inventory;
@@ -81,39 +80,38 @@ public class ItemRandomizer {
     }
 
     private static int giveOnce(int pointsToUse, Inventory playerInventory) {
-        SpecialItem selectedItem = getRandomSpecialItem(pointsToUse);
+        Item selectedItem = getRandomItem(pointsToUse);
 
         ItemStack stack = specialItemToStack(selectedItem, pointsToUse);
 
-        pointsToUse -= stack.getCount() * selectedItem.value;
+        pointsToUse -= stack.getCount() * VALID_ITEMS.get(selectedItem);
         addStackToPlayer(stack, playerInventory);
         return pointsToUse;
     }
 
-    public static SpecialItem getRandomItemFrom(List<Item> list, Random rng) {
-        var item = list.get(rng.nextInt(list.size()));
-        return new SpecialItem(item, VALID_ITEMS.get(item));
+    public static Item getRandomItemFrom(List<Item> list, Random rng) {
+        return list.get(rng.nextInt(list.size()));
     }
 
-    public static SpecialItem getRandomSpecialItem(Random rng, int points) {
-        SpecialItem toReturn;
+    public static Item getRandomItem(Random rng, int points) {
+        Item toReturn;
         do {
             toReturn = getRandomItemFrom(ITEM_LIST, rng);
-        } while (toReturn.value > points);
+        } while (VALID_ITEMS.get(toReturn) > points);
         return toReturn;
     }
 
-    public static SpecialItem getRandomSpecialItem(int points) {
-        return getRandomSpecialItem(RandomizerCore.unseededRNG, points);
+    public static Item getRandomItem(int points) {
+        return getRandomItem(RandomizerCore.unseededRNG, points);
     }
 
     public static ItemStack getRandomItemStack(Random rng) {
         return itemToStack(INSTANCE.getRandomItem(rng));
     }
 
-    public static ItemStack specialItemToStack (SpecialItem item, int points) {
-        int amtToGive = Math.floorDiv(points, item.value);
-        return itemToStack(item.item, amtToGive);
+    public static ItemStack specialItemToStack (Item item, int points) {
+        int amtToGive = Math.floorDiv(points, VALID_ITEMS.get(item));
+        return itemToStack(item, amtToGive);
     }
 
     public static ItemStack itemToStack(Item item) {
