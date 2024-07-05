@@ -50,18 +50,15 @@ public class RandomizerCore
     private int OFFSET = 0;
     private static final int COUNTER_MAX = 50;
     private static int amtItemsGiven = 0;
-    private int structureProbability;
-    private boolean pointsCarryover;
     private int points = 0;
     private int pointMax = 1;
     private int cycle = 0;
     private int cycleCounter = 3;
-    private int cooldown;
 
     public RandomizerCore() {
         IEventBus modEventBus = FMLJavaModLoadingContext.get().getModEventBus();
 
-        ModLoadingContext.get().registerConfig(ModConfig.Type.COMMON, RandomizerConfig.getSpec());
+        ModLoadingContext.get().registerConfig(ModConfig.Type.COMMON, RandomizerConfig.Holder.getSpec());
 
         // Register the commonSetup method for modloading
         modEventBus.addListener(this::commonSetup);
@@ -81,9 +78,6 @@ public class RandomizerCore
 
     @SubscribeEvent
     public void onStart(ServerStartedEvent event) {
-        pointsCarryover = RandomizerConfig.pointsCarryover.get();
-        structureProbability = RandomizerConfig.structureProbability.get();
-        cooldown = RandomizerConfig.itemCooldown.get();
         seededRNG = new Random(event.getServer().getWorldData().worldGenOptions().seed());
         unseededRNG = new Random();
         ItemRandomizer.init(event.getServer().overworld().getDataStorage());
@@ -112,11 +106,11 @@ public class RandomizerCore
         RecipeManager recipeManager = event.getServerResources().getRecipeManager();
         ServerAdvancementManager serverAdvancementManager = event.getServerResources().getAdvancements();
 
-        if (RandomizerConfig.randomizeRecipes.get()) {
+        if (RandomizerConfig.randomizeRecipes) {
             event.addListener(new RecipeModifier(access, recipeManager));
         }
 
-        if (RandomizerConfig.randomizeRecipeInputs.get()) {
+        if (RandomizerConfig.randomizeRecipeInputs) {
             event.addListener(new AdvancementModifier(serverAdvancementManager));
         }
     }
@@ -131,7 +125,7 @@ public class RandomizerCore
         ServerPlayer player = (ServerPlayer) event.player;
 
         if (shouldUsePoints(player)) {
-            if (pointsCarryover) {
+            if (RandomizerConfig.pointsCarryover) {
                 points += pointMax;
             } else {
                 points = pointMax;
@@ -141,9 +135,9 @@ public class RandomizerCore
             points -= pointsToUse;
 
             int selection = seededRNG.nextInt(100);
-            if (RandomizerConfig.generateStructures.get() && selection < structureProbability) {
+            if (RandomizerConfig.generateStructures && selection < RandomizerConfig.structureProbability) {
                 pointsToUse = StructureRandomizer.placeStructure(pointsToUse, player.serverLevel(), player);
-            } else if (RandomizerConfig.giveRandomItems.get()) {
+            } else if (RandomizerConfig.giveRandomItems) {
                 player.displayClientMessage(Component.literal("Giving Item..."), true);
                 pointsToUse = ItemRandomizer.giveRandomItem(pointsToUse, player.getInventory());
                 incrementAmtItemsGiven();
@@ -155,7 +149,7 @@ public class RandomizerCore
     }
 
     private boolean shouldUsePoints(ServerPlayer player) {
-        return player.gameMode.isSurvival() && OFFSET % cooldown == 0;
+        return player.gameMode.isSurvival() && OFFSET % RandomizerConfig.itemCooldown == 0;
     }
 
     private void increaseCycle(Player player) {
@@ -182,7 +176,7 @@ public class RandomizerCore
         pointMax = Math.max(pointMax, 1);
         amtItemsGiven = Math.max(amtItemsGiven, 0);
         cycle = Math.max(cycle, 0);
-        cycleCounter = Math.max(cycleCounter, RandomizerConfig.cycleBase.get());
+        cycleCounter = Math.max(cycleCounter, RandomizerConfig.cycleBase);
     }
 
     @SubscribeEvent

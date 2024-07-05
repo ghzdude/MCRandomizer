@@ -48,7 +48,7 @@ public class RecipeRandomizer {
 
     @SubscribeEvent
     public void start(ServerStartedEvent event) {
-        if (RandomizerConfig.randomizeRecipes.get()) {
+        if (RandomizerConfig.randomizeRecipes) {
             INSTANCE = RandomizationMapData.get(event.getServer().overworld().getDataStorage(), "recipes");
 
             RandomizerCore.LOGGER.warn("Recipe Randomizer Running!");
@@ -80,7 +80,7 @@ public class RecipeRandomizer {
             modifyRecipeOutputs(recipe, newResult);
 
             // if inputs are not to be randomized, move on to the next recipe
-            if (RandomizerConfig.randomizeRecipeInputs.get()) {
+            if (RandomizerConfig.randomizeRecipeInputs) {
                 modifyRecipeInputs(
                         recipe.getIngredients().stream()
                         .distinct().filter(ingredient -> !ingredient.isEmpty()).toList(), holder.id()
@@ -90,7 +90,6 @@ public class RecipeRandomizer {
     }
 
     private static void modifyRecipeOutputs(Recipe<?> recipe, ItemStack newResult) {
-        // todo replace with mixin
         if (recipe instanceof OutputSetter setter) {
             setter.randomizer$setResult(newResult);
         }

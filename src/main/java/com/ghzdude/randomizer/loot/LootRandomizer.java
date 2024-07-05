@@ -20,9 +20,9 @@ public class LootRandomizer {
 
         ObjectArrayList<ItemStack> ret = new ObjectArrayList<>();
         String path = context.getQueriedLootTableId().getPath();
-        if (!RandomizerConfig.randomizeBlockLoot.get() && path.contains("blocks/") ||
-            !RandomizerConfig.randomizeEntityLoot.get() && path.contains("entities/") ||
-            !RandomizerConfig.randomizeChestLoot.get() && path.contains("chests/")
+        if (!RandomizerConfig.randomizeBlockLoot && path.contains("blocks/") ||
+            !RandomizerConfig.randomizeEntityLoot && path.contains("entities/") ||
+            !RandomizerConfig.randomizeChestLoot && path.contains("chests/")
         ) {
             return generatedLoot;
         }

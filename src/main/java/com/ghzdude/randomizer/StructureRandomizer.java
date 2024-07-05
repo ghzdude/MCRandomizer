@@ -55,20 +55,17 @@ public class StructureRandomizer {
         }
 
         RandomizerCore.LOGGER.warn(String.format("Attempting to generate [%s] at %s", structure.key.location(), target));
-//        player.sendSystemMessage(Component.translatable("structure.spawning", structure.key.location()));
         sendMessage(Component.translatable("structure.spawning", structure.key.location()), player);
 
         boolean success = tryPlaceStructure(level, structure.key.location(), target);
         if (!success) {
-//            player.sendSystemMessage(Component.translatable("structure.spawning.failed", structure.key.location()));
             sendMessage(Component.translatable("structure.spawning.failed", structure.key.location()), player);
-            if (RandomizerConfig.giveRandomItems.get()) {
+            if (RandomizerConfig.giveRandomItems) {
                 pointsToUse -= ItemRandomizer.giveRandomItem(pointsToUse, player.getInventory());
                 RandomizerCore.incrementAmtItemsGiven();
             }
             return pointsToUse;
         }
-//        player.sendSystemMessage(Component.translatable("structure.spawning.success", structure.key.location(), target));
         sendMessage(Component.translatable("structure.spawning.success", structure.key.location(), target), player);
         return pointsToUse - structure.value;
     }
@@ -142,11 +139,6 @@ public class StructureRandomizer {
 
     @NotNull
     public static Registry<Structure> getStructures(RegistryAccess access) {
-        Optional<Registry<Structure>> optional = access.registry(Registries.STRUCTURE);
-        if (optional.isEmpty()) {
-            RandomizerCore.LOGGER.warn("Structure Registry cannot be found!", new IllegalStateException());
-            return null;
-        }
-        return optional.get();
+        return access.registryOrThrow(Registries.STRUCTURE);
     }
 }

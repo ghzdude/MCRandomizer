@@ -67,7 +67,7 @@ public class MobRandomizer {
 
     @SubscribeEvent
     public void onServerStart(ServerStartedEvent event) {
-        isEnabled = RandomizerConfig.randomizeMobs.get();
+        isEnabled = RandomizerConfig.randomizeMobs;
     }
 
     @SubscribeEvent
