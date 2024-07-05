@@ -1,53 +1,49 @@
 package com.ghzdude.randomizer.special.generators;
 
 import com.ghzdude.randomizer.RandomizerCore;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.ListTag;
+import it.unimi.dsi.fastutil.ints.IntList;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.world.item.DyeColor;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.component.FireworkExplosion;
+import net.minecraft.world.item.component.Fireworks;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
 public class FireworkGenerator {
+
+    private static final FireworkExplosion.Shape[] SHAPES = FireworkExplosion.Shape.values();
+    private static final DyeColor[] COLORS = DyeColor.values();
     public static void applyFirework(ItemStack stack) {
         Random random = RandomizerCore.unseededRNG;
 
-        CompoundTag fireworksTag = new CompoundTag();
-        CompoundTag baseTag = new CompoundTag();
-        fireworksTag.putInt("Flight", random.nextInt(6) + 1);
-
         int chance = random.nextInt(100) + 1;
-        if (chance > 25) { // 25% chance to not add explosions
-            ListTag explosionTags = new ListTag();
-            int numOfEffects = random.nextInt(4) + 1;
-            for (int i = 0; i < numOfEffects; i++) {
-                explosionTags.add(applyExplosions());
+        List<FireworkExplosion> explosions = new ArrayList<>();
+
+        // 25% chance to not add explosions
+        if (chance > 25) {
+            for (int i = 0; i < random.nextInt(4) + 1; i++) {
+                explosions.add(createExplosion());
             }
-            // do explosions
-            fireworksTag.put("Explosions", explosionTags);
         }
-        baseTag.put("Fireworks", fireworksTag);
-        stack.setTag(baseTag);
+
+        stack.set(DataComponents.FIREWORKS, new Fireworks(random.nextInt(6) + 1, explosions));
     }
+
     public static void applyFireworkStar(ItemStack stack) {
-        CompoundTag baseTag = new CompoundTag();
-        baseTag.put("Explosion", applyExplosions());
-        stack.setTag(baseTag);
+        stack.set(DataComponents.FIREWORK_EXPLOSION, createExplosion());
     }
-    private static CompoundTag applyExplosions() {
+
+    private static FireworkExplosion createExplosion() {
         Random random = RandomizerCore.unseededRNG;
-        CompoundTag base = new CompoundTag();
 
-        int colorIndex = random.nextInt(DyeColor.values().length);
-        base.putIntArray("Colors", List.of(DyeColor.byId(colorIndex).getFireworkColor()));
+        var shape = SHAPES[random.nextInt(SHAPES.length)];
 
-        colorIndex = random.nextInt(DyeColor.values().length);
-        base.putIntArray("FadeColors", List.of(DyeColor.byId(colorIndex).getFireworkColor()));
+        var colors = IntList.of(COLORS[random.nextInt(COLORS.length)].getFireworkColor());
+        var fade = IntList.of(COLORS[random.nextInt(COLORS.length)].getFireworkColor());
 
-        base.putInt("Flicker", random.nextInt(2));
-        base.putInt("Trail", random.nextInt(2));
-        base.putInt("Type", random.nextInt(5));
-        return base;
+        return new FireworkExplosion(shape, colors, fade, random.nextBoolean(), random.nextBoolean());
     }
 }

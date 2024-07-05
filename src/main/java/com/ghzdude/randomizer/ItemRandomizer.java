@@ -1,9 +1,8 @@
 package com.ghzdude.randomizer;
 
 import com.ghzdude.randomizer.special.generators.*;
-import com.ghzdude.randomizer.special.item.SpecialItem;
-import com.ghzdude.randomizer.special.item.SpecialItemList;
 import com.ghzdude.randomizer.special.item.SpecialItems;
+import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -11,9 +10,7 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.level.storage.DimensionDataStorage;
 import net.minecraftforge.registries.ForgeRegistries;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Random;
+import java.util.*;
 
 /* Item Randomizer Description
  * Goal is to give the player a random item every so often DONE
@@ -24,13 +21,19 @@ import java.util.Random;
  * items have a defined value, otherwise stacksize is used
  */
 public class ItemRandomizer {
-    private static final SpecialItemList VALID_ITEMS = new SpecialItemList(configureValidItem());
-    private static final SpecialItemList SIMPLE_ITEMS = new SpecialItemList(VALID_ITEMS.stream()
-            .filter(specialItem ->
-                    !SpecialItems.EFFECT_ITEMS.contains(specialItem) &&
-                    !SpecialItems.ENCHANTABLE.contains(specialItem.item))
-            .toList()
-    );
+    private static final Map<Item, Integer> VALID_ITEMS = configureValidItem();
+    private static final List<Item> ITEM_LIST = new ArrayList<>();
+    private static final Map<Item, Integer> SIMPLE_ITEMS = new Object2IntOpenHashMap<>();
+
+    static {
+        VALID_ITEMS.forEach((item, integer) -> {
+            if (!SpecialItems.EFFECT_ITEMS.containsKey(item) &&
+                    !SpecialItems.ENCHANTABLE.contains(item)) {
+                SIMPLE_ITEMS.put(item, integer);
+            }
+            ITEM_LIST.add(item);
+        });
+    }
 
     private static RandomizationMapData INSTANCE;
 
@@ -38,34 +41,28 @@ public class ItemRandomizer {
         INSTANCE = RandomizationMapData.get(storage, "item");
     }
 
-    private static Collection<SpecialItem> configureValidItem() {
-        int lastMatch;
-        ArrayList<SpecialItem> validItems = new ArrayList<>();
+    private static Map<Item, Integer> configureValidItem() {
+        Map<Item, Integer> validItems = new Object2IntOpenHashMap<>();
 
-        for (Item item : ForgeRegistries.ITEMS.getValues()) {
+        for (var item : ForgeRegistries.ITEMS.getValues()) {
             if (SpecialItems.BLACKLISTED_ITEMS.contains(item)) continue;
-            SpecialItem toUpdate;
+            int value = 1;
 
-            if (SpecialItems.SPECIAL_ITEMS.contains(item)) {
-                toUpdate = SpecialItems.SPECIAL_ITEMS.get(SpecialItems.SPECIAL_ITEMS.indexOf(item));
-            } else if (SpecialItems.EFFECT_ITEMS.contains(item)) {
-                toUpdate = SpecialItems.EFFECT_ITEMS.get(SpecialItems.EFFECT_ITEMS.indexOf(item));
-            } else {
-                toUpdate = new SpecialItem(item);
+            if (SpecialItems.SPECIAL_ITEMS.containsKey(item)) {
+                value = SpecialItems.SPECIAL_ITEMS.get(item);
+            } else if (SpecialItems.EFFECT_ITEMS.containsKey(item)) {
+                value = SpecialItems.EFFECT_ITEMS.get(item);
+            } else if (SpecialItems.SHULKER_BOXES.contains(item)) {
+                value = 6;
             }
 
-            if (toUpdate.item.toString().contains("shulker_box")) {
-                lastMatch = SpecialItems.SPECIAL_ITEMS.indexOf(Items.SHULKER_BOX);
-                toUpdate.value = SpecialItems.SPECIAL_ITEMS.get(lastMatch).value;
-            }
-
-            validItems.add(toUpdate);
+            validItems.put(item, value);
         }
         return validItems;
     }
 
     public static int giveRandomItem(int pointsToUse, Inventory inventory){
-        if (RandomizerConfig.giveMultipleItems.get()) {
+        if (RandomizerConfig.giveMultipleItems) {
             pointsToUse = giveMultiple(pointsToUse, inventory);
         } else {
             pointsToUse = giveOnce(pointsToUse, inventory);
@@ -83,38 +80,38 @@ public class ItemRandomizer {
     }
 
     private static int giveOnce(int pointsToUse, Inventory playerInventory) {
-        SpecialItem selectedItem = getRandomSpecialItem(pointsToUse);
+        Item selectedItem = getRandomItem(pointsToUse);
 
         ItemStack stack = specialItemToStack(selectedItem, pointsToUse);
 
-        pointsToUse -= stack.getCount() * selectedItem.value;
+        pointsToUse -= stack.getCount() * VALID_ITEMS.get(selectedItem);
         addStackToPlayer(stack, playerInventory);
         return pointsToUse;
     }
 
-    public static SpecialItem getRandomSpecialItem(Random rng) {
-        return VALID_ITEMS.getRandomSpecialItem(rng);
+    public static Item getRandomItemFrom(List<Item> list, Random rng) {
+        return list.get(rng.nextInt(list.size()));
     }
 
-    public static SpecialItem getRandomSpecialItem(int points) {
-        SpecialItem toReturn;
+    public static Item getRandomItem(Random rng, int points) {
+        Item toReturn;
         do {
-            toReturn = VALID_ITEMS.getRandomSpecialItem(RandomizerCore.unseededRNG);
-        } while (toReturn.value > points);
+            toReturn = getRandomItemFrom(ITEM_LIST, rng);
+        } while (VALID_ITEMS.get(toReturn) > points);
         return toReturn;
+    }
+
+    public static Item getRandomItem(int points) {
+        return getRandomItem(RandomizerCore.unseededRNG, points);
     }
 
     public static ItemStack getRandomItemStack(Random rng) {
         return itemToStack(INSTANCE.getRandomItem(rng));
     }
 
-    public static SpecialItem getRandomSimpleItem() {
-        return SIMPLE_ITEMS.getRandomSpecialItem(RandomizerCore.unseededRNG);
-    }
-
-    public static ItemStack specialItemToStack (SpecialItem item, int points) {
-        int amtToGive = Math.floorDiv(points, item.value);
-        return itemToStack(item.item, amtToGive);
+    public static ItemStack specialItemToStack (Item item, int points) {
+        int amtToGive = Math.floorDiv(points, VALID_ITEMS.get(item));
+        return itemToStack(item, amtToGive);
     }
 
     public static ItemStack itemToStack(Item item) {
@@ -127,7 +124,7 @@ public class ItemRandomizer {
 
         if (SpecialItems.ENCHANTABLE.contains(item)) {
             EnchantmentGenerator.applyEnchantment(stack);
-        } else if (SpecialItems.EFFECT_ITEMS.contains(item)) {
+        } else if (SpecialItems.EFFECT_ITEMS.containsKey(item)) {
             PotionGenerator.applyEffect(stack);
         } else if (item == Items.WRITTEN_BOOK) {
             BookGenerator.applyPassages(stack);
@@ -149,7 +146,7 @@ public class ItemRandomizer {
         }
     }
 
-    public static SpecialItemList getValidItems() {
-        return VALID_ITEMS;
+    public static List<Item> getValidItems() {
+        return Collections.unmodifiableList(ITEM_LIST);
     }
 }

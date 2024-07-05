@@ -1,6 +1,8 @@
 package com.ghzdude.randomizer;
 
-import com.ghzdude.randomizer.reflection.ReflectionUtils;
+import com.ghzdude.randomizer.api.AdvancementModify;
+import com.ghzdude.randomizer.api.IngredientRandomizable;
+import com.ghzdude.randomizer.api.OutputSetter;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import net.minecraft.advancements.Advancement;
 import net.minecraft.advancements.AdvancementHolder;
@@ -46,7 +48,7 @@ public class RecipeRandomizer {
 
     @SubscribeEvent
     public void start(ServerStartedEvent event) {
-        if (RandomizerConfig.randomizeRecipes.get()) {
+        if (RandomizerConfig.randomizeRecipes) {
             INSTANCE = RandomizationMapData.get(event.getServer().overworld().getDataStorage(), "recipes");
 
             RandomizerCore.LOGGER.warn("Recipe Randomizer Running!");
@@ -65,14 +67,9 @@ public class RecipeRandomizer {
     }
 
     public static void setAdvancements(ServerAdvancementManager manager) {
-        Map<ResourceLocation, AdvancementHolder> holders = ReflectionUtils.getField(ServerAdvancementManager.class, manager, 2);
-        Map<ResourceLocation, AdvancementHolder> toKeep = new Object2ObjectOpenHashMap<>();
-        holders.forEach(((resourceLocation, holder) -> {
-            if (!holder.id().getPath().contains("recipes/")) toKeep.put(resourceLocation, holder);
-        }));
-
-        buildAdvancements(toKeep);
-        ReflectionUtils.setField(ServerAdvancementManager.class, manager, 2, toKeep);
+        if (manager instanceof AdvancementModify modify) {
+            modify.randomizer$randomizeRecipeAdvancements();
+        }
     }
 
     public static void randomizeRecipes(RecipeManager manager, RegistryAccess access) {
@@ -83,7 +80,7 @@ public class RecipeRandomizer {
             modifyRecipeOutputs(recipe, newResult);
 
             // if inputs are not to be randomized, move on to the next recipe
-            if (RandomizerConfig.randomizeRecipeInputs.get()) {
+            if (RandomizerConfig.randomizeRecipeInputs) {
                 modifyRecipeInputs(
                         recipe.getIngredients().stream()
                         .distinct().filter(ingredient -> !ingredient.isEmpty()).toList(), holder.id()
@@ -93,14 +90,8 @@ public class RecipeRandomizer {
     }
 
     private static void modifyRecipeOutputs(Recipe<?> recipe, ItemStack newResult) {
-        if (recipe instanceof ShapedRecipe shapedRecipe) {
-            ReflectionUtils.setField(ShapedRecipe.class, shapedRecipe, 5, newResult);
-        } else if (recipe instanceof ShapelessRecipe shapelessRecipe) {
-            ReflectionUtils.setField(ShapelessRecipe.class, shapelessRecipe, 2, newResult);
-        } else if (recipe instanceof AbstractCookingRecipe abstractCookingRecipe) {
-            ReflectionUtils.setField(AbstractCookingRecipe.class, abstractCookingRecipe, 4, newResult);
-        } else if (recipe instanceof SingleItemRecipe singleItemRecipe) {
-            ReflectionUtils.setField(SingleItemRecipe.class, singleItemRecipe, 1, newResult);
+        if (recipe instanceof OutputSetter setter) {
+            setter.randomizer$setResult(newResult);
         }
     }
 
@@ -108,38 +99,36 @@ public class RecipeRandomizer {
         IForgeRegistry<Item> registry = ForgeRegistries.ITEMS;
 
         for (int k = 0; k < ingredients.size(); k++) {
-            Ingredient.Value[] values = ReflectionUtils.getField(Ingredient.class, ingredients.get(k), 2);
-            if (values.length == 0 || Arrays.stream(values).allMatch(Objects::isNull)) continue;
-            ResourceLocation ingredient = null;
-
-            for (int j = 0; j < values.length; j++) {
-                if (values[j] instanceof Ingredient.ItemValue itemValue) {
-                    ItemStack stack = INSTANCE.getStackFor(itemValue.item());
-                    ingredient = registry.getKey(stack.getItem());
-                    values[j] = new Ingredient.ItemValue(stack);
-                } else if (values[j] instanceof Ingredient.TagValue tagValue) {
-                    TagKey<Item> key = INSTANCE.getTagKeyFor(tagValue.tag());
-                    ingredient = key.location();
-                    values[j] = new Ingredient.TagValue(key);
-                }
-                if (ingredient == null) return;
-
+            var ing = ingredients.get(k);
+            if (ing instanceof IngredientRandomizable randomizable) {
+                randomizable.randomizer$randomizeInputs(value -> {
+                    ResourceLocation ingredient;
+                    Ingredient.Value random;
+                    if (value instanceof Ingredient.ItemValue itemValue) {
+                        ItemStack stack = INSTANCE.getStackFor(itemValue.item());
+                        ingredient = registry.getKey(stack.getItem());
+                        if (ingredient == null) return value;
+                        random = new Ingredient.ItemValue(stack);
+                    } else {
+                        Ingredient.TagValue tagValue = (Ingredient.TagValue) value;
+                        TagKey<Item> key = INSTANCE.getTagKeyFor(tagValue.tag());
+                        ingredient = key.location();
+                        random = new Ingredient.TagValue(key);
+                    }
+                    addToMap(recipe, ingredient);
+                    return random;
+                });
             }
-            addToMap(recipe, ingredient);
         }
     }
 
     public static void addToMap(@Nonnull ResourceLocation recipe, @Nonnull ResourceLocation ingredient) {
-        if (RecipeRandomizer.MODIFIED.containsKey(ingredient)) {
-            RecipeRandomizer.MODIFIED.get(ingredient).add(recipe);
-        } else {
-            List<ResourceLocation> list = new ArrayList<>();
-            list.add(recipe);
-            RecipeRandomizer.MODIFIED.put(ingredient, list);
-        }
+        RecipeRandomizer.MODIFIED
+                .computeIfAbsent(ingredient, key -> new ArrayList<>())
+                .add(recipe);
     }
 
-    private static void buildAdvancements(Map<ResourceLocation, AdvancementHolder> map) {
+    public static void buildAdvancements(Map<ResourceLocation, AdvancementHolder> map) {
         ITagManager<Item> tagManager = ForgeRegistries.ITEMS.tags();
         if (tagManager == null) return;
 
@@ -165,7 +154,7 @@ public class RecipeRandomizer {
                 builder.rewards(AdvancementRewards.Builder.recipe(recipe));
             }
             builder.addCriterion("has_item", InventoryChangeTrigger.TriggerInstance.hasItems(changedItems));
-            AdvancementHolder toAdd = builder.build(new ResourceLocation(RandomizerCore.MODID, ing.getNamespace() + "-" + ing.getPath() + "_gives_recipes"));
+            AdvancementHolder toAdd = builder.build(ResourceLocation.fromNamespaceAndPath(RandomizerCore.MODID, ing.getNamespace() + "-" + ing.getPath() + "_gives_recipes"));
             map.put(toAdd.id(), toAdd);
         });
     }

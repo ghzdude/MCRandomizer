@@ -1,7 +1,10 @@
 package com.ghzdude.randomizer;
 
+import com.ghzdude.randomizer.special.item.SpecialItems;
 import com.google.common.collect.Lists;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
+import net.minecraft.core.HolderLookup;
+import net.minecraft.core.component.DataComponentMap;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.TagKey;
@@ -15,10 +18,7 @@ import net.minecraftforge.registries.ForgeRegistries;
 import net.minecraftforge.registries.tags.ITagManager;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Random;
+import java.util.*;
 import java.util.stream.Stream;
 
 public class RandomizationMapData extends SavedData {
@@ -44,7 +44,7 @@ public class RandomizationMapData extends SavedData {
     }
 
     @Override
-    public @NotNull CompoundTag save(CompoundTag tag) {
+    public CompoundTag save(CompoundTag tag, HolderLookup.Provider provider) {
         RandomizerCore.LOGGER.warn("Saving randomizations to disk!");
         CompoundTag itemMap = new CompoundTag();
         CompoundTag tagKeyMap = new CompoundTag();
@@ -64,26 +64,25 @@ public class RandomizationMapData extends SavedData {
         return tag;
     }
 
-    public static RandomizationMapData load(CompoundTag tag) {
+    public static RandomizationMapData load(CompoundTag tag, HolderLookup.Provider provider) {
         RandomizationMapData data = new RandomizationMapData();
         RandomizerCore.LOGGER.warn("Loading from disk!");
 
         CompoundTag itemMap = tag.getCompound("item_map");
         CompoundTag tagKeyMap = tag.getCompound("tag_key_map");
 
-        ItemRandomizer.getValidItems().forEach(specialItem -> {
-            Item vanilla = specialItem.item;
-            Item random = ForgeRegistries.ITEMS.getValue(new ResourceLocation(itemMap.getString(vanilla.toString())));
+        ItemRandomizer.getValidItems().forEach(item -> {
+            Item random = ForgeRegistries.ITEMS.getValue(ResourceLocation.parse(itemMap.getString(item.toString())));
             if (random == Items.AIR) return;
 
-            data.put(vanilla, random);
+            data.put(item, random);
         });
 
         ITagManager<Item> tagManager = ForgeRegistries.ITEMS.tags();
         if (tagManager != null) {
             tagManager.getTagNames().forEach(vanilla -> {
                 String rand = tagKeyMap.getString(vanilla.location().toString());
-                data.put(vanilla, tagManager.createTagKey(new ResourceLocation(rand)));
+                data.put(vanilla, tagManager.createTagKey(ResourceLocation.parse(rand)));
             });
         }
         data.setDirty();
@@ -96,7 +95,7 @@ public class RandomizationMapData extends SavedData {
         ITagManager<Item> tagManager = ForgeRegistries.ITEMS.tags();
         if (tagManager == null) return;
 
-        List<TagKey<Item>> vanilla = tagManager.getTagNames().toList();
+        List<TagKey<Item>> vanilla = tagManager.getTagNames().distinct().toList();
         List<TagKey<Item>> randomized = Lists.newArrayList(vanilla);
         Collections.shuffle(randomized, rng);
 
@@ -106,26 +105,25 @@ public class RandomizationMapData extends SavedData {
         }
 
         for (int i = 0; i < vanilla.size(); i++) {
-            if (TAGKEY_MAP.containsKey(vanilla.get(i))) continue;
-
             TAGKEY_MAP.put(vanilla.get(i), randomized.get(i));
         }
     }
 
     private void generateItemMap(Random rng) {
-        List<Item> vanilla = Lists.newArrayList(ItemRandomizer.getValidItems().asItems());
-        List<Item> randomized = Lists.newArrayList(vanilla);
-        Collections.shuffle(randomized, rng);
+        List<Item> vanilla = new ArrayList<>(ForgeRegistries.ITEMS.getValues().stream()
+                .filter(item -> !SpecialItems.BLACKLISTED_ITEMS.contains(item))
+                .distinct().toList());
 
-        if (vanilla.size() != randomized.size()) {
-            RandomizerCore.LOGGER.warn("Item registry was modified during server start!");
-            return;
-        }
+        for (var iterator = vanilla.iterator(); iterator.hasNext(); ) {
+            var key = iterator.next();
+            Item value;
 
-        for (int i = 0; i < vanilla.size(); i++) {
-            if (ITEM_MAP.containsKey(vanilla.get(i))) continue;
+            do {
+                value = vanilla.get(rng.nextInt(vanilla.size()));
+            } while (key == value);
 
-            put(vanilla.get(i), randomized.get(i));
+            ITEM_MAP.put(key, value);
+            iterator.remove();
         }
     }
 
@@ -138,16 +136,16 @@ public class RandomizationMapData extends SavedData {
     }
 
     public ItemStack getStackFor(ItemStack stack) {
-        return getStackFor(stack.getItem(), stack.getCount(), stack.getTag());
+        return getStackFor(stack.getItem(), stack.getCount(), stack.getComponents());
     }
 
-    public ItemStack getStackFor(Item vanilla, int count, CompoundTag tag) {
+    public ItemStack getStackFor(Item vanilla, int count, DataComponentMap components) {
         Item randomItem = ITEM_MAP.get(vanilla);
         if (randomItem == null || count < 1) return ItemStack.EMPTY;
 
         ItemStack random = new ItemStack(randomItem);
         random.setCount(Math.min(random.getMaxStackSize(), count));
-        random.setTag(tag);
+        random.applyComponents(components);
         return random;
     }
 

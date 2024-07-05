@@ -6,16 +6,22 @@ import com.ghzdude.randomizer.special.structure.SpecialStructureList;
 import com.ghzdude.randomizer.special.structure.SpecialStructures;
 import net.minecraft.core.*;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.network.chat.ChatType;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.OutgoingChatMessage;
+import net.minecraft.network.chat.PlayerChatMessage;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.chunk.ChunkGenerator;
 import net.minecraft.world.level.levelgen.structure.BoundingBox;
 import net.minecraft.world.level.levelgen.structure.Structure;
 import net.minecraft.world.level.levelgen.structure.StructureStart;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -28,7 +34,7 @@ public class StructureRandomizer {
     private static final ArrayList<ResourceLocation> BLACKLISTED_STRUCTURES = ConfigIO.readStructureBlacklist();
     private static final SpecialStructureList VALID_STRUCTURES = new SpecialStructureList();
 
-    public static int placeStructure(int pointsToUse, ServerLevel level, Player player) {
+    public static int placeStructure(int pointsToUse, ServerLevel level, ServerPlayer player) {
         if (pointsToUse < 1) return pointsToUse;
 
         SpecialStructure structure = selectStructure(pointsToUse);
@@ -49,19 +55,25 @@ public class StructureRandomizer {
         }
 
         RandomizerCore.LOGGER.warn(String.format("Attempting to generate [%s] at %s", structure.key.location(), target));
-        player.sendSystemMessage(Component.translatable("structure.spawning", structure.key.location()));
+        sendMessage(Component.translatable("structure.spawning", structure.key.location()), player);
 
         boolean success = tryPlaceStructure(level, structure.key.location(), target);
         if (!success) {
-            player.sendSystemMessage(Component.translatable("structure.spawning.failed", structure.key.location()));
-            if (RandomizerConfig.giveRandomItems.get()) {
+            sendMessage(Component.translatable("structure.spawning.failed", structure.key.location()), player);
+            if (RandomizerConfig.giveRandomItems) {
                 pointsToUse -= ItemRandomizer.giveRandomItem(pointsToUse, player.getInventory());
                 RandomizerCore.incrementAmtItemsGiven();
             }
             return pointsToUse;
         }
-        player.sendSystemMessage(Component.translatable("structure.spawning.success", structure.key.location(), target));
+        sendMessage(Component.translatable("structure.spawning.success", structure.key.location(), target), player);
         return pointsToUse - structure.value;
+    }
+
+    private static void sendMessage(Component component, ServerPlayer player) {
+        player.sendChatMessage(new OutgoingChatMessage.Disguised(component),
+                false,
+                ChatType.bind(ChatType.CHAT, player));
     }
 
     private static SpecialStructure selectStructure(int points) {
@@ -77,7 +89,6 @@ public class StructureRandomizer {
         ChunkGenerator chunkgenerator = serverLevel.getChunkSource().getGenerator();
 
         Registry<Structure> registry = getStructures(serverLevel.registryAccess());
-        if (registry == null) return false;
         Structure structure = registry.get(location);
         if (structure == null) return false;
 
@@ -102,6 +113,8 @@ public class StructureRandomizer {
                     chunkPos.getMinBlockX(), serverLevel.getMinBuildHeight(), chunkPos.getMinBlockZ(),
                     chunkPos.getMaxBlockX(), serverLevel.getMaxBuildHeight(), chunkPos.getMaxBlockZ()
             );
+            // todo maybe place blocks here?
+
             structurestart.placeInChunk(
                     serverLevel, serverLevel.structureManager(), chunkgenerator,
                     serverLevel.getRandom(), bb, chunkPos
@@ -114,7 +127,6 @@ public class StructureRandomizer {
         VALID_STRUCTURES.addAll(SpecialStructures.CONFIGURED_STRUCTURES);
 
         Registry<Structure> structures = getStructures(access);
-        if (structures == null) return;
 
         for (ResourceKey<Structure> key : structures.registryKeySet()) {
             SpecialStructure toAdd;
@@ -125,12 +137,8 @@ public class StructureRandomizer {
         }
     }
 
+    @NotNull
     public static Registry<Structure> getStructures(RegistryAccess access) {
-        Optional<Registry<Structure>> optional = access.registry(Registries.STRUCTURE);
-        if (optional.isEmpty()) {
-            RandomizerCore.LOGGER.warn("Structure Registry cannot be found!", new IllegalStateException());
-            return null;
-        }
-        return optional.get();
+        return access.registryOrThrow(Registries.STRUCTURE);
     }
 }

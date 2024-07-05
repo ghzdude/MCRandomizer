@@ -1,19 +1,22 @@
 package com.ghzdude.randomizer.special.generators;
 
 import com.ghzdude.randomizer.RandomizerCore;
+import net.minecraft.core.Holder;
+import net.minecraft.core.IdMap;
+import net.minecraft.core.Registry;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.*;
 
 import java.util.ArrayList;
+import java.util.List;
 
 public class GoatHornGenerator {
-    private static final ArrayList<ResourceLocation> INSTRUMENT_LIST = new ArrayList<>(BuiltInRegistries.INSTRUMENT.keySet());
+    private static final IdMap<Holder<Instrument>> INSTRUMENT_LIST = BuiltInRegistries.INSTRUMENT.asHolderIdMap();
     public static void applyGoatHornSound(ItemStack stack) {
-        CompoundTag baseTag = new CompoundTag();
         int id = RandomizerCore.unseededRNG.nextInt(INSTRUMENT_LIST.size());
-        baseTag.putString("instrument", INSTRUMENT_LIST.get(id).toString());
-        stack.setTag(baseTag);
+        stack.set(DataComponents.INSTRUMENT, INSTRUMENT_LIST.byId(id));
     }
 }

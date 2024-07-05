@@ -5,7 +5,13 @@
   "minVersion": "0.8",
   "compatibilityLevel": "JAVA_8",
   "mixins": [
-    "RandomizeLootMixin"
+    "AdvancementManagerMixin",
+    "IngredientMixin",
+    "RandomizeLootMixin",
+    "recipe.CookingMixin",
+    "recipe.ShapedMixin",
+    "recipe.ShapelessMixin",
+    "recipe.SingleItemMixin"
   ],
   "client": [],
   "server": [],
