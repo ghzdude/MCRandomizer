@@ -18,10 +18,7 @@ import net.minecraftforge.registries.ForgeRegistries;
 import net.minecraftforge.registries.tags.ITagManager;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Random;
+import java.util.*;
 import java.util.stream.Stream;
 
 public class RandomizationMapData extends SavedData {
@@ -98,7 +95,7 @@ public class RandomizationMapData extends SavedData {
         ITagManager<Item> tagManager = ForgeRegistries.ITEMS.tags();
         if (tagManager == null) return;
 
-        List<TagKey<Item>> vanilla = tagManager.getTagNames().toList();
+        List<TagKey<Item>> vanilla = tagManager.getTagNames().distinct().toList();
         List<TagKey<Item>> randomized = Lists.newArrayList(vanilla);
         Collections.shuffle(randomized, rng);
 
@@ -108,29 +105,25 @@ public class RandomizationMapData extends SavedData {
         }
 
         for (int i = 0; i < vanilla.size(); i++) {
-            if (TAGKEY_MAP.containsKey(vanilla.get(i))) continue;
-
             TAGKEY_MAP.put(vanilla.get(i), randomized.get(i));
         }
     }
 
     private void generateItemMap(Random rng) {
-        List<Item> vanilla = ForgeRegistries.ITEMS.getValues().stream()
+        List<Item> vanilla = new ArrayList<>(ForgeRegistries.ITEMS.getValues().stream()
                 .filter(item -> !SpecialItems.BLACKLISTED_ITEMS.contains(item))
-                .toList();
+                .distinct().toList());
 
-        List<Item> randomized = Lists.newArrayList(vanilla);
-        Collections.shuffle(randomized, rng);
+        for (var iterator = vanilla.iterator(); iterator.hasNext(); ) {
+            var key = iterator.next();
+            Item value;
 
-        if (vanilla.size() != randomized.size()) {
-            RandomizerCore.LOGGER.warn("Item registry was modified during server start!");
-            return;
-        }
+            do {
+                value = vanilla.get(rng.nextInt(vanilla.size()));
+            } while (key == value || ITEM_MAP.containsValue(value));
 
-        for (int i = 0; i < vanilla.size(); i++) {
-            if (ITEM_MAP.containsKey(vanilla.get(i))) continue;
-
-            put(vanilla.get(i), randomized.get(i));
+            ITEM_MAP.put(key, value);
+            iterator.remove();
         }
     }
 
