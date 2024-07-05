@@ -120,7 +120,7 @@ public class RandomizationMapData extends SavedData {
 
             do {
                 value = vanilla.get(rng.nextInt(vanilla.size()));
-            } while (key == value || ITEM_MAP.containsValue(value));
+            } while (key == value);
 
             ITEM_MAP.put(key, value);
             iterator.remove();
