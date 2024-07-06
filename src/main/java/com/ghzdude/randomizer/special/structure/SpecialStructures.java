@@ -1,19 +1,22 @@
 package com.ghzdude.randomizer.special.structure;
 
-import net.minecraft.data.worldgen.Structures;
+import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.levelgen.structure.BuiltinStructures;
+import net.minecraft.world.level.levelgen.structure.Structure;
 
-import java.util.List;
+import java.util.Map;
 
 public class SpecialStructures {
 
-    public static final SpecialStructureList CONFIGURED_STRUCTURES = new SpecialStructureList(List.of(
-            new SpecialStructure(BuiltinStructures.NETHER_FOSSIL, 0),
-            new SpecialStructure(BuiltinStructures.ANCIENT_CITY, 6),
-            new SpecialStructure(BuiltinStructures.BASTION_REMNANT, 2),
-            new SpecialStructure(BuiltinStructures.FORTRESS, 2),
-            new SpecialStructure(BuiltinStructures.STRONGHOLD, 3),
-            new SpecialStructure(BuiltinStructures.END_CITY, 3),
-            new SpecialStructure(BuiltinStructures.WOODLAND_MANSION, 4)
-    ));
+    public static final Map<ResourceKey<Structure>, Integer> CONFIGURED_STRUCTURES = new Object2IntOpenHashMap<>();
+
+    static {
+        CONFIGURED_STRUCTURES.put(BuiltinStructures.NETHER_FOSSIL, 0);
+        CONFIGURED_STRUCTURES.put(BuiltinStructures.ANCIENT_CITY, 6);
+        CONFIGURED_STRUCTURES.put(BuiltinStructures.BASTION_REMNANT, 2);
+        CONFIGURED_STRUCTURES.put(BuiltinStructures.FORTRESS, 2);
+        CONFIGURED_STRUCTURES.put(BuiltinStructures.STRONGHOLD, 3);
+        CONFIGURED_STRUCTURES.put(BuiltinStructures.END_CITY, 3);
+        CONFIGURED_STRUCTURES.put(BuiltinStructures.WOODLAND_MANSION, 4);    }
 }
