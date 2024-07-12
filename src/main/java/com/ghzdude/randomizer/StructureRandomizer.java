@@ -10,7 +10,9 @@ import net.minecraft.core.SectionPos;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.ChatType;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.OutgoingChatMessage;
+import net.minecraft.network.chat.contents.TranslatableContents;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
@@ -55,25 +57,29 @@ public class StructureRandomizer {
         }
 
         RandomizerCore.LOGGER.warn(String.format("Attempting to generate [%s] at %s", structureKey.location(), target));
-        sendMessage(Component.translatable("structure.spawning", structureKey.location()), player);
+        sendMessage(player, "structure.spawning", structureKey.location());
 
         boolean success = tryPlaceStructure(level, structureKey, target);
         if (!success) {
-            sendMessage(Component.translatable("structure.spawning.failed", structureKey.location()), player);
+            sendMessage(player, "structure.spawning.failed", structureKey.location());
             if (RandomizerConfig.giveRandomItems) {
                 pointsToUse -= ItemRandomizer.giveRandomItem(pointsToUse, player.getInventory());
                 RandomizerCore.incrementAmtItemsGiven();
             }
             return pointsToUse;
         }
-        sendMessage(Component.translatable("structure.spawning.success", structureKey.location(), target), player);
+        sendMessage(player, "structure.spawning.success", structureKey.location(), target);
         return pointsToUse - VALID_STRUCTURES.get(structureKey);
     }
 
-    private static void sendMessage(Component component, ServerPlayer player) {
-        player.sendChatMessage(new OutgoingChatMessage.Disguised(component),
-                false,
-                ChatType.bind(ChatType.CHAT, player));
+    private static void sendMessage(ServerPlayer player, String lang, Object... keys) {
+        Component[] args = new Component[keys.length];
+        for (int i = 0; i < keys.length; i++) {
+            var key = keys[i];
+            args[i] = Component.literal(key.toString());
+        }
+        var contents = new TranslatableContents(lang, null, args);
+        player.displayClientMessage(MutableComponent.create(contents), false);
     }
 
     private static ResourceKey<Structure> selectStructure(int points) {
