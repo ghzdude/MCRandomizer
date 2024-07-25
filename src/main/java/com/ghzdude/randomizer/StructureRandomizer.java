@@ -1,6 +1,7 @@
 package com.ghzdude.randomizer;
 
 import com.ghzdude.randomizer.io.ConfigIO;
+import com.ghzdude.randomizer.mixin.structure.Randomizer$StructureStart;
 import com.ghzdude.randomizer.special.structure.SpecialStructures;
 import com.ghzdude.randomizer.util.RandomizerUtil;
 import it.unimi.dsi.fastutil.objects.Object2IntMap;
@@ -17,12 +18,15 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.chunk.ChunkGenerator;
 import net.minecraft.world.level.levelgen.structure.BoundingBox;
 import net.minecraft.world.level.levelgen.structure.Structure;
+import net.minecraft.world.level.levelgen.structure.StructurePiece;
 import net.minecraft.world.level.levelgen.structure.StructureStart;
 
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -146,11 +150,58 @@ public class StructureRandomizer {
             );
             // todo maybe place blocks here?
 
-            structurestart.placeInChunk(
-                    serverLevel, serverLevel.structureManager(), chunkgenerator,
-                    serverLevel.getRandom(), bb, chunkPos
-            );
+            placeStructure(structurestart, serverLevel, bb, chunkPos);
+//            structurestart.placeInChunk(
+//                    serverLevel, serverLevel.structureManager(), chunkgenerator,
+//                    serverLevel.getRandom(), bb, chunkPos
+//            );
         }
         return true;
+    }
+
+    private static void placeStructure(StructureStart structureStart, ServerLevel serverLevel, BoundingBox bb, ChunkPos chunkPos) {
+        List<StructurePiece> list = structureStart.getPieces();
+        if (!list.isEmpty()) {
+            BoundingBox boundingbox = list.getFirst().getBoundingBox();
+            BlockPos blockpos = boundingbox.getCenter();
+            BlockPos blockpos1 = new BlockPos(blockpos.getX(), boundingbox.minY(), blockpos.getZ());
+
+            for (StructurePiece structurepiece : list) {
+                var bb2 = structurepiece.getBoundingBox();
+                if (bb2.intersects(bb)) {
+                    BlockPos.betweenClosedStream(bb2.moved(0, bb.getYSpan(), 0).inflatedBy(1))
+                            .filter(p -> serverLevel.getBlockState(p).isAir())
+                            .filter(p -> !bb2.isInside(p))
+                            .forEach(p -> serverLevel.setBlock(p, Blocks.SANDSTONE.defaultBlockState(), 3));
+
+                    structurepiece.postProcess(serverLevel, serverLevel.structureManager(),
+                            serverLevel.getChunkSource().getGenerator(), serverLevel.getRandom(), bb, chunkPos, blockpos1);
+                }
+            }
+
+            structureStart.getStructure().afterPlace(serverLevel, serverLevel.structureManager(),
+                    serverLevel.getChunkSource().getGenerator(), serverLevel.getRandom(), bb, chunkPos,
+                    ((Randomizer$StructureStart) (Object) structureStart).getContainer());
+        }
+    }
+
+    public static void configureStructures(RegistryAccess access) {
+        VALID_STRUCTURES.putAll(SpecialStructures.CONFIGURED_STRUCTURES);
+        STRUCTURES.addAll(VALID_STRUCTURES.keySet());
+
+        Registry<Structure> structures = getStructures(access);
+
+        for (ResourceKey<Structure> key : structures.registryKeySet()) {
+            if (BLACKLISTED_STRUCTURES.contains(key.location()))
+                continue;
+
+            VALID_STRUCTURES.put(key, 1);
+            STRUCTURES.add(key);
+        }
+    }
+
+    @NotNull
+    public static Registry<Structure> getStructures(RegistryAccess access) {
+        return access.registryOrThrow(Registries.STRUCTURE);
     }
 }
