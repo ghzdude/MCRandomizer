@@ -110,20 +110,20 @@ public class RandomizationMapData extends SavedData {
     }
 
     private void generateItemMap(Random rng) {
-        List<Item> vanilla = new ArrayList<>(ForgeRegistries.ITEMS.getValues().stream()
-                .filter(item -> !SpecialItems.BLACKLISTED_ITEMS.contains(item))
-                .distinct().toList());
+        List<Item> vanilla = Lists.newArrayList(ItemRandomizer.getValidItems());
+        List<Item> copy = Lists.newArrayList(vanilla);
 
-        for (var iterator = vanilla.iterator(); iterator.hasNext(); ) {
-            var key = iterator.next();
-            Item value;
-
+        for (Item key : vanilla) {
+            int avoid = copy.indexOf(key);
+            int selection;
             do {
-                value = vanilla.get(rng.nextInt(vanilla.size()));
-            } while (key == value);
+                selection = rng.nextInt(copy.size());
+            } while (selection == avoid && copy.size() > 1);
+
+            Item value = copy.get(selection);
+            copy.remove(selection);
 
             ITEM_MAP.put(key, value);
-            iterator.remove();
         }
     }
 
