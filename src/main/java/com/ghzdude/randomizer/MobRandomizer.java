@@ -5,7 +5,6 @@ import com.ghzdude.randomizer.io.ConfigIO;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.*;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.NaturalSpawner;
 import net.minecraftforge.event.entity.EntityJoinLevelEvent;
 import net.minecraftforge.event.server.ServerStartedEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -26,7 +25,7 @@ public class MobRandomizer {
                     !BLACKLISTED_ENTITIES.contains(entityType) && entityType.getCategory() != MobCategory.MISC
             ).toList());
     private boolean isEnabled;
-    static final int MAGIC_NUMBER = (int)Math.pow(17.0D, 2.0D);
+    static final int MAGIC_NUMBER = 289;
 
     @NotNull
     private Entity getRandomMob(Level level) {
@@ -39,7 +38,7 @@ public class MobRandomizer {
         return mob;
     }
 
-    private boolean spawnMob(ServerLevel level, Entity mob, Entity reference) {
+    private void spawnMob(ServerLevel level, Entity mob, Entity reference) {
         mob.setPos(reference.position());
         mob.setXRot(reference.getXRot());
         mob.setYRot(reference.getYRot());
@@ -52,17 +51,15 @@ public class MobRandomizer {
             int count = state.getMobCategoryCounts().getOrDefault(category, 0);
             if (count <= category.getMaxInstancesPerChunk() * state.getSpawnableChunkCount() / MAGIC_NUMBER) {
                 level.addFreshEntity(mob);
-                return true;
             }
         }
-        return false;
     }
 
-    private boolean randomizeMobSpawn(Entity toSpawn) {
+    private void randomizeMobSpawn(Entity toSpawn) {
         ServerLevel level = (ServerLevel) toSpawn.level();
 
         Entity mob = getRandomMob(level);
-        return spawnMob(level, mob, toSpawn);
+        spawnMob(level, mob, toSpawn);
     }
 
     @SubscribeEvent
@@ -78,8 +75,8 @@ public class MobRandomizer {
         if (mob.getType().getCategory() == MobCategory.MISC) return;
         var randomized = mob.getPersistentData().contains("randomized");
         if (!randomized && !event.loadedFromDisk()) {
-            if (randomizeMobSpawn(mob))
-                event.setCanceled(true);
+            randomizeMobSpawn(mob);
+            event.setCanceled(true);
         }
     }
 }

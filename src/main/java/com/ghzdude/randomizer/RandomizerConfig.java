@@ -22,6 +22,10 @@ public class RandomizerConfig {
     public static boolean randomizeMobs;
 
     static {
+        update();
+    }
+
+    public static void update() {
         itemCooldown = Holder.itemCooldown.get();
         pointsCarryover = Holder.pointsCarryover.get();
         giveMultipleItems = Holder.giveMultipleItems.get();
