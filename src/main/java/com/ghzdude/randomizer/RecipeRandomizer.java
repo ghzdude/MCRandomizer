@@ -84,7 +84,6 @@ public class RecipeRandomizer {
             ItemStack newResult = INSTANCE.getStackFor(recipe.getResultItem(access));
 
             modifyRecipeOutputs(recipe, newResult);
-            RandomizerCore.LOGGER.warn("Recipe Output for \"{}\" randomized!", holder.id());
 
             // if inputs are not to be randomized, move on to the next recipe
             if (RandomizerConfig.randomizeRecipeInputs) {
@@ -92,7 +91,6 @@ public class RecipeRandomizer {
                         recipe.getIngredients().stream()
                         .distinct().filter(ingredient -> !ingredient.isEmpty()).toList(), holder.id()
                 );
-                RandomizerCore.LOGGER.warn("Recipe Inputs for \"{}\" randomized!", holder.id());
             }
         }
     }
@@ -100,6 +98,7 @@ public class RecipeRandomizer {
     private static void modifyRecipeOutputs(Recipe<?> recipe, ItemStack newResult) {
         if (recipe instanceof OutputSetter setter) {
             setter.randomizer$setResult(newResult);
+            RandomizerCore.LOGGER.warn("Recipe Output randomized to {}!", newResult);
         }
     }
 
@@ -122,6 +121,7 @@ public class RecipeRandomizer {
                         ingredient = key.location();
                         random = new Ingredient.TagValue(key);
                     }
+                    RandomizerCore.LOGGER.warn("Recipe Inputs randomized to {}", random);
                     addToMap(recipe, ingredient);
                     return random;
                 });
