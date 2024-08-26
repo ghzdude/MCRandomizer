@@ -16,5 +16,9 @@
   "client": [],
   "server": [],
   "verbose": true,
-  "required": true
+  "required": true,
+  "injectors": {
+    "defaultRequire": 1,
+    "maxShiftBy": 10
+  }
 }
