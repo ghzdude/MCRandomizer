@@ -74,7 +74,6 @@ public class RecipeRandomizer {
     public static void setAdvancements(ServerAdvancementManager manager) {
         if (manager instanceof AdvancementModify modify) {
             modify.randomizer$randomizeRecipeAdvancements();
-            RandomizerCore.LOGGER.warn("Advancements modified!");
         }
     }
 
@@ -98,7 +97,6 @@ public class RecipeRandomizer {
     private static void modifyRecipeOutputs(Recipe<?> recipe, ItemStack newResult) {
         if (recipe instanceof OutputSetter setter) {
             setter.randomizer$setResult(newResult);
-            RandomizerCore.LOGGER.warn("Recipe Output randomized to {}!", newResult);
         }
     }
 
@@ -121,7 +119,6 @@ public class RecipeRandomizer {
                         ingredient = key.location();
                         random = new Ingredient.TagValue(key);
                     }
-                    RandomizerCore.LOGGER.warn("Recipe Inputs randomized to {}", random);
                     addToMap(recipe, ingredient);
                     return random;
                 });

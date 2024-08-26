@@ -151,14 +151,6 @@ dependencies {
     implementation('net.sf.jopt-simple:jopt-simple:5.0.4') { version { strictly '5.0.4' } }
 }
 
-mixin {
-    // MixinGradle Settings
-    add sourceSets.main, 'mixins.randomizer.refmap.json'
-    config 'mixins.randomizer.json'
-
-    debug.export = true
-}
-
 // This block of code expands all declared replace properties in the specified resource targets.
 // A missing property will result in an error. Properties are expanded using ${} Groovy notation.
 // When "copyIdeResources" is enabled, this will also run before the game launches in IDE environments.
@@ -182,6 +174,7 @@ tasks.named('processResources', ProcessResources).configure {
 tasks.named('jar', Jar).configure {
     manifest {
         attributes([
+            'MixinConfigs'            : 'mixins.randomizer.json',
             'Specification-Title'     : mod_id,
             'Specification-Vendor'    : mod_authors,
             'Specification-Version'   : '1', // We are version 1 of ourselves

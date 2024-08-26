@@ -33,7 +33,6 @@ public class LootRandomizer {
             ret.add(INSTANCE.getStackFor(stack));
         });
 
-        RandomizerCore.LOGGER.warn("randomized loot for \"{}\"", path);
         return ret;
     }
 }
