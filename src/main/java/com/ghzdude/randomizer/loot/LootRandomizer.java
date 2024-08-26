@@ -2,6 +2,7 @@ package com.ghzdude.randomizer.loot;
 
 import com.ghzdude.randomizer.RandomizationMapData;
 import com.ghzdude.randomizer.RandomizerConfig;
+import com.ghzdude.randomizer.RandomizerCore;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.storage.DimensionDataStorage;
@@ -32,6 +33,7 @@ public class LootRandomizer {
             ret.add(INSTANCE.getStackFor(stack));
         });
 
+        RandomizerCore.LOGGER.warn("randomized loot for \"{}\"", path);
         return ret;
     }
 }
