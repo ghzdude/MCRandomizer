@@ -7,6 +7,8 @@ import net.minecraft.core.HolderLookup;
 import net.minecraft.core.component.DataComponentMap;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.tags.TagKey;
 import net.minecraft.util.datafix.DataFixTypes;
 import net.minecraft.world.item.Item;
@@ -41,6 +43,14 @@ public class RandomizationMapData extends SavedData {
             data.isLoaded = true;
         }
         return data;
+    }
+
+    public static RandomizationMapData get(MinecraftServer server, String prefix) {
+        return get(server.overworld().getDataStorage(), prefix);
+    }
+
+    public static RandomizationMapData get(ServerLevel serverLevel, String prefix) {
+        return get(serverLevel.getServer(), prefix);
     }
 
     @Override

@@ -15,8 +15,7 @@ public class LootRandomizer {
 
     public static @NotNull ObjectArrayList<ItemStack> randomizeLoot(ObjectArrayList<ItemStack> generatedLoot, LootContext context) {
         if (INSTANCE == null) {
-            DimensionDataStorage storage = context.getLevel().getServer().overworld().getDataStorage();
-            INSTANCE = RandomizationMapData.get(storage, "loot");
+            INSTANCE = RandomizationMapData.get(context.getLevel(), "loot");
         }
 
         ObjectArrayList<ItemStack> ret = new ObjectArrayList<>();
