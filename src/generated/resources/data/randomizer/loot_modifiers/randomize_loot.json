@@ -1,9 +1,0 @@
-{
-  "type": "randomizer:randomize_loot",
-  "conditions": [
-    {
-      "chance": 1.0,
-      "condition": "minecraft:random_chance"
-    }
-  ]
-}

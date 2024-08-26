@@ -4,9 +4,7 @@ import com.ghzdude.randomizer.api.AdvancementModify;
 import com.ghzdude.randomizer.api.IngredientRandomizable;
 import com.ghzdude.randomizer.api.OutputSetter;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
-import net.minecraft.advancements.Advancement;
-import net.minecraft.advancements.AdvancementHolder;
-import net.minecraft.advancements.AdvancementRewards;
+import net.minecraft.advancements.*;
 import net.minecraft.advancements.critereon.InventoryChangeTrigger;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.resources.ResourceLocation;
@@ -50,12 +48,13 @@ import java.util.Optional;
 public class RecipeRandomizer {
     private static final Map<ResourceLocation, List<ResourceLocation>> MODIFIED = new Object2ObjectOpenHashMap<>();
 
-    private static RandomizationMapData INSTANCE;
+    private static RandomizationMapData INSTANCE = null;
 
     @SubscribeEvent
     public void start(ServerStartedEvent event) {
         if (RandomizerConfig.randomizeRecipes) {
-            INSTANCE = RandomizationMapData.get(event.getServer().overworld().getDataStorage(), "recipes");
+            if (INSTANCE == null)
+                INSTANCE = RandomizationMapData.get(event.getServer().overworld().getDataStorage(), "recipes");
 
             RandomizerCore.LOGGER.warn("Recipe Randomizer Running!");
             randomizeRecipes(
@@ -75,6 +74,7 @@ public class RecipeRandomizer {
     public static void setAdvancements(ServerAdvancementManager manager) {
         if (manager instanceof AdvancementModify modify) {
             modify.randomizer$randomizeRecipeAdvancements();
+            RandomizerCore.LOGGER.warn("Advancements modified!");
         }
     }
 
@@ -84,6 +84,7 @@ public class RecipeRandomizer {
             ItemStack newResult = INSTANCE.getStackFor(recipe.getResultItem(access));
 
             modifyRecipeOutputs(recipe, newResult);
+            RandomizerCore.LOGGER.warn("Recipe Output for \"{}\" randomized!", holder.id());
 
             // if inputs are not to be randomized, move on to the next recipe
             if (RandomizerConfig.randomizeRecipeInputs) {
@@ -91,6 +92,7 @@ public class RecipeRandomizer {
                         recipe.getIngredients().stream()
                         .distinct().filter(ingredient -> !ingredient.isEmpty()).toList(), holder.id()
                 );
+                RandomizerCore.LOGGER.warn("Recipe Inputs for \"{}\" randomized!", holder.id());
             }
         }
     }
