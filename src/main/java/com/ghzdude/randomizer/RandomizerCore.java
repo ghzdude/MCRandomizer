@@ -70,6 +70,7 @@ public class RandomizerCore
     private void commonSetup(final FMLCommonSetupEvent event) {
         MinecraftForge.EVENT_BUS.register(new RecipeRandomizer());
         MinecraftForge.EVENT_BUS.register(new MobRandomizer());
+        MinecraftForge.EVENT_BUS.register(RandomizerConfig.class);
     }
 
     public static void incrementAmtItemsGiven() {

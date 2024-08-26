@@ -1,6 +1,8 @@
 package com.ghzdude.randomizer;
 
 import net.minecraftforge.common.ForgeConfigSpec;
+import net.minecraftforge.event.server.ServerStartedEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.config.IConfigSpec;
 import org.apache.commons.lang3.tuple.Pair;
 
@@ -22,6 +24,11 @@ public class RandomizerConfig {
     public static boolean randomizeMobs;
 
     static {
+        update();
+    }
+
+    @SubscribeEvent
+    public static void serverJoin(ServerStartedEvent event) {
         update();
     }
 
