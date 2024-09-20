@@ -81,7 +81,7 @@ public class RandomizerCore
     public void onStart(ServerStartedEvent event) {
         seededRNG = new Random(event.getServer().getWorldData().worldGenOptions().seed());
         unseededRNG = new Random();
-        ItemRandomizer.init(event.getServer().overworld().getDataStorage());
+        ItemRandomizer.init(event.getServer());
         StructureRandomizer.configureStructures(event.getServer().registryAccess());
         event.getServer().registryAccess()
                 .registry(Registries.ENCHANTMENT)

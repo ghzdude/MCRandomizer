@@ -3,11 +3,11 @@ package com.ghzdude.randomizer;
 import com.ghzdude.randomizer.special.generators.*;
 import com.ghzdude.randomizer.special.item.SpecialItems;
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
-import net.minecraft.world.level.storage.DimensionDataStorage;
 import net.minecraftforge.registries.ForgeRegistries;
 
 import java.util.*;
@@ -21,11 +21,17 @@ import java.util.*;
  * items have a defined value, otherwise stacksize is used
  */
 public class ItemRandomizer {
-    private static final Map<Item, Integer> VALID_ITEMS = configureValidItem();
+    private static Map<Item, Integer> VALID_ITEMS;
     private static final List<Item> ITEM_LIST = new ArrayList<>();
     private static final Map<Item, Integer> SIMPLE_ITEMS = new Object2IntOpenHashMap<>();
 
-    static {
+    private static RandomizationMapData INSTANCE;
+
+    public static void init(MinecraftServer server) {
+        INSTANCE = RandomizationMapData.get(server, "item");
+
+        // TODO prevent items from disabled datapacks
+        VALID_ITEMS = configureValidItem();
         VALID_ITEMS.forEach((item, integer) -> {
             if (!SpecialItems.EFFECT_ITEMS.containsKey(item) &&
                     !SpecialItems.ENCHANTABLE.contains(item)) {
@@ -33,12 +39,6 @@ public class ItemRandomizer {
             }
             ITEM_LIST.add(item);
         });
-    }
-
-    private static RandomizationMapData INSTANCE;
-
-    public static void init(DimensionDataStorage storage) {
-        INSTANCE = RandomizationMapData.get(storage, "item");
     }
 
     private static Map<Item, Integer> configureValidItem() {
