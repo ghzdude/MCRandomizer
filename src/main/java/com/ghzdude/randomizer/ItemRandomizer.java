@@ -5,6 +5,8 @@ import com.ghzdude.randomizer.special.item.SpecialItems;
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.flag.FeatureFlagSet;
+import net.minecraft.world.flag.FeatureFlags;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -31,7 +33,7 @@ public class ItemRandomizer {
         INSTANCE = RandomizationMapData.get(server, "item");
 
         // TODO prevent items from disabled datapacks
-        VALID_ITEMS = configureValidItem();
+        VALID_ITEMS = configureValidItem(server.getWorldData().enabledFeatures());
         VALID_ITEMS.forEach((item, integer) -> {
             if (!SpecialItems.EFFECT_ITEMS.containsKey(item) &&
                     !SpecialItems.ENCHANTABLE.contains(item)) {
@@ -41,7 +43,7 @@ public class ItemRandomizer {
         });
     }
 
-    private static Map<Item, Integer> configureValidItem() {
+    private static Map<Item, Integer> configureValidItem(FeatureFlagSet flagSet) {
         Map<Item, Integer> validItems = new Object2IntOpenHashMap<>();
 
         for (var item : ForgeRegistries.ITEMS.getValues()) {
@@ -56,18 +58,18 @@ public class ItemRandomizer {
                 value = 6;
             }
 
+            if (item == Items.BUNDLE && !flagSet.contains(FeatureFlags.BUNDLE))
+                continue;
+
             validItems.put(item, value);
         }
         return validItems;
     }
 
     public static int giveRandomItem(int pointsToUse, Inventory inventory){
-        if (RandomizerConfig.giveMultipleItems) {
-            pointsToUse = giveMultiple(pointsToUse, inventory);
-        } else {
-            pointsToUse = giveOnce(pointsToUse, inventory);
-        }
-        return pointsToUse;
+        return RandomizerConfig.giveMultipleItems ?
+                giveMultiple(pointsToUse, inventory) :
+                giveOnce(pointsToUse, inventory);
     }
 
     private static int giveMultiple(int pointsToUse, Inventory playerInventory) {
