@@ -25,10 +25,10 @@ public class LootRandomizer {
             return generatedLoot;
         }
 
-        generatedLoot.forEach(stack -> {
-            if (stack.isEmpty()) return;
+        for (ItemStack stack : generatedLoot) {
+            if (stack.isEmpty()) continue;
             ret.add(INSTANCE.getStackFor(stack));
-        });
+        }
 
         return ret;
     }

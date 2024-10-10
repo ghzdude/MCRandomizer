@@ -1,6 +1,5 @@
 package com.ghzdude.randomizer;
 
-import com.ghzdude.randomizer.special.item.SpecialItems;
 import com.google.common.collect.Lists;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import net.minecraft.core.HolderLookup;
@@ -18,9 +17,11 @@ import net.minecraft.world.level.saveddata.SavedData;
 import net.minecraft.world.level.storage.DimensionDataStorage;
 import net.minecraftforge.registries.ForgeRegistries;
 import net.minecraftforge.registries.tags.ITagManager;
-import org.jetbrains.annotations.NotNull;
 
-import java.util.*;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.Random;
 import java.util.stream.Stream;
 
 public class RandomizationMapData extends SavedData {
@@ -150,13 +151,17 @@ public class RandomizationMapData extends SavedData {
     }
 
     public ItemStack getStackFor(Item vanilla, int count, DataComponentMap components) {
-        Item randomItem = ITEM_MAP.get(vanilla);
+        Item randomItem = getItemFor(vanilla);
         if (randomItem == null || count < 1) return ItemStack.EMPTY;
 
         ItemStack random = new ItemStack(randomItem);
         random.setCount(Math.min(random.getMaxStackSize(), count));
         random.applyComponents(components);
         return random;
+    }
+
+    public Item getItemFor(Item item) {
+        return ITEM_MAP.get(item);
     }
 
     public TagKey<Item> getTagKeyFor(TagKey<Item> vanilla) {

@@ -108,7 +108,8 @@ public class ItemRandomizer {
     }
 
     public static ItemStack getRandomItemStack(Random rng) {
-        return itemToStack(INSTANCE.getRandomItem(rng));
+        var item = getRandomItemFrom(ITEM_LIST, rng);
+        return itemToStack(INSTANCE.getItemFor(item));
     }
 
     public static ItemStack specialItemToStack (Item item, int points) {
