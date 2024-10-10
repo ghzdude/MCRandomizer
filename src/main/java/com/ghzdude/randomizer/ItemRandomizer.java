@@ -142,7 +142,7 @@ public class ItemRandomizer {
     }
 
     private static void addStackToPlayer(ItemStack stack, Inventory inventory) {
-        RandomizerCore.LOGGER.warn(String.format("Given %s to %s.",  stack.copy(), inventory.player.getDisplayName().getString()));
+        RandomizerCore.LOGGER.warn("Given {} to {}.", stack.copy(), inventory.player.getDisplayName());
         if (!inventory.add(stack)) {
             inventory.player.drop(stack, false);
         }
