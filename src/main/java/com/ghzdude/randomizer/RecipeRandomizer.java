@@ -3,8 +3,11 @@ package com.ghzdude.randomizer;
 import com.ghzdude.randomizer.api.AdvancementModify;
 import com.ghzdude.randomizer.api.IngredientRandomizable;
 import com.ghzdude.randomizer.api.OutputSetter;
+import com.google.common.collect.ImmutableMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
-import net.minecraft.advancements.*;
+import net.minecraft.advancements.Advancement;
+import net.minecraft.advancements.AdvancementHolder;
+import net.minecraft.advancements.AdvancementRewards;
 import net.minecraft.advancements.critereon.InventoryChangeTrigger;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.resources.ResourceLocation;
@@ -132,7 +135,7 @@ public class RecipeRandomizer {
                 .add(recipe);
     }
 
-    public static void buildAdvancements(Map<ResourceLocation, AdvancementHolder> map) {
+    public static void buildAdvancements(ImmutableMap.Builder<ResourceLocation, AdvancementHolder> map) {
         ITagManager<Item> tagManager = ForgeRegistries.ITEMS.tags();
         if (tagManager == null) return;
 
