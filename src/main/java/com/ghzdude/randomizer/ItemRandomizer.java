@@ -47,7 +47,7 @@ public class ItemRandomizer {
         Map<Item, Integer> validItems = new Object2IntOpenHashMap<>();
 
         for (var item : ForgeRegistries.ITEMS.getValues()) {
-            if (SpecialItems.BLACKLISTED_ITEMS.contains(item)) continue;
+            if (SpecialItems.isBlacklisted(item)) continue;
             int value = 1;
 
             if (SpecialItems.SPECIAL_ITEMS.containsKey(item)) {

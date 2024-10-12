@@ -13,6 +13,9 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;
 import net.minecraftforge.fml.loading.FMLPaths;
 import net.minecraftforge.registries.ForgeRegistries;
+import net.minecraftforge.registries.IForgeRegistry;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.io.File;
 import java.io.IOException;
@@ -24,7 +27,7 @@ import java.util.Locale;
 import java.util.Objects;
 import java.util.stream.Stream;
 
-@SuppressWarnings("ResultOfMethodCallIgnored")
+@SuppressWarnings({"ResultOfMethodCallIgnored", "SameParameterValue"})
 public class ConfigIO {
     private static final String BLACKLIST_DIR = "config\\" + RandomizerCore.MODID + "\\blacklists\\";
     private static final File directory = new File(FMLPaths.CONFIGDIR.get().toFile(), BLACKLIST_DIR);
@@ -59,89 +62,26 @@ public class ConfigIO {
 
     public static void writeListToFile(File file, List<String> list) {
         JsonArray stringArray = new JsonArray();
-        for (String s : list) {
-                stringArray.add(s);
-        }
-
+        list.forEach(stringArray::add);
         tryWriteJson(stringArray, file);
     }
 
     private static void tryWriteJson(JsonElement toWrite, File file) {
-        try {
-            Writer writer = Files.newBufferedWriter(file.toPath());
-
+        try (Writer writer = Files.newBufferedWriter(file.toPath());) {
             GSON.toJson(toWrite, writer);
-            writer.close();
+
         } catch (IOException | NullPointerException e) {
             RandomizerCore.LOGGER.warn("Failure to write JSON at {}", file.getAbsolutePath());
         }
     }
 
-    public static ArrayList<Item> readItemBlacklist() {
-        ArrayList<Item> blacklist = new ArrayList<>();
+    private static List<ResourceLocation> read(@NotNull String file, @NotNull List< @NotNull String> defaults, @Nullable IForgeRegistry<?> registry) {
+        List<ResourceLocation> blacklist = new ArrayList<>();
 
-        File blacklistedItems = createFileName("blacklisted_items");
-        try {
-            if (blacklistedItems.createNewFile()) {
-                writeListToFile(blacklistedItems, BLACKLISTED_ITEMS);
-            }
-
-            JsonReader reader = GSON.newJsonReader(Files.newBufferedReader(blacklistedItems.toPath()));
-            reader.beginArray();
-
-            while (reader.peek() == JsonToken.STRING) {
-                ResourceLocation location = ResourceLocation.parse(reader.nextString());
-                if (ForgeRegistries.ITEMS.containsKey(location)) {
-                    blacklist.add(ForgeRegistries.ITEMS.getValue(location));
-                } else {
-                    RandomizerCore.LOGGER.warn("Location {} is not a proper item!", location);
-                }
-            }
-
-            reader.endArray();
-            reader.close();
-        } catch (IOException | NullPointerException e) {
-            RandomizerCore.LOGGER.warn("Failure to read JSON at " + blacklistedItems.getAbsolutePath());
-        }
-        return blacklist;
-    }
-
-    public static ArrayList<EntityType<?>> readMobBlacklist() {
-        ArrayList<EntityType<?>> blacklist = new ArrayList<>();
-
-        File blacklistedMobs = createFileName("blacklisted_mobs");
-        try {
-            if (blacklistedMobs.createNewFile()) {
-                writeListToFile(blacklistedMobs, BLACKLISTED_ENTITIES);
-            }
-
-            JsonReader reader = GSON.newJsonReader(Files.newBufferedReader(blacklistedMobs.toPath()));
-            reader.beginArray();
-
-            while (reader.peek() == JsonToken.STRING) {
-                ResourceLocation location = ResourceLocation.parse(reader.nextString());
-                if (ForgeRegistries.ENTITY_TYPES.containsKey(location)) {
-                    blacklist.add(ForgeRegistries.ENTITY_TYPES.getValue(location));
-                } else {
-                    RandomizerCore.LOGGER.warn("Location {} is not a proper entity type!", location);
-                }
-            }
-
-            reader.endArray();
-            reader.close();
-        } catch (IOException | NullPointerException e) {
-            RandomizerCore.LOGGER.warn("Failure to read JSON at " + blacklistedMobs.getAbsolutePath());
-        }
-        return blacklist;
-    }
-
-    public static ArrayList<ResourceLocation> readStructureBlacklist() {
-        ArrayList<ResourceLocation> blacklist = new ArrayList<>();
-
-        File blacklistFile = createFileName("blacklisted_structures");
+        File blacklistFile = createFileName(file);
         try {
             if (blacklistFile.createNewFile()) {
-                writeListToFile(blacklistFile, BLACKLISTED_STRUCTURES);
+                writeListToFile(blacklistFile, defaults);
             }
 
             JsonReader reader = GSON.newJsonReader(Files.newBufferedReader(blacklistFile.toPath()));
@@ -149,15 +89,35 @@ public class ConfigIO {
 
             while (reader.peek() == JsonToken.STRING) {
                 ResourceLocation location = ResourceLocation.parse(reader.nextString());
-                blacklist.add(location);
+                if (registry == null || registry.containsKey(location)) {
+                    blacklist.add(location);
+                } else {
+                    RandomizerCore.LOGGER.warn("Location {} is not valid!", location);
+                }
             }
 
             reader.endArray();
             reader.close();
         } catch (IOException | NullPointerException e) {
-            RandomizerCore.LOGGER.warn("Failure to read JSON at " + blacklistFile.getAbsolutePath());
+            RandomizerCore.LOGGER.warn("Failure to read JSON at {}", blacklistFile.getAbsolutePath());
         }
         return blacklist;
+    }
+
+    private static List<ResourceLocation> read(@NotNull String file, @NotNull List< @NotNull String> defaults) {
+        return read(file, defaults, null);
+    }
+
+    public static List<ResourceLocation> readItemBlacklist() {
+        return read("blacklisted_items", BLACKLISTED_ITEMS, ForgeRegistries.ITEMS);
+    }
+
+    public static List<ResourceLocation> readMobBlacklist() {
+        return read("blacklisted_mobs", BLACKLISTED_ENTITIES, ForgeRegistries.ENTITY_TYPES);
+    }
+
+    public static List<ResourceLocation> readStructureBlacklist() {
+        return read("blacklisted_structures", BLACKLISTED_STRUCTURES);
     }
 
     private static File createFileName(String s) {

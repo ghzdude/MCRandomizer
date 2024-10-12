@@ -2,8 +2,12 @@ package com.ghzdude.randomizer;
 
 
 import com.ghzdude.randomizer.io.ConfigIO;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.entity.*;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.entity.MobCategory;
 import net.minecraft.world.level.Level;
 import net.minecraftforge.event.entity.EntityJoinLevelEvent;
 import net.minecraftforge.event.server.ServerStartedEvent;
@@ -12,18 +16,22 @@ import net.minecraftforge.registries.ForgeRegistries;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
 
 /* Mob Spawn Randomizer description
  * when a mob is about to spawn, change the mob
  * should only randomize when naturally spawned, or from spawner.
  */
 public class MobRandomizer {
-    private static final ArrayList<EntityType<?>> BLACKLISTED_ENTITIES = ConfigIO.readMobBlacklist();
-    private final ArrayList<EntityType<?>> entityTypes = new ArrayList<>(ForgeRegistries.ENTITY_TYPES.getValues()
+    private static final List<ResourceLocation> BLACKLISTED_ENTITIES = ConfigIO.readMobBlacklist();
+    private final ArrayList<EntityType<?>> entityTypes = new ArrayList<>(ForgeRegistries.ENTITY_TYPES.getKeys()
             .stream()
-            .filter(entityType ->
-                    !BLACKLISTED_ENTITIES.contains(entityType) && entityType.getCategory() != MobCategory.MISC
-            ).toList());
+            .filter(entityType -> !BLACKLISTED_ENTITIES.contains(entityType))
+            .map(ForgeRegistries.ENTITY_TYPES::getValue)
+            .filter(Objects::nonNull)
+            .filter(e -> e.getCategory() != MobCategory.MISC)
+            .toList());
     private boolean isEnabled;
     static final int MAGIC_NUMBER = 289;
 

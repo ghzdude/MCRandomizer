@@ -8,10 +8,8 @@ import net.minecraft.core.Registry;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.SectionPos;
 import net.minecraft.core.registries.Registries;
-import net.minecraft.network.chat.ChatType;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
-import net.minecraft.network.chat.OutgoingChatMessage;
 import net.minecraft.network.chat.contents.TranslatableContents;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
@@ -32,7 +30,7 @@ import java.util.Map;
  * every so often, generate a structure at some random x, z coordinate near the player
  */
 public class StructureRandomizer {
-    private static final ArrayList<ResourceLocation> BLACKLISTED_STRUCTURES = ConfigIO.readStructureBlacklist();
+    private static final List<ResourceLocation> BLACKLISTED_STRUCTURES = ConfigIO.readStructureBlacklist();
     private static final Map<ResourceKey<Structure>, Integer> VALID_STRUCTURES = new Object2IntOpenHashMap<>();
     private static final List<ResourceKey<Structure>> STRUCTURES = new ArrayList<>();
 
