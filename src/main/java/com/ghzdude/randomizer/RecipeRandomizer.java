@@ -147,7 +147,7 @@ public class RecipeRandomizer {
                     .map(tagManager::getTag)
                     .findFirst();
 
-            if (item != Items.AIR) {
+            if (item != Items.AIR && item != null) {
                 changedItems = new Item[]{item};
             } else if (tag.isPresent()) {
                 changedItems = tag.get().stream().toArray(Item[]::new);
@@ -161,7 +161,8 @@ public class RecipeRandomizer {
                 builder.rewards(AdvancementRewards.Builder.recipe(recipe));
             }
             builder.addCriterion("has_item", InventoryChangeTrigger.TriggerInstance.hasItems(changedItems));
-            AdvancementHolder toAdd = builder.build(ResourceLocation.fromNamespaceAndPath(RandomizerCore.MODID, ing.getNamespace() + "-" + ing.getPath() + "_gives_recipes"));
+            String path = "%s-%s_gives_recipes".formatted(ing.getNamespace(), ing.getPath());
+            AdvancementHolder toAdd = builder.build(ResourceLocation.fromNamespaceAndPath(RandomizerCore.MODID, path));
             map.put(toAdd.id(), toAdd);
         });
     }
