@@ -26,8 +26,8 @@ public class LootRandomizer {
         }
 
         for (ItemStack stack : generatedLoot) {
-            if (stack.isEmpty()) continue;
-            ret.add(INSTANCE.getStackFor(stack));
+            if (stack.isEmpty()) ret.add(ItemStack.EMPTY);
+            else ret.add(INSTANCE.getStackFor(stack));
         }
 
         return ret;

@@ -7,11 +7,11 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonToken;
-import net.minecraft.client.Minecraft;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;
+import net.minecraftforge.fml.loading.FMLPaths;
 import net.minecraftforge.registries.ForgeRegistries;
 
 import java.io.File;
@@ -21,14 +21,16 @@ import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.stream.Stream;
 
 @SuppressWarnings("ResultOfMethodCallIgnored")
 public class ConfigIO {
     private static final String BLACKLIST_DIR = "config\\" + RandomizerCore.MODID + "\\blacklists\\";
-    private static final File directory = new File(Minecraft.getInstance().gameDirectory, BLACKLIST_DIR);
+    private static final File directory = new File(FMLPaths.CONFIGDIR.get().toFile(), BLACKLIST_DIR);
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
-    private static final ArrayList<String> BLACKLISTED_ITEMS = new ArrayList<>(Stream.of(
+
+    private static final List<String> BLACKLISTED_ITEMS = Stream.of(
             Items.AIR,
             Items.COMMAND_BLOCK,
             Items.COMMAND_BLOCK_MINECART,
@@ -41,16 +43,19 @@ public class ConfigIO {
             Items.KNOWLEDGE_BOOK,
             Items.JIGSAW,
             Items.DEBUG_STICK
-    ).map(Item::toString).toList());
+    ).map(Item::toString).toList();
 
-    private static final ArrayList<String> BLACKLISTED_ENTITIES = new ArrayList<>(Stream.of(
+    private static final List<String> BLACKLISTED_ENTITIES = Stream.of(
             EntityType.ENDER_DRAGON,
             EntityType.WITHER,
             EntityType.WARDEN,
             EntityType.GIANT
-    ).map(entityType -> ForgeRegistries.ENTITY_TYPES.getKey(entityType).toString()).toList());
+    ).map(ForgeRegistries.ENTITY_TYPES::getKey)
+            .filter(Objects::nonNull)
+            .map(Objects::toString)
+            .toList();
 
-    private static final ArrayList<String> BLACKLISTED_STRUCTURES =  new ArrayList<>(List.of("namespace:structure_name_here"));
+    private static final List<String> BLACKLISTED_STRUCTURES = List.of("namespace:structure_name_here");
 
     public static void writeListToFile(File file, List<String> list) {
         JsonArray stringArray = new JsonArray();
@@ -68,7 +73,7 @@ public class ConfigIO {
             GSON.toJson(toWrite, writer);
             writer.close();
         } catch (IOException | NullPointerException e) {
-            RandomizerCore.LOGGER.warn("Failure to write JSON at " + file.getAbsolutePath());
+            RandomizerCore.LOGGER.warn("Failure to write JSON at {}", file.getAbsolutePath());
         }
     }
 
