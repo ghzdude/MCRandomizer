@@ -3,7 +3,6 @@ package com.ghzdude.randomizer;
 import com.google.common.collect.Lists;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import net.minecraft.core.HolderLookup;
-import net.minecraft.core.component.DataComponentMap;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
@@ -147,16 +146,15 @@ public class RandomizationMapData extends SavedData {
     }
 
     public ItemStack getStackFor(ItemStack stack) {
-        return getStackFor(stack.getItem(), stack.getCount(), stack.getComponents());
+        return getStackFor(stack.getItem(), stack.getCount());
     }
 
-    public ItemStack getStackFor(Item vanilla, int count, DataComponentMap components) {
+    public ItemStack getStackFor(Item vanilla, int count) {
         Item randomItem = getItemFor(vanilla);
         if (randomItem == null || count < 1) return ItemStack.EMPTY;
 
         ItemStack random = new ItemStack(randomItem);
         random.setCount(Math.min(random.getMaxStackSize(), count));
-        random.applyComponents(components);
         return random;
     }
 

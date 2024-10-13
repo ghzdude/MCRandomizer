@@ -1,5 +1,6 @@
 package com.ghzdude.randomizer.loot;
 
+import com.ghzdude.randomizer.ItemRandomizer;
 import com.ghzdude.randomizer.RandomizationMapData;
 import com.ghzdude.randomizer.RandomizerConfig;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
@@ -27,7 +28,10 @@ public class LootRandomizer {
 
         for (ItemStack stack : generatedLoot) {
             if (stack.isEmpty()) ret.add(ItemStack.EMPTY);
-            else ret.add(INSTANCE.getStackFor(stack));
+            else {
+                var random = INSTANCE.getItemFor(stack.getItem());
+                ret.add(ItemRandomizer.itemToStack(random, stack.getCount()));
+            }
         }
 
         return ret;
