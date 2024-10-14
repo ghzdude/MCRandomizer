@@ -23,7 +23,7 @@ import java.util.*;
  * items have a defined value, otherwise stacksize is used
  */
 public class ItemRandomizer {
-    private static Map<Item, Integer> VALID_ITEMS;
+    private static final Map<Item, Integer> VALID_ITEMS = new Object2IntOpenHashMap<>();
     private static final List<Item> ITEM_LIST = new ArrayList<>();
     private static final Map<Item, Integer> SIMPLE_ITEMS = new Object2IntOpenHashMap<>();
 
@@ -33,7 +33,8 @@ public class ItemRandomizer {
         INSTANCE = RandomizationMapData.get(server, "item");
 
         // TODO prevent items from disabled datapacks
-        VALID_ITEMS = configureValidItem(server.getWorldData().enabledFeatures());
+        configureValidItem(server.getWorldData().enabledFeatures());
+
         VALID_ITEMS.forEach((item, integer) -> {
             if (!SpecialItems.EFFECT_ITEMS.containsKey(item) &&
                     !SpecialItems.ENCHANTABLE.contains(item)) {
@@ -43,9 +44,7 @@ public class ItemRandomizer {
         });
     }
 
-    private static Map<Item, Integer> configureValidItem(FeatureFlagSet flagSet) {
-        Map<Item, Integer> validItems = new Object2IntOpenHashMap<>();
-
+    private static void configureValidItem(FeatureFlagSet flagSet) {
         for (var item : ForgeRegistries.ITEMS.getValues()) {
             if (SpecialItems.isBlacklisted(item)) continue;
             int value = 1;
@@ -61,9 +60,8 @@ public class ItemRandomizer {
             if (item == Items.BUNDLE && !flagSet.contains(FeatureFlags.BUNDLE))
                 continue;
 
-            validItems.put(item, value);
+            VALID_ITEMS.put(item, value);
         }
-        return validItems;
     }
 
     public static int giveRandomItem(int pointsToUse, Inventory inventory){
