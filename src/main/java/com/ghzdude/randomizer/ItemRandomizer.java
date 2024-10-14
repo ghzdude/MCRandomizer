@@ -6,7 +6,6 @@ import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.flag.FeatureFlagSet;
-import net.minecraft.world.flag.FeatureFlags;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -46,7 +45,7 @@ public class ItemRandomizer {
 
     private static void configureValidItem(FeatureFlagSet flagSet) {
         for (var item : ForgeRegistries.ITEMS.getValues()) {
-            if (SpecialItems.isBlacklisted(item)) continue;
+            if (SpecialItems.isBlacklisted(item) || !item.isEnabled(flagSet)) continue;
             int value = 1;
 
             if (SpecialItems.SPECIAL_ITEMS.containsKey(item)) {
@@ -56,9 +55,6 @@ public class ItemRandomizer {
             } else if (SpecialItems.SHULKER_BOXES.contains(item)) {
                 value = 6;
             }
-
-            if (item == Items.BUNDLE && !flagSet.contains(FeatureFlags.BUNDLE))
-                continue;
 
             VALID_ITEMS.put(item, value);
         }
