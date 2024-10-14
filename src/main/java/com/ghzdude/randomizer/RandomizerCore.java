@@ -1,5 +1,6 @@
 package com.ghzdude.randomizer;
 
+import com.ghzdude.randomizer.loot.LootRandomizer;
 import com.ghzdude.randomizer.special.generators.EnchantmentGenerator;
 import com.ghzdude.randomizer.special.generators.PotionGenerator;
 import com.ghzdude.randomizer.special.modifiers.AdvancementModifier;
@@ -82,6 +83,7 @@ public class RandomizerCore
         seededRNG = new Random(event.getServer().getWorldData().worldGenOptions().seed());
         unseededRNG = new Random();
         ItemRandomizer.init(event.getServer());
+        LootRandomizer.init(event.getServer());
         StructureRandomizer.configureStructures(event.getServer().registryAccess());
         event.getServer().registryAccess()
                 .registry(Registries.ENCHANTMENT)
