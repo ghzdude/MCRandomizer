@@ -154,7 +154,9 @@ dependencies {
     implementation('net.sf.jopt-simple:jopt-simple:5.0.4') { version { strictly '5.0.4' } }
 
     // https://mvnrepository.com/artifact/mezz.jei/jei-1.21.1-forge
-    runtimeOnly 'mezz.jei:jei-1.21.1-forge:19.21.0.246'
+    compileOnly "mezz.jei:jei-${minecraft_version}-common-api:${jei_version}"
+    compileOnly "mezz.jei:jei-${minecraft_version}-forge-api:${jei_version}"
+    runtimeOnly "mezz.jei:jei-${minecraft_version}-forge:${jei_version}"
 
 }
 
