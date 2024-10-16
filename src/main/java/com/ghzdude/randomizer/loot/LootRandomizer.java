@@ -5,13 +5,11 @@ import com.ghzdude.randomizer.RandomizationMapData;
 import com.ghzdude.randomizer.RandomizerConfig;
 import com.ghzdude.randomizer.compat.jei.BlockDropRecipe;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
-import net.minecraft.core.registries.Registries;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.storage.loot.LootContext;
 import org.jetbrains.annotations.NotNull;
-
-import java.util.Objects;
 
 public class LootRandomizer {
 
@@ -19,13 +17,15 @@ public class LootRandomizer {
 
     public static void init(MinecraftServer server) {
         INSTANCE = RandomizationMapData.get(server, "loot");
-        var tables = server.registryAccess().registryOrThrow(Registries.LOOT_TABLE);
-        for (var loc : tables.keySet()) {
-            var table = Objects.requireNonNull(tables.get(loc));
-        }
+//        var tables = server.registryAccess().registryOrThrow(Registries.LOOT_TABLE);
+//        for (var loc : tables.keySet()) {
+//            var table = Objects.requireNonNull(tables.get(loc));
+//        }
         INSTANCE.streamItems().forEach(item -> {
             var drop = INSTANCE.getItemFor(item);
-            BlockDropRecipe.registerRecipe(new ItemStack(item), new ItemStack(drop));
+            if (!(item instanceof BlockItem blockItem)) return;
+            var table = server.reloadableRegistries().getLootTable(blockItem.getBlock().getLootTable());
+            BlockDropRecipe.registerRecipe(new ItemStack(blockItem), new ItemStack(drop));
         });
 
     }

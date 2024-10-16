@@ -1,6 +1,5 @@
 package com.ghzdude.randomizer.compat.jei;
 
-import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.ItemStack;
 
 import java.util.ArrayList;
@@ -11,9 +10,6 @@ public record BlockDropRecipe(ItemStack input, ItemStack output) {
 
     public static void registerRecipe(ItemStack in, ItemStack output) {
         var recipe = new BlockDropRecipe(in, output);
-        if (in.getItem() instanceof BlockItem blockItem) {
-
-        }
         REGISTRY.add(recipe);
     }
 
