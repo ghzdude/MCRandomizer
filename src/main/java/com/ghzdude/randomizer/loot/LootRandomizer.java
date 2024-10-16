@@ -3,6 +3,7 @@ package com.ghzdude.randomizer.loot;
 import com.ghzdude.randomizer.ItemRandomizer;
 import com.ghzdude.randomizer.RandomizationMapData;
 import com.ghzdude.randomizer.RandomizerConfig;
+import com.ghzdude.randomizer.api.Loot;
 import com.ghzdude.randomizer.compat.jei.BlockDropRecipe;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import net.minecraft.server.MinecraftServer;
@@ -17,15 +18,11 @@ public class LootRandomizer {
 
     public static void init(MinecraftServer server) {
         INSTANCE = RandomizationMapData.get(server, "loot");
-//        var tables = server.registryAccess().registryOrThrow(Registries.LOOT_TABLE);
-//        for (var loc : tables.keySet()) {
-//            var table = Objects.requireNonNull(tables.get(loc));
-//        }
         INSTANCE.streamItems().forEach(item -> {
             var drop = INSTANCE.getItemFor(item);
             if (!(item instanceof BlockItem blockItem)) return;
             var table = server.reloadableRegistries().getLootTable(blockItem.getBlock().getLootTable());
-            BlockDropRecipe.registerRecipe(new ItemStack(blockItem), new ItemStack(drop));
+            BlockDropRecipe.registerRecipe(new ItemStack(blockItem), new ItemStack(drop), ((Loot.TableInfo) table).randomizer$requiresSilkTouch(server.registryAccess()));
         });
 
     }
