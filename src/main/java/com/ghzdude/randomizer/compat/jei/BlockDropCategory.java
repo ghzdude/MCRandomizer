@@ -69,12 +69,4 @@ public class BlockDropCategory implements IRecipeCategory<BlockDropRecipe> {
                     .addIngredient(VanillaTypes.ITEM_STACK, SILK_TOUCH);
         }
     }
-//
-//    @Override
-//    public void draw(BlockDropRecipe recipe, IRecipeSlotsView recipeSlotsView, GuiGraphics guiGraphics, double mouseX, double mouseY) {
-//        if (recipe.silkTouch()) {
-//            guiGraphics.renderItem(SILK_TOUCH, 17, 3 + 14);
-//        }
-//        guiGraphics.drawString(Minecraft.getInstance().font, Component.literal("requires silk touch"), 1, 3 + 14, DyeColor.WHITE.getTextColor(), true);
-//    }
 }
