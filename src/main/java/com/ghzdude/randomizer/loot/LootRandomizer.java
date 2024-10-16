@@ -19,10 +19,14 @@ public class LootRandomizer {
     public static void init(MinecraftServer server) {
         INSTANCE = RandomizationMapData.get(server, "loot");
         INSTANCE.streamItems().forEach(item -> {
-            var drop = INSTANCE.getItemFor(item);
             if (!(item instanceof BlockItem blockItem)) return;
             var table = server.reloadableRegistries().getLootTable(blockItem.getBlock().getLootTable());
-            BlockDropRecipe.registerRecipe(new ItemStack(blockItem), new ItemStack(drop), ((Loot.TableInfo) table).randomizer$requiresSilkTouch(server.registryAccess()));
+            if (((Loot.TableInfo) table).randomizer$hasSilkTouch(server.registryAccess())) {
+                var silkDrop = ((Loot.TableInfo) table).randomizer$getSilkDrop(server.registryAccess());
+                BlockDropRecipe.registerRecipe(blockItem, INSTANCE.getStackFor(silkDrop), true);
+            }
+            var drop2 = ((Loot.TableInfo) table).randomizer$getDrop(server.registryAccess());
+            BlockDropRecipe.registerRecipe(blockItem, INSTANCE.getStackFor(drop2), false);
         });
 
     }
