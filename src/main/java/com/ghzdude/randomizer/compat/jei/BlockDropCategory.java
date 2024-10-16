@@ -9,8 +9,10 @@ import mezz.jei.api.recipe.IFocusGroup;
 import mezz.jei.api.recipe.RecipeIngredientRole;
 import mezz.jei.api.recipe.RecipeType;
 import mezz.jei.api.recipe.category.IRecipeCategory;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -20,9 +22,12 @@ public class BlockDropCategory implements IRecipeCategory<BlockDropRecipe> {
     public static final ResourceLocation UID = ResourceLocation.fromNamespaceAndPath(RandomizerCore.MODID, "block_drop");
     public static final RecipeType<BlockDropRecipe> TYPE = new RecipeType<>(UID, BlockDropRecipe.class);
     private final IDrawable ICON;
+    private final ItemStack SILK_TOUCH;
 
     public BlockDropCategory(IGuiHelper helper) {
         ICON = helper.createDrawableItemLike(Items.GRASS_BLOCK);
+        SILK_TOUCH = new ItemStack(Items.ENCHANTED_BOOK);
+        SILK_TOUCH.set(DataComponents.CUSTOM_NAME, Component.literal("Requires Silk Touch"));
     }
 
     @Override
@@ -42,19 +47,34 @@ public class BlockDropCategory implements IRecipeCategory<BlockDropRecipe> {
 
     @Override
     public int getWidth() {
-        return 16 * 3 + 4;
+        return 104;
     }
 
     @Override
     public int getHeight() {
-        return 16 + 2;
+        return 34;
     }
 
     @Override
     public void setRecipe(IRecipeLayoutBuilder builder, BlockDropRecipe recipe, IFocusGroup focusGroup) {
         builder.addSlot(RecipeIngredientRole.INPUT, 1, 1)
+                .setStandardSlotBackground()
                 .addIngredient(VanillaTypes.ITEM_STACK, recipe.input());
-        builder.addSlot(RecipeIngredientRole.OUTPUT, 1 + 16 + 1 + 16, 1)
+        builder.addSlot(RecipeIngredientRole.OUTPUT, 37, 1)
+                .setStandardSlotBackground()
                 .addIngredient(VanillaTypes.ITEM_STACK, recipe.output());
+        if (recipe.silkTouch()) {
+            builder.addSlot(RecipeIngredientRole.CATALYST, 19, 3+16)
+                    .setStandardSlotBackground()
+                    .addIngredient(VanillaTypes.ITEM_STACK, SILK_TOUCH);
+        }
     }
+//
+//    @Override
+//    public void draw(BlockDropRecipe recipe, IRecipeSlotsView recipeSlotsView, GuiGraphics guiGraphics, double mouseX, double mouseY) {
+//        if (recipe.silkTouch()) {
+//            guiGraphics.renderItem(SILK_TOUCH, 17, 3 + 14);
+//        }
+//        guiGraphics.drawString(Minecraft.getInstance().font, Component.literal("requires silk touch"), 1, 3 + 14, DyeColor.WHITE.getTextColor(), true);
+//    }
 }
