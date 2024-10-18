@@ -4,15 +4,15 @@ import com.ghzdude.randomizer.RandomizerCore;
 import mezz.jei.api.constants.VanillaTypes;
 import mezz.jei.api.gui.builder.IRecipeLayoutBuilder;
 import mezz.jei.api.gui.drawable.IDrawable;
+import mezz.jei.api.gui.ingredient.IRecipeSlotsView;
 import mezz.jei.api.helpers.IGuiHelper;
 import mezz.jei.api.recipe.IFocusGroup;
 import mezz.jei.api.recipe.RecipeIngredientRole;
 import mezz.jei.api.recipe.RecipeType;
 import mezz.jei.api.recipe.category.IRecipeCategory;
-import net.minecraft.core.component.DataComponents;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -22,12 +22,11 @@ public class BlockDropCategory implements IRecipeCategory<BlockDropRecipe> {
     public static final ResourceLocation UID = ResourceLocation.fromNamespaceAndPath(RandomizerCore.MODID, "block_drop");
     public static final RecipeType<BlockDropRecipe> TYPE = new RecipeType<>(UID, BlockDropRecipe.class);
     private final IDrawable ICON;
-    private final ItemStack SILK_TOUCH;
+    private final  IGuiHelper helper;
 
     public BlockDropCategory(IGuiHelper helper) {
+        this.helper = helper;
         ICON = helper.createDrawableItemLike(Items.GRASS_BLOCK);
-        SILK_TOUCH = new ItemStack(Items.ENCHANTED_BOOK);
-        SILK_TOUCH.set(DataComponents.CUSTOM_NAME, Component.literal("Requires Silk Touch"));
     }
 
     @Override
@@ -60,13 +59,17 @@ public class BlockDropCategory implements IRecipeCategory<BlockDropRecipe> {
         builder.addSlot(RecipeIngredientRole.INPUT, 1, 1)
                 .setStandardSlotBackground()
                 .addIngredient(VanillaTypes.ITEM_STACK, recipe.input());
-        builder.addSlot(RecipeIngredientRole.OUTPUT, 37, 1)
+        builder.addSlot(RecipeIngredientRole.OUTPUT, 37 + 6, 1)
                 .setStandardSlotBackground()
                 .addIngredient(VanillaTypes.ITEM_STACK, recipe.output());
-        if (recipe.silkTouch()) {
-            builder.addSlot(RecipeIngredientRole.CATALYST, 19, 3+16)
-                    .setStandardSlotBackground()
-                    .addIngredient(VanillaTypes.ITEM_STACK, SILK_TOUCH);
+        if (recipe.type() != BlockDropRecipe.Type.HAND) {
+            builder.addSlot(RecipeIngredientRole.CATALYST, 19+3, 3+16)
+                    .addIngredient(VanillaTypes.ITEM_STACK, recipe.type().getStack());
         }
+    }
+
+    @Override
+    public void draw(BlockDropRecipe recipe, IRecipeSlotsView recipeSlotsView, GuiGraphics guiGraphics, double mouseX, double mouseY) {
+        helper.getRecipeArrow().draw(guiGraphics, 19, 1);
     }
 }

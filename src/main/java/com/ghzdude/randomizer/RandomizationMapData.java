@@ -151,7 +151,7 @@ public class RandomizationMapData extends SavedData {
 
     public ItemStack getStackFor(Item vanilla, int count) {
         Item randomItem = getItemFor(vanilla);
-        if (randomItem == null || count < 1) return ItemStack.EMPTY;
+        if (randomItem == null || count < 1 || vanilla == Items.AIR) return ItemStack.EMPTY;
 
         ItemStack random = new ItemStack(randomItem);
         random.setCount(Math.min(random.getMaxStackSize(), count));

@@ -9,7 +9,10 @@ import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.level.storage.loot.LootContext;
+import net.minecraft.world.level.storage.loot.LootParams;
+import net.minecraft.world.level.storage.loot.LootTable;
 import org.jetbrains.annotations.NotNull;
 
 public class LootRandomizer {
@@ -18,17 +21,49 @@ public class LootRandomizer {
 
     public static void init(MinecraftServer server) {
         INSTANCE = RandomizationMapData.get(server, "loot");
+
         INSTANCE.streamItems().forEach(item -> {
             if (!(item instanceof BlockItem blockItem)) return;
             var table = server.reloadableRegistries().getLootTable(blockItem.getBlock().getLootTable());
-            if (((Loot.TableInfo) table).randomizer$hasSilkTouch(server.registryAccess())) {
-                var silkDrop = ((Loot.TableInfo) table).randomizer$getSilkDrop(server.registryAccess());
-                BlockDropRecipe.registerRecipe(blockItem, INSTANCE.getStackFor(silkDrop), true);
+
+            final var hand = Loot.createLootParams(server.overworld(), blockItem, Items.AIR, false);
+            final var withPick = Loot.createLootParams(server.overworld(), blockItem, Items.NETHERITE_PICKAXE, false);
+            final var withSilkPick = Loot.createLootParams(server.overworld(), blockItem, Items.NETHERITE_PICKAXE, true);
+            final var withShears = Loot.createLootParams(server.overworld(), blockItem, Items.SHEARS, false);
+
+            ItemStack normalDrop = getDrop(table, hand);
+            if (normalDrop.isEmpty())
+                normalDrop = getDrop(table, withPick);
+
+            ItemStack silkDrop = getDrop(table, withSilkPick);
+            ItemStack shearDrop = getDrop(table, withShears);
+
+            BlockDropRecipe.registerRecipe(blockItem, INSTANCE.getStackFor(normalDrop));
+
+            if (!normalDrop.isEmpty() && !sameItem(normalDrop, silkDrop))
+                BlockDropRecipe.registerRecipe(blockItem, INSTANCE.getStackFor(silkDrop), BlockDropRecipe.Type.SILK_PICK);
+
+            if (!sameItem(shearDrop, normalDrop)) {
+                BlockDropRecipe.Type type;
+                if (sameItem(shearDrop, silkDrop))
+                    type = BlockDropRecipe.Type.SHEARS_OR_SILK;
+                else type = BlockDropRecipe.Type.SHEARS;
+
+                BlockDropRecipe.registerRecipe(blockItem, INSTANCE.getStackFor(shearDrop), type);
             }
-            var drop2 = ((Loot.TableInfo) table).randomizer$getDrop(server.registryAccess());
-            BlockDropRecipe.registerRecipe(blockItem, INSTANCE.getStackFor(drop2), false);
         });
 
+    }
+
+    private static boolean sameItem(ItemStack a, ItemStack b) {
+        return a.is(b.getItem()) && a.getDamageValue() == b.getDamageValue();
+    }
+
+    @SuppressWarnings("deprecation")
+    private static ItemStack getDrop(LootTable table, LootParams params) {
+        var list = new ObjectArrayList<ItemStack>();
+        table.getRandomItemsRaw(params, LootTable.createStackSplitter(params.getLevel(), list::add));
+        return list.isEmpty() ? ItemStack.EMPTY : list.getFirst();
     }
 
     public static @NotNull ObjectArrayList<ItemStack> randomizeLoot(ObjectArrayList<ItemStack> generatedLoot, LootContext context) {
