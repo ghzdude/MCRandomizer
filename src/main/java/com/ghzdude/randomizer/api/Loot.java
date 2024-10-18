@@ -1,28 +1,31 @@
 package com.ghzdude.randomizer.api;
 
-import net.minecraft.core.Holder;
-import net.minecraft.core.Registry;
-import net.minecraft.core.RegistryAccess;
+import it.unimi.dsi.fastutil.objects.Reference2ObjectArrayMap;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.enchantment.Enchantment;
-import net.minecraft.world.level.storage.loot.predicates.LootItemCondition;
-import net.minecraft.world.level.storage.loot.predicates.LootItemConditionType;
+import net.minecraft.world.item.enchantment.Enchantments;
+import net.minecraft.world.level.storage.loot.LootParams;
+import net.minecraft.world.level.storage.loot.parameters.LootContextParam;
+import net.minecraft.world.level.storage.loot.parameters.LootContextParams;
+import org.jetbrains.annotations.NotNull;
 
-import java.util.function.Predicate;
+import java.util.Map;
 
 public final class Loot {
-    public interface TableInfo {
-        boolean randomizer$hasSilkTouch(RegistryAccess access);
-        ItemStack randomizer$getSilkDrop(RegistryAccess access);
-        ItemStack randomizer$getDrop(RegistryAccess access);
-    }
-    public interface PoolInfo {
-        boolean randomizer$checkForSilkTouch(Registry<Enchantment> registry);
-        Holder<Item> randomizer$getSilkDrop(Registry<Enchantment> registry);
-        Holder<Item> randomizer$getDrop(Registry<Enchantment> registry);
-    }
-    public interface EntryInfo {
-        boolean randomizer$hasCondition(LootItemConditionType type, Predicate<LootItemCondition> predicate);
+
+    public static LootParams createLootParams(ServerLevel level, @NotNull BlockItem block, @NotNull Item tool, boolean silk) {
+        var stack = new ItemStack(tool);
+        if (silk && !stack.isEmpty()) {
+            stack.enchant(level.registryAccess().registryOrThrow(Registries.ENCHANTMENT).getHolderOrThrow(Enchantments.SILK_TOUCH), 1);
+        }
+
+        Map<LootContextParam<?>, Object> lootContext = new Reference2ObjectArrayMap<>();
+        lootContext.put(LootContextParams.BLOCK_STATE, block.getBlock().defaultBlockState());
+        lootContext.put(LootContextParams.TOOL, stack);
+
+        return new LootParams(level, lootContext, Map.of(), 1f);
     }
 }
