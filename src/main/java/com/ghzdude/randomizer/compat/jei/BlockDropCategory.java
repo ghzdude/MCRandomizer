@@ -46,7 +46,7 @@ public class BlockDropCategory implements IRecipeCategory<BlockDropRecipe> {
 
     @Override
     public int getWidth() {
-        return 104;
+        return 60;
     }
 
     @Override
