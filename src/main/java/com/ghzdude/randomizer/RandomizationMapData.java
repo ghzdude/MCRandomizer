@@ -99,6 +99,9 @@ public class RandomizationMapData extends SavedData {
         }
         data.setDirty();
 
+        data.ITEM_LIST = List.copyOf(data.ITEM_MAP.keySet());
+        data.TAGKEY_LIST = List.copyOf(data.TAGKEY_MAP.keySet());
+
         data.isLoaded = true;
         return data;
     }

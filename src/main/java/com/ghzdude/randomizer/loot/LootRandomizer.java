@@ -33,8 +33,7 @@ public class LootRandomizer {
             final var withShears = Loot.createLootParams(server, blockItem, Items.SHEARS, false);
 
             ItemStack normalDrop = getDrop(table, hand);
-            if (normalDrop.isEmpty())
-                normalDrop = getDrop(table, withPick);
+            ItemStack pickDrop = getDrop(table, withPick);
 
             ItemStack silkDrop = getDrop(table, withSilkPick);
             ItemStack shearDrop = getDrop(table, withShears);
@@ -44,11 +43,15 @@ public class LootRandomizer {
             if (!normalDrop.isEmpty() && !ItemStack.isSameItemSameComponents(normalDrop, silkDrop))
                 BlockDropRecipe.registerRecipe(blockItem, INSTANCE.getStackFor(silkDrop), BlockDropRecipe.Type.SILK_PICK);
 
+            if (!ItemStack.isSameItemSameComponents(pickDrop, normalDrop))
+                BlockDropRecipe.registerRecipe(blockItem, INSTANCE.getStackFor(pickDrop), BlockDropRecipe.Type.PICK);
+
             if (!ItemStack.isSameItemSameComponents(shearDrop, normalDrop)) {
                 BlockDropRecipe.Type type;
                 if (ItemStack.isSameItemSameComponents(shearDrop, silkDrop))
                     type = BlockDropRecipe.Type.SHEARS_OR_SILK;
-                else type = BlockDropRecipe.Type.SHEARS;
+                else
+                    type = BlockDropRecipe.Type.SHEARS;
 
                 BlockDropRecipe.registerRecipe(blockItem, INSTANCE.getStackFor(shearDrop), type);
             }
