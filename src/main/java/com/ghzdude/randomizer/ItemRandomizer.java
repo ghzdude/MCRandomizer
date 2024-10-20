@@ -74,7 +74,7 @@ public class ItemRandomizer {
     public static Item getRandomItem(Random rng, int points) {
         Item toReturn;
         do {
-            toReturn = RandomizerUtil.getRandomItemFrom(ITEM_LIST, rng);
+            toReturn = RandomizerUtil.getRandom(ITEM_LIST, rng);
         } while (getPointValue(toReturn) > points);
         return toReturn;
     }
@@ -84,7 +84,7 @@ public class ItemRandomizer {
     }
 
     public static ItemStack getRandomItemStack(Random rng) {
-        var item = RandomizerUtil.getRandomItemFrom(ITEM_LIST, rng);
+        var item = RandomizerUtil.getRandom(ITEM_LIST, rng);
         return RandomizerUtil.itemToStack(INSTANCE.getItemFor(item));
     }
 

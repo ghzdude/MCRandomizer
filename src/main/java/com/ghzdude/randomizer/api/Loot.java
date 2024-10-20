@@ -2,6 +2,7 @@ package com.ghzdude.randomizer.api;
 
 import it.unimi.dsi.fastutil.objects.Reference2ObjectArrayMap;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
@@ -27,5 +28,9 @@ public final class Loot {
         lootContext.put(LootContextParams.TOOL, stack);
 
         return new LootParams(level, lootContext, Map.of(), 1f);
+    }
+
+    public static LootParams createLootParams(MinecraftServer server, @NotNull BlockItem block, @NotNull Item tool, boolean silk) {
+        return createLootParams(server.overworld(), block, tool, silk);
     }
 }

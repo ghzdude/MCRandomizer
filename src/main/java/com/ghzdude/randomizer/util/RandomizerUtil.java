@@ -71,7 +71,7 @@ public class RandomizerUtil {
         }
     }
 
-    public static Item getRandomItemFrom(List<Item> list, Random rng) {
+    public static <T> T getRandom(List<T> list, Random rng) {
         return list.get(rng.nextInt(list.size()));
     }
 

@@ -8,6 +8,7 @@ import com.ghzdude.randomizer.util.RandomizerUtil;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.item.BlockItem;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.storage.loot.LootContext;
@@ -22,14 +23,14 @@ public class LootRandomizer {
     public static void init(MinecraftServer server) {
         INSTANCE = RandomizationMapData.get(server, "loot");
 
-        INSTANCE.streamItems().forEach(item -> {
-            if (!(item instanceof BlockItem blockItem)) return;
+        for (Item item : INSTANCE.getItems()) {
+            if (!(item instanceof BlockItem blockItem)) continue;
             var table = server.reloadableRegistries().getLootTable(blockItem.getBlock().getLootTable());
 
-            final var hand = Loot.createLootParams(server.overworld(), blockItem, Items.AIR, false);
-            final var withPick = Loot.createLootParams(server.overworld(), blockItem, Items.NETHERITE_PICKAXE, false);
-            final var withSilkPick = Loot.createLootParams(server.overworld(), blockItem, Items.NETHERITE_PICKAXE, true);
-            final var withShears = Loot.createLootParams(server.overworld(), blockItem, Items.SHEARS, false);
+            final var hand = Loot.createLootParams(server, blockItem, Items.AIR, false);
+            final var withPick = Loot.createLootParams(server, blockItem, Items.NETHERITE_PICKAXE, false);
+            final var withSilkPick = Loot.createLootParams(server, blockItem, Items.NETHERITE_PICKAXE, true);
+            final var withShears = Loot.createLootParams(server, blockItem, Items.SHEARS, false);
 
             ItemStack normalDrop = getDrop(table, hand);
             if (normalDrop.isEmpty())
@@ -40,23 +41,18 @@ public class LootRandomizer {
 
             BlockDropRecipe.registerRecipe(blockItem, INSTANCE.getStackFor(normalDrop));
 
-            if (!normalDrop.isEmpty() && !sameItem(normalDrop, silkDrop))
+            if (!normalDrop.isEmpty() && !ItemStack.isSameItemSameComponents(normalDrop, silkDrop))
                 BlockDropRecipe.registerRecipe(blockItem, INSTANCE.getStackFor(silkDrop), BlockDropRecipe.Type.SILK_PICK);
 
-            if (!sameItem(shearDrop, normalDrop)) {
+            if (!ItemStack.isSameItemSameComponents(shearDrop, normalDrop)) {
                 BlockDropRecipe.Type type;
-                if (sameItem(shearDrop, silkDrop))
+                if (ItemStack.isSameItemSameComponents(shearDrop, silkDrop))
                     type = BlockDropRecipe.Type.SHEARS_OR_SILK;
                 else type = BlockDropRecipe.Type.SHEARS;
 
                 BlockDropRecipe.registerRecipe(blockItem, INSTANCE.getStackFor(shearDrop), type);
             }
-        });
-
-    }
-
-    private static boolean sameItem(ItemStack a, ItemStack b) {
-        return a.is(b.getItem()) && a.getDamageValue() == b.getDamageValue();
+        }
     }
 
     @SuppressWarnings("deprecation")
