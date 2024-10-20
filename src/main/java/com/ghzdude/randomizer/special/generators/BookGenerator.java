@@ -15,7 +15,6 @@ import java.util.List;
 public class BookGenerator {
 
     private static final String FORMAT = "%s";
-    private static final String PAGE_FORMAT = "\"%s\"";
 
     public static final ArrayList<Passage> PASSAGES = PassageIO.readPassages();
 
@@ -30,5 +29,6 @@ public class BookGenerator {
 
         var bookContent = new WrittenBookContent(Filterable.passThrough(String.format(FORMAT, passage.title())), passage.author(), 0, pages, true);
         stack.set(DataComponents.WRITTEN_BOOK_CONTENT, bookContent);
+        stack.setCount(1);
     }
 }

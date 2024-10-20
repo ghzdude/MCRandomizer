@@ -2,17 +2,13 @@ package com.ghzdude.randomizer.special.generators;
 
 import com.ghzdude.randomizer.RandomizerCore;
 import net.minecraft.core.Holder;
-import net.minecraft.core.Registry;
+import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.enchantment.Enchantment;
-import net.minecraftforge.registries.ForgeRegistries;
-import net.minecraftforge.registries.ForgeRegistry;
-import net.minecraftforge.registries.RegistryManager;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 import java.util.Random;
 import java.util.stream.Collectors;
@@ -21,7 +17,8 @@ public class EnchantmentGenerator {
 
     private static final ArrayList<Holder<Enchantment>> VALID_ENCHANTS = new ArrayList<>();
 
-    public static void init(Registry<Enchantment> enchantments) {
+    public static void init(RegistryAccess access) {
+        var enchantments = access.registryOrThrow(Registries.ENCHANTMENT);
         enchantments.stream()
                 .map(enchantments::wrapAsHolder)
                 .forEach(VALID_ENCHANTS::add);

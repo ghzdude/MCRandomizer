@@ -3,15 +3,12 @@ package com.ghzdude.randomizer.special.generators;
 import com.ghzdude.randomizer.RandomizerCore;
 import net.minecraft.core.Holder;
 import net.minecraft.core.Registry;
+import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.component.DataComponents;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.ListTag;
-import net.minecraft.nbt.StringTag;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.effect.MobEffect;
-import net.minecraft.world.effect.MobEffectCategory;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -20,7 +17,6 @@ import net.minecraft.world.item.alchemy.PotionContents;
 import net.minecraft.world.item.alchemy.Potions;
 import net.minecraft.world.item.component.ItemLore;
 import net.minecraft.world.item.component.SuspiciousStewEffects;
-import net.minecraftforge.registries.ForgeRegistries;
 
 import java.util.*;
 
@@ -40,7 +36,12 @@ public class PotionGenerator {
 
     private static Registry<MobEffect> EFFECT_REGISTRY;
 
-    public static void initPotions(Registry<Potion> potions) {
+    public static void init(RegistryAccess access) {
+        initEffects(access.registryOrThrow(Registries.MOB_EFFECT));
+        initPotions(access.registryOrThrow(Registries.POTION));
+    }
+
+    private static void initPotions(Registry<Potion> potions) {
         potions.stream()
                 .filter(potion -> !BLACKLISTED_POTIONS.contains(potion))
                 .forEach(potion -> {
@@ -49,7 +50,7 @@ public class PotionGenerator {
                 });
     }
 
-    public static void initEffects(Registry<MobEffect> effects) {
+    private static void initEffects(Registry<MobEffect> effects) {
         effects.stream().forEach(mobEffect -> {
             var loc = effects.getKey(mobEffect);
             VALID_EFFECTS.put(loc, mobEffect);

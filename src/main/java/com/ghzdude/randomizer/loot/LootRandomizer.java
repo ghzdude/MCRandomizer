@@ -1,10 +1,10 @@
 package com.ghzdude.randomizer.loot;
 
-import com.ghzdude.randomizer.ItemRandomizer;
 import com.ghzdude.randomizer.RandomizationMapData;
 import com.ghzdude.randomizer.RandomizerConfig;
 import com.ghzdude.randomizer.api.Loot;
 import com.ghzdude.randomizer.compat.jei.BlockDropRecipe;
+import com.ghzdude.randomizer.util.RandomizerUtil;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.item.BlockItem;
@@ -78,7 +78,7 @@ public class LootRandomizer {
             if (stack.isEmpty()) ret.add(ItemStack.EMPTY);
             else {
                 var random = INSTANCE.getItemFor(stack.getItem());
-                ret.add(ItemRandomizer.itemToStack(random, stack.getCount()));
+                ret.add(RandomizerUtil.itemToStack(random, stack.getCount()));
             }
         }
 
