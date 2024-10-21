@@ -22,7 +22,8 @@ public class BlockDropCategory implements IRecipeCategory<BlockDropRecipe> {
     public static final ResourceLocation UID = ResourceLocation.fromNamespaceAndPath(RandomizerCore.MODID, "block_drop");
     public static final RecipeType<BlockDropRecipe> TYPE = new RecipeType<>(UID, BlockDropRecipe.class);
     private final IDrawable ICON;
-    private final  IGuiHelper helper;
+    private final Component TITLE = Component.translatable("randomizer.compat.jei.block_drop_category");
+    private final IGuiHelper helper;
 
     public BlockDropCategory(IGuiHelper helper) {
         this.helper = helper;
@@ -36,7 +37,7 @@ public class BlockDropCategory implements IRecipeCategory<BlockDropRecipe> {
 
     @Override
     public @NotNull Component getTitle() {
-        return Component.literal("Block Drops");
+        return TITLE;
     }
 
     @Override
@@ -55,7 +56,7 @@ public class BlockDropCategory implements IRecipeCategory<BlockDropRecipe> {
     }
 
     @Override
-    public void setRecipe(IRecipeLayoutBuilder builder, BlockDropRecipe recipe, IFocusGroup focusGroup) {
+    public void setRecipe(IRecipeLayoutBuilder builder, BlockDropRecipe recipe, @NotNull IFocusGroup focusGroup) {
         builder.addSlot(RecipeIngredientRole.INPUT, 1, 1)
                 .setStandardSlotBackground()
                 .addIngredient(VanillaTypes.ITEM_STACK, recipe.input());
@@ -69,7 +70,7 @@ public class BlockDropCategory implements IRecipeCategory<BlockDropRecipe> {
     }
 
     @Override
-    public void draw(BlockDropRecipe recipe, IRecipeSlotsView recipeSlotsView, GuiGraphics guiGraphics, double mouseX, double mouseY) {
+    public void draw(@NotNull BlockDropRecipe recipe, @NotNull IRecipeSlotsView recipeSlotsView, @NotNull GuiGraphics guiGraphics, double mouseX, double mouseY) {
         helper.getRecipeArrow().draw(guiGraphics, 19, 1);
     }
 }

@@ -33,18 +33,20 @@ public record BlockDropRecipe(ItemStack input, ItemStack output, Type type) {
         SHEARS("Shears"),
         SHEARS_OR_SILK("Silk or Shears");
 
-        final String s;
+        final Component translation;
+        final String name;
         final ItemStack stack;
 
-        Type(String s) {
-            this.s = "Requires %s".formatted(s);
+        Type(String name) {
+            this.translation = Component.translatable("randomizer.compat.jei.block_drop.type." + name.toLowerCase().replace(' ', '_'));
+            this.name = name;
             this.stack = new ItemStack(Items.ENCHANTED_BOOK);
-            this.stack.set(DataComponents.CUSTOM_NAME, Component.literal(toString()));
+            this.stack.set(DataComponents.CUSTOM_NAME, this.translation);
         }
 
         @Override
         public String toString() {
-            return s;
+            return name;
         }
 
         public ItemStack getStack() {
