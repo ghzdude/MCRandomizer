@@ -15,11 +15,13 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.enchantment.Enchantments;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.storage.loot.LootContext;
 import net.minecraft.world.level.storage.loot.LootParams;
 import net.minecraft.world.level.storage.loot.LootTable;
 import net.minecraft.world.level.storage.loot.parameters.LootContextParam;
 import net.minecraft.world.level.storage.loot.parameters.LootContextParams;
+import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Map;
@@ -53,18 +55,16 @@ public class LootRandomizer {
 
             BlockDropRecipe.registerRecipe(blockItem, INSTANCE.getStackFor(handDrop));
 
-            if (!handDrop.isEmpty() && !ItemStack.isSameItemSameComponents(handDrop, silkDrop))
-                BlockDropRecipe.registerRecipe(blockItem, INSTANCE.getStackFor(silkDrop), BlockDropRecipe.Type.SILK_PICK);
-
             if (!ItemStack.isSameItemSameComponents(pickDrop, handDrop))
                 BlockDropRecipe.registerRecipe(blockItem, INSTANCE.getStackFor(pickDrop), BlockDropRecipe.Type.PICK);
 
+            if (!ItemStack.isSameItemSameComponents(silkDrop, handDrop) && !ItemStack.isSameItemSameComponents(shearDrop, silkDrop))
+                BlockDropRecipe.registerRecipe(blockItem, INSTANCE.getStackFor(silkDrop), BlockDropRecipe.Type.SILK_PICK);
+
             if (!ItemStack.isSameItemSameComponents(shearDrop, handDrop)) {
-                BlockDropRecipe.Type type;
-                if (ItemStack.isSameItemSameComponents(shearDrop, silkDrop))
-                    type = BlockDropRecipe.Type.SHEARS_OR_SILK;
-                else
-                    type = BlockDropRecipe.Type.SHEARS;
+                var type = ItemStack.isSameItemSameComponents(shearDrop, silkDrop) ?
+                        BlockDropRecipe.Type.SHEARS_OR_SILK :
+                        BlockDropRecipe.Type.SHEARS;
 
                 BlockDropRecipe.registerRecipe(blockItem, INSTANCE.getStackFor(shearDrop), type);
             }
@@ -72,9 +72,11 @@ public class LootRandomizer {
     }
 
     @SuppressWarnings("deprecation")
-    private static ItemStack getDrop(LootTable table, LootParams params) {
+    private static ItemStack getDrop(LootTable table, MutableLootParams params) {
         var list = new ObjectArrayList<ItemStack>();
-        table.getRandomItemsRaw(params, LootTable.createStackSplitter(params.getLevel(), list::add));
+        table.getRandomItemsRaw(params, LootTable.createStackSplitter(params.getLevel(), stack -> {
+            if (params.willDrop()) list.add(stack);
+        }));
         return list.isEmpty() ? ItemStack.EMPTY : list.getFirst();
     }
 
@@ -105,6 +107,7 @@ public class LootRandomizer {
 
         Map<LootContextParam<?>, Object> lootContext = new Reference2ObjectArrayMap<>();
         lootContext.put(LootContextParams.TOOL, stack);
+        lootContext.put(LootContextParams.ORIGIN, Vec3.ZERO);
 
         return new MutableLootParams(level, lootContext, Map.of(), 1f);
     }
@@ -124,6 +127,14 @@ public class LootRandomizer {
 
         public void updateState(BlockItem item) {
             params.put(LootContextParams.BLOCK_STATE, item.getBlock().defaultBlockState());
+        }
+
+        public boolean willDrop() {
+            var state = (BlockState) params.get(LootContextParams.BLOCK_STATE);
+            if (!state.requiresCorrectToolForDrops()) return true;
+
+            ItemStack tool = (ItemStack) params.get(LootContextParams.TOOL);
+            return tool.isCorrectToolForDrops(state);
         }
     }
 }
