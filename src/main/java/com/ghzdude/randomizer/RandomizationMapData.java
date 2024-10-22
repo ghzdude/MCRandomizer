@@ -1,5 +1,6 @@
 package com.ghzdude.randomizer;
 
+import com.ghzdude.randomizer.util.RandomizerUtil;
 import com.google.common.collect.Lists;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import net.minecraft.core.HolderLookup;
@@ -21,11 +22,12 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
-import java.util.stream.Stream;
 
 public class RandomizationMapData extends SavedData {
     private final Map<Item, Item> ITEM_MAP = new Object2ObjectOpenHashMap<>();
     private final Map<TagKey<Item>, TagKey<Item>> TAGKEY_MAP = new Object2ObjectOpenHashMap<>();
+    private List<Item> ITEM_LIST = List.of();
+    private List<TagKey<Item>> TAGKEY_LIST = List.of();
 
     private boolean isLoaded = false;
 
@@ -97,6 +99,9 @@ public class RandomizationMapData extends SavedData {
         }
         data.setDirty();
 
+        data.ITEM_LIST = List.copyOf(data.ITEM_MAP.keySet());
+        data.TAGKEY_LIST = List.copyOf(data.TAGKEY_MAP.keySet());
+
         data.isLoaded = true;
         return data;
     }
@@ -117,6 +122,7 @@ public class RandomizationMapData extends SavedData {
         for (int i = 0; i < vanilla.size(); i++) {
             TAGKEY_MAP.put(vanilla.get(i), randomized.get(i));
         }
+        TAGKEY_LIST = List.copyOf(TAGKEY_MAP.keySet());
     }
 
     private void generateItemMap(Random rng) {
@@ -135,6 +141,7 @@ public class RandomizationMapData extends SavedData {
 
             ITEM_MAP.put(key, value);
         }
+        ITEM_LIST = List.copyOf(ITEM_MAP.keySet());
     }
 
     private void put(Item vanilla, Item random) {
@@ -151,7 +158,7 @@ public class RandomizationMapData extends SavedData {
 
     public ItemStack getStackFor(Item vanilla, int count) {
         Item randomItem = getItemFor(vanilla);
-        if (randomItem == null || count < 1) return ItemStack.EMPTY;
+        if (randomItem == null || count < 1 || vanilla == Items.AIR) return ItemStack.EMPTY;
 
         ItemStack random = new ItemStack(randomItem);
         random.setCount(Math.min(random.getMaxStackSize(), count));
@@ -167,20 +174,19 @@ public class RandomizationMapData extends SavedData {
     }
 
     public TagKey<Item> getRandomTag(Random rng) {
-        List<TagKey<Item>> tags = streamTags().toList();
-        return tags.get(rng.nextInt(tags.size()));
+        return RandomizerUtil.getRandom(TAGKEY_LIST, rng);
     }
 
     public Item getRandomItem(Random rng) {
-        List<Item> items = streamItems().toList();
-        return items.get(rng.nextInt(items.size()));
+        return RandomizerUtil.getRandom(ITEM_LIST, rng);
     }
 
-    public Stream<TagKey<Item>> streamTags() {
-        return TAGKEY_MAP.values().stream();
+    public List<Item> getItems() {
+        return ITEM_LIST;
     }
-    public Stream<Item> streamItems() {
-        return ITEM_MAP.values().stream();
+
+    public List<TagKey<Item>> getTags() {
+        return TAGKEY_LIST;
     }
 
     public boolean isLoaded() {

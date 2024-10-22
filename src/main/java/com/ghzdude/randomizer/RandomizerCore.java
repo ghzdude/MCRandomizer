@@ -1,12 +1,11 @@
 package com.ghzdude.randomizer;
 
-import com.ghzdude.randomizer.special.generators.EnchantmentGenerator;
-import com.ghzdude.randomizer.special.generators.PotionGenerator;
+import com.ghzdude.randomizer.loot.LootRandomizer;
 import com.ghzdude.randomizer.special.modifiers.AdvancementModifier;
 import com.ghzdude.randomizer.special.modifiers.RecipeModifier;
+import com.ghzdude.randomizer.util.RandomizerUtil;
 import com.mojang.logging.LogUtils;
 import net.minecraft.core.RegistryAccess;
-import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.ServerAdvancementManager;
@@ -79,24 +78,18 @@ public class RandomizerCore
 
     @SubscribeEvent
     public void onStart(ServerStartedEvent event) {
-        seededRNG = new Random(event.getServer().getWorldData().worldGenOptions().seed());
+        var server = event.getServer();
+        seededRNG = new Random(server.getWorldData().worldGenOptions().seed());
         unseededRNG = new Random();
-        ItemRandomizer.init(event.getServer());
-        StructureRandomizer.configureStructures(event.getServer().registryAccess());
-        event.getServer().registryAccess()
-                .registry(Registries.ENCHANTMENT)
-                .ifPresent(EnchantmentGenerator::init);
-        event.getServer().registryAccess()
-                .registry(Registries.POTION)
-                .ifPresent(PotionGenerator::initPotions);
-        event.getServer().registryAccess()
-                .registry(Registries.MOB_EFFECT)
-                .ifPresent(PotionGenerator::initEffects);
+        ItemRandomizer.init(server);
+        LootRandomizer.init(server);
+        RandomizerUtil.init(server.registryAccess());
         serverStarted = true;
     }
 
     @SubscribeEvent
     public void onStop(ServerStoppingEvent event) {
+        RandomizerUtil.dispose();
         serverStarted = false;
     }
 

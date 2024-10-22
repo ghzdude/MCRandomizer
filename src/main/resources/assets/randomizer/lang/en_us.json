@@ -3,5 +3,11 @@
   "random.potion": "Random Potion",
   "structure.spawning": "Attempting to generate %s! The game may lag for a while!",
   "structure.spawning.failed": "Failed to generate %s! Falling back to item...",
-  "structure.spawning.success": "%s generated at %s!"
+  "structure.spawning.success": "%s generated at %s!",
+  "randomizer.compat.jei.block_drop_category": "Block Drops",
+  "randomizer.compat.jei.block_drop.type.hand": "Requires Hand",
+  "randomizer.compat.jei.block_drop.type.pick": "Requires Pick",
+  "randomizer.compat.jei.block_drop.type.silk_touch": "Requires Silk Touch",
+  "randomizer.compat.jei.block_drop.type.shears": "Requires Shears",
+  "randomizer.compat.jei.block_drop.type.silk_or_shears": "Requires Silk or Shears"
 }
