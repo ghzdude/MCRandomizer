@@ -12,10 +12,11 @@ import org.jetbrains.annotations.NotNull;
 public class JeiCompat implements IModPlugin {
 
     public BlockDropCategory blockDropCategory;
+    public static final ResourceLocation UID = ResourceLocation.fromNamespaceAndPath(RandomizerCore.MODID, "block_drops");
 
     @Override
     public @NotNull ResourceLocation getPluginUid() {
-        return ResourceLocation.fromNamespaceAndPath(RandomizerCore.MODID, "block_drops");
+        return UID;
     }
 
     @Override

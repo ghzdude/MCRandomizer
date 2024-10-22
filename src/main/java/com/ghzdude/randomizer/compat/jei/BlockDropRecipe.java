@@ -13,9 +13,8 @@ public record BlockDropRecipe(ItemStack input, ItemStack output, Type type) {
     private static final List<BlockDropRecipe> REGISTRY = new ArrayList<>();
 
     public static void registerRecipe(Item in, ItemStack output, Type type) {
-        if (output.isEmpty()) return; // todo log?
-        var recipe = new BlockDropRecipe(new ItemStack(in), output, type);
-        REGISTRY.add(recipe);
+        if (output.isEmpty()) return;
+        REGISTRY.add(new BlockDropRecipe(new ItemStack(in), output, type));
     }
 
     public static void registerRecipe(Item in, ItemStack output) {
