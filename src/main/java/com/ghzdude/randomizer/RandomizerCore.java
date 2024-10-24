@@ -119,6 +119,7 @@ public class RandomizerCore
         var player = (ServerPlayer) event.player;
         var data = player.getPersistentData();
 
+        // todo get points from player directly and remove fields
         if (shouldUsePoints(player)) {
             int points = data.getInt(POINT_KEY);
             int pointMax = data.getInt(POINT_MAX_KEY);
@@ -133,7 +134,7 @@ public class RandomizerCore
 
             int selection = seededRNG.nextInt(100);
             if (RandomizerConfig.generateStructures && selection < RandomizerConfig.structureProbability) {
-                remaining = StructureRandomizer.placeStructure(pointsToUse, player.serverLevel(), player);
+                remaining = StructureRandomizer.tryPlace(pointsToUse, player.serverLevel(), player);
             } else if (RandomizerConfig.giveRandomItems) {
                 // todo add lang here
                 player.displayClientMessage(Component.literal("Giving Item..."), true);

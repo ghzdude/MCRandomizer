@@ -19,7 +19,7 @@ public class RandomizerUtil {
     private static boolean init;
 
     public static void init(RegistryAccess access) {
-        StructureRandomizer.configureStructures(access);
+        StructureRandomizer.init(access);
         EnchantmentGenerator.init(access);
         PotionGenerator.init(access);
         init = true;

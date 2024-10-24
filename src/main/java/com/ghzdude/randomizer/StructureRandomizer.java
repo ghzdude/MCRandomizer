@@ -1,8 +1,8 @@
 package com.ghzdude.randomizer;
 
 import com.ghzdude.randomizer.io.ConfigIO;
-import com.ghzdude.randomizer.mixin.structure.Randomizer$StructureStart;
 import com.ghzdude.randomizer.special.structure.SpecialStructures;
+import it.unimi.dsi.fastutil.objects.Object2IntMap;
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Registry;
@@ -10,94 +10,139 @@ import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.SectionPos;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.MutableComponent;
-import net.minecraft.network.chat.contents.TranslatableContents;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.ChunkPos;
-import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.chunk.ChunkGenerator;
+import net.minecraft.world.level.levelgen.feature.ConfiguredFeature;
 import net.minecraft.world.level.levelgen.structure.BoundingBox;
 import net.minecraft.world.level.levelgen.structure.Structure;
-import net.minecraft.world.level.levelgen.structure.StructurePiece;
 import net.minecraft.world.level.levelgen.structure.StructureStart;
-import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 
 /* Structure Randomizer description
  * every so often, generate a structure at some random x, z coordinate near the player
  */
 public class StructureRandomizer {
     private static final List<ResourceLocation> BLACKLISTED_STRUCTURES = ConfigIO.readStructureBlacklist();
-    private static final Map<ResourceKey<Structure>, Integer> VALID_STRUCTURES = new Object2IntOpenHashMap<>();
-    private static final List<ResourceKey<Structure>> STRUCTURES = new ArrayList<>();
+    private static final Object2IntMap<ResourceLocation> VALID_STRUCTURES = new Object2IntOpenHashMap<>();
+    private static final List<ResourceLocation> STRUCTURES = new ArrayList<>();
 
-    public static int placeStructure(int pointsToUse, ServerLevel level, ServerPlayer player) {
-        if (pointsToUse < 1) return pointsToUse;
+    private static final List<ResourceLocation> BLACKLISTED_FEATURES = List.of();
+    private static final Object2IntMap<ResourceLocation> VALID_FEATURES = new Object2IntOpenHashMap<>();
+    private static final List<ResourceLocation> FEATURES = new ArrayList<>();
 
-        ResourceKey<Structure> structureKey = selectStructure(pointsToUse);
+    private static Registry<Structure> STRUCTURE_REGISTRY;
+    private static Registry<ConfiguredFeature<?, ?>> FEATURE_REGISTRY;
 
-        int offsetX = level.getRandom().nextIntBetweenInclusive(32, 64);
-        int offsetZ = level.getRandom().nextIntBetweenInclusive(32, 64);
+    public static void init(RegistryAccess access) {
+        STRUCTURE_REGISTRY = access.registryOrThrow(Registries.STRUCTURE);
+        FEATURE_REGISTRY = access.registryOrThrow(Registries.CONFIGURED_FEATURE);
 
-        BlockPos target = player.getOnPos();
+        VALID_STRUCTURES.putAll(SpecialStructures.CONFIGURED_STRUCTURES);
+        STRUCTURES.addAll(VALID_STRUCTURES.keySet());
 
-        if (level.getRandom().nextBoolean()) {
-            target = target.offset(offsetX, 0, offsetZ);
-        } else if (level.getRandom().nextBoolean()) {
-            target = target.offset(-offsetX, 0, offsetZ);
-        } else if (level.getRandom().nextBoolean()) {
-            target = target.offset(-offsetX, 0, -offsetZ);
-        } else {
-            target = target.offset(offsetX, 0, -offsetZ);
+        for (var loc : STRUCTURE_REGISTRY.keySet()) {
+            if (BLACKLISTED_STRUCTURES.contains(loc) || VALID_STRUCTURES.containsKey(loc))
+                continue;
+
+            VALID_STRUCTURES.put(loc, 1);
+            STRUCTURES.add(loc);
         }
 
-        RandomizerCore.LOGGER.warn(String.format("Attempting to generate [%s] at %s", structureKey.location(), target));
-        sendMessage(player, "structure.spawning", structureKey.location());
+        for (var loc : FEATURE_REGISTRY.keySet()) {
+            if (BLACKLISTED_FEATURES.contains(loc) || VALID_FEATURES.containsKey(loc))
+                continue;
 
-        boolean success = tryPlaceStructure(level, structureKey, target);
+            VALID_FEATURES.put(loc, 1);
+            FEATURES.add(loc);
+        }
+    }
+
+    public static int tryPlace(int pointsToUse, ServerLevel level, ServerPlayer player) {
+        return RandomizerCore.seededRNG.nextBoolean() ?
+                placeStructure(pointsToUse, level, player) :
+                placeFeature(pointsToUse, level, player);
+    }
+
+    private static int placeStructure(int pointsToUse, ServerLevel level, ServerPlayer player) {
+        if (pointsToUse < 1) return pointsToUse;
+
+        var selectedStructure = selectStructure(pointsToUse);
+
+        BlockPos target = getPos(player, level);
+
+        RandomizerCore.LOGGER.warn("Attempting to generate [{}] at {}", selectedStructure, target);
+        sendMessage(player, "structure.spawning", selectedStructure);
+
+        boolean success = tryPlaceStructure(level, ResourceKey.create(STRUCTURE_REGISTRY.key(), selectedStructure), target);
         if (!success) {
-            sendMessage(player, "structure.spawning.failed", structureKey.location());
             if (RandomizerConfig.giveRandomItems) {
+                sendMessage(player, "structure.spawning.failed", selectedStructure);
                 pointsToUse -= ItemRandomizer.giveRandomItem(pointsToUse, player.getInventory());
             }
             return pointsToUse;
         }
-        sendMessage(player, "structure.spawning.success", structureKey.location(), target);
-        return pointsToUse - VALID_STRUCTURES.get(structureKey);
+        sendMessage(player, "structure.spawning.success", selectedStructure, target);
+        return pointsToUse - VALID_STRUCTURES.getInt(selectedStructure);
+    }
+
+    private static int placeFeature(int pointsToUse, ServerLevel level, ServerPlayer player) {
+        ResourceLocation feature;
+        do {
+            int id = RandomizerCore.seededRNG.nextInt(FEATURES.size());
+            feature = STRUCTURES.get(id);
+        } while (VALID_FEATURES.getInt(feature) > pointsToUse);
+
+        if (!tryPlaceFeature(level, ResourceKey.create(FEATURE_REGISTRY.key(), feature), getPos(player, level))) {
+            if (RandomizerConfig.giveRandomItems) {
+                sendMessage(player, "structure.spawning.failed", feature);
+                pointsToUse -= ItemRandomizer.giveRandomItem(pointsToUse, player.getInventory());
+                RandomizerCore.incrementAmtItemsGiven();
+            }
+            return pointsToUse;
+        }
+
+        return pointsToUse - VALID_FEATURES.getInt(feature);
     }
 
     private static void sendMessage(ServerPlayer player, String lang, Object... keys) {
-        Component[] args = new Component[keys.length];
-        for (int i = 0; i < keys.length; i++) {
-            var key = keys[i];
-            args[i] = Component.literal(key.toString());
-        }
-        var contents = new TranslatableContents(lang, null, args);
-        player.displayClientMessage(MutableComponent.create(contents), false);
+        player.displayClientMessage(Component.translatable(lang, keys), false);
     }
 
-    private static ResourceKey<Structure> selectStructure(int points) {
-        ResourceKey<Structure> structure;
+    private static ResourceLocation selectStructure(int points) {
+        ResourceLocation structure;
         do {
             int id = RandomizerCore.seededRNG.nextInt(STRUCTURES.size());
             structure = STRUCTURES.get(id);
-        } while (VALID_STRUCTURES.get(structure) > points);
+        } while (VALID_STRUCTURES.getInt(structure) > points);
         return structure;
     }
 
-    private static boolean tryPlaceStructure(ServerLevel serverLevel, ResourceKey<Structure> structureKey, BlockPos blockPos) {
+    private static BlockPos getPos(ServerPlayer player, ServerLevel level) {
+        int offsetX = level.getRandom().nextIntBetweenInclusive(32, 128);
+        int offsetZ = level.getRandom().nextIntBetweenInclusive(32, 128);
+
+        switch (level.getRandom().nextInt(4)) {
+            case 1 -> offsetX = -offsetX;
+            case 2 -> offsetZ = -offsetZ;
+            case 3 -> {
+                offsetX = -offsetX;
+                offsetZ = -offsetZ;
+            }
+        }
+
+        return player.getOnPos().offset(offsetX, 0, offsetZ);
+    }
+
+    private static boolean tryPlaceStructure(ServerLevel serverLevel, ResourceKey<Structure> resourceKey, BlockPos blockPos) {
+        Structure structure = STRUCTURE_REGISTRY.getOrThrow(resourceKey);
+
         ChunkGenerator chunkgenerator = serverLevel.getChunkSource().getGenerator();
-
-        Registry<Structure> registry = getStructures(serverLevel.registryAccess());
-        Structure structure = registry.getOrThrow(structureKey);
-
         StructureStart structurestart = structure.generate(
                 serverLevel.registryAccess(), chunkgenerator, chunkgenerator.getBiomeSource(),
                 serverLevel.getChunkSource().randomState(), serverLevel.getStructureManager(),
@@ -121,58 +166,16 @@ public class StructureRandomizer {
             );
             // todo maybe place blocks here?
 
-            placeStructure(structurestart, serverLevel, bb, chunkPos);
-//            structurestart.placeInChunk(
-//                    serverLevel, serverLevel.structureManager(), chunkgenerator,
-//                    serverLevel.getRandom(), bb, chunkPos
-//            );
+            structurestart.placeInChunk(
+                    serverLevel, serverLevel.structureManager(), chunkgenerator,
+                    serverLevel.getRandom(), bb, chunkPos
+            );
         }
         return true;
     }
 
-    private static void placeStructure(StructureStart structureStart, ServerLevel serverLevel, BoundingBox bb, ChunkPos chunkPos) {
-        List<StructurePiece> list = structureStart.getPieces();
-        if (!list.isEmpty()) {
-            BoundingBox boundingbox = list.getFirst().getBoundingBox();
-            BlockPos blockpos = boundingbox.getCenter();
-            BlockPos blockpos1 = new BlockPos(blockpos.getX(), boundingbox.minY(), blockpos.getZ());
-
-            for (StructurePiece structurepiece : list) {
-                var bb2 = structurepiece.getBoundingBox();
-                if (bb2.intersects(bb)) {
-                    BlockPos.betweenClosedStream(bb2.moved(0, bb.getYSpan(), 0).inflatedBy(1))
-                            .filter(p -> serverLevel.getBlockState(p).isAir())
-                            .filter(p -> !bb2.isInside(p))
-                            .forEach(p -> serverLevel.setBlock(p, Blocks.SANDSTONE.defaultBlockState(), 3));
-
-                    structurepiece.postProcess(serverLevel, serverLevel.structureManager(),
-                            serverLevel.getChunkSource().getGenerator(), serverLevel.getRandom(), bb, chunkPos, blockpos1);
-                }
-            }
-
-            structureStart.getStructure().afterPlace(serverLevel, serverLevel.structureManager(),
-                    serverLevel.getChunkSource().getGenerator(), serverLevel.getRandom(), bb, chunkPos,
-                    ((Randomizer$StructureStart) (Object) structureStart).getContainer());
-        }
-    }
-
-    public static void configureStructures(RegistryAccess access) {
-        VALID_STRUCTURES.putAll(SpecialStructures.CONFIGURED_STRUCTURES);
-        STRUCTURES.addAll(VALID_STRUCTURES.keySet());
-
-        Registry<Structure> structures = getStructures(access);
-
-        for (ResourceKey<Structure> key : structures.registryKeySet()) {
-            if (BLACKLISTED_STRUCTURES.contains(key.location()))
-                continue;
-
-            VALID_STRUCTURES.put(key, 1);
-            STRUCTURES.add(key);
-        }
-    }
-
-    @NotNull
-    public static Registry<Structure> getStructures(RegistryAccess access) {
-        return access.registryOrThrow(Registries.STRUCTURE);
+    private static boolean tryPlaceFeature(ServerLevel serverLevel, ResourceKey<ConfiguredFeature<?, ?>> resourceKey, BlockPos blockPos) {
+        var feature = FEATURE_REGISTRY.getOrThrow(resourceKey);
+        return feature.place(serverLevel, serverLevel.getChunkSource().getGenerator(), serverLevel.getRandom(), blockPos);
     }
 }
