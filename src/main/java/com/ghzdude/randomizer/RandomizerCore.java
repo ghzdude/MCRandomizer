@@ -133,7 +133,7 @@ public class RandomizerCore
             points -= pointsToUse;
 
             if (RandomizerConfig.generateStructures && seededRNG.nextInt(100) < RandomizerConfig.structureProbability) {
-                remaining = StructureRandomizer.placeStructure(pointsToUse, player.serverLevel(), player);
+                remaining = StructureRandomizer.tryPlace(pointsToUse, player.serverLevel(), player);
             } else if (RandomizerConfig.giveRandomItems) {
                 remaining = ItemRandomizer.giveRandomItem(pointsToUse, player.getInventory());
             }
