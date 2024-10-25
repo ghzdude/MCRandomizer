@@ -76,6 +76,10 @@ public class RandomizerUtil {
         return list.get(rng.nextInt(list.size()));
     }
 
+    public static <T> T getRandom(List<T> list) {
+        return getRandom(list, RandomizerCore.unseededRNG);
+    }
+
     public static ItemStack specialItemToStack(Item item, int points) {
         int amtToGive = Math.floorDiv(points, ItemRandomizer.getPointValue(item));
         return itemToStack(item, amtToGive);
