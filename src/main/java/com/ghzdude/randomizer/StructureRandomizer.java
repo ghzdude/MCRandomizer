@@ -62,7 +62,6 @@ public class StructureRandomizer {
             sendMessage(player, "structure.spawning.failed", structureKey.location());
             if (RandomizerConfig.giveRandomItems) {
                 pointsToUse -= ItemRandomizer.giveRandomItem(pointsToUse, player.getInventory());
-                RandomizerCore.incrementAmtItemsGiven();
             }
             return pointsToUse;
         }

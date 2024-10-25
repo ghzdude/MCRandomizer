@@ -15,7 +15,6 @@ import net.minecraft.world.item.crafting.RecipeManager;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.AddReloadListenerEvent;
 import net.minecraftforge.event.TickEvent;
-import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.event.server.ServerStartedEvent;
 import net.minecraftforge.event.server.ServerStoppingEvent;
 import net.minecraftforge.eventbus.api.IEventBus;
@@ -37,6 +36,11 @@ public class RandomizerCore
     public static final String MODID = "randomizer";
     // Directly reference a slf4j logger
     public static final Logger LOGGER = LogUtils.getLogger();
+    private static final String POINT_KEY = "points";
+    private static final String POINT_MAX_KEY = "point_max";
+    private static final String CYCLE_KEY = "cycle";
+    private static final String CYCLE_COUNTER_KEY = "cycle_counter";
+    private static final String AMOUNT_KEY = "amount_items_given";
     public static Random seededRNG;
     public static Random unseededRNG;
     public static boolean serverStarted = false;
@@ -48,11 +52,6 @@ public class RandomizerCore
 
     private int OFFSET = 0;
     private static final int COUNTER_MAX = 50;
-    private static int amtItemsGiven = 0;
-    private int points = 0;
-    private int pointMax = 1;
-    private int cycle = 0;
-    private int cycleCounter = 3;
 
     public RandomizerCore() {
         IEventBus modEventBus = FMLJavaModLoadingContext.get().getModEventBus();
@@ -72,8 +71,12 @@ public class RandomizerCore
         MinecraftForge.EVENT_BUS.register(RandomizerConfig.class);
     }
 
-    public static void incrementAmtItemsGiven() {
-        amtItemsGiven++;
+    public static void incrementAmtItemsGiven(Player player) {
+        incrementAmtItemsGiven(player.getPersistentData());
+    }
+
+    public static void incrementAmtItemsGiven(CompoundTag data) {
+        data.putInt(AMOUNT_KEY, data.getInt(AMOUNT_KEY) + 1);
     }
 
     @SubscribeEvent
@@ -111,75 +114,65 @@ public class RandomizerCore
 
     @SubscribeEvent
     public void update(TickEvent.PlayerTickEvent event) {
-        if (event.side.isClient()) return;
-        if (event.phase == TickEvent.Phase.END) return;
-        if (OFFSET < 0) OFFSET = 0;
-        OFFSET++;
+        if (!shouldTick(event)) return;
 
-        ServerPlayer player = (ServerPlayer) event.player;
+        var player = (ServerPlayer) event.player;
+        var data = player.getPersistentData();
 
         if (shouldUsePoints(player)) {
+            int points = data.getInt(POINT_KEY);
+            int pointMax = data.getInt(POINT_MAX_KEY);
+
             if (RandomizerConfig.pointsCarryover) {
                 points += pointMax;
-            } else {
-                points = pointMax;
             }
 
             int pointsToUse = seededRNG.nextInt(points) + 1;
+            int remaining = pointsToUse;
             points -= pointsToUse;
 
             int selection = seededRNG.nextInt(100);
             if (RandomizerConfig.generateStructures && selection < RandomizerConfig.structureProbability) {
-                pointsToUse = StructureRandomizer.placeStructure(pointsToUse, player.serverLevel(), player);
+                remaining = StructureRandomizer.placeStructure(pointsToUse, player.serverLevel(), player);
             } else if (RandomizerConfig.giveRandomItems) {
                 player.displayClientMessage(Component.literal("Giving Item..."), true);
-                pointsToUse = ItemRandomizer.giveRandomItem(pointsToUse, player.getInventory());
-                incrementAmtItemsGiven();
+                remaining = ItemRandomizer.giveRandomItem(pointsToUse, player.getInventory());
             }
 
-            increaseCycle(player);
-            points += pointsToUse;
+            // we used points, so something succeeded
+            if (remaining < pointsToUse) {
+                increaseCycle(player, data);
+            }
+
+            points += pointsToUse - remaining;
+            player.getPersistentData().putInt(POINT_KEY, points);
         }
     }
 
     private boolean shouldUsePoints(ServerPlayer player) {
-        return player.gameMode.isSurvival() && OFFSET % RandomizerConfig.itemCooldown == 0;
+        return player.gameMode.isSurvival();
     }
 
-    private void increaseCycle(Player player) {
-        cycle++;
+    private boolean shouldTick(TickEvent.PlayerTickEvent event) {
+        if (event.side.isClient()) return false;
+        if (event.phase == TickEvent.Phase.END) return false;
+        if (OFFSET < 0) OFFSET = 0;
+        return ++OFFSET % RandomizerConfig.itemCooldown == 0;
+    }
+
+    private void increaseCycle(Player player, CompoundTag data) {
+        int cycle = data.getInt(CYCLE_KEY) + 1;
+        int cycleCounter = data.getInt(CYCLE_COUNTER_KEY);
+        int pointMax = data.getInt(POINT_MAX_KEY);
+
         if (cycle % cycleCounter == 0) {
             cycle = 0;
             int i = (cycleCounter / 2) + 1;
             cycleCounter = Math.min(cycleCounter + i, COUNTER_MAX);
-            pointMax++;
+            data.putInt(POINT_MAX_KEY, pointMax + 1);
             player.sendSystemMessage(Component.translatable("player.point_max.increased", pointMax));
         }
-    }
-
-    @SubscribeEvent
-    public void onLogin(PlayerEvent.PlayerLoggedInEvent player) {
-        CompoundTag tag = player.getEntity().getPersistentData();
-        points = tag.getInt("points");
-        pointMax = tag.getInt("point_max");
-        amtItemsGiven = tag.getInt("amount_items_given");
-        cycle = tag.getInt("cycle");
-        cycleCounter = tag.getInt("cycle_counter");
-
-        points = Math.max(points, 0);
-        pointMax = Math.max(pointMax, 1);
-        amtItemsGiven = Math.max(amtItemsGiven, 0);
-        cycle = Math.max(cycle, 0);
-        cycleCounter = Math.max(cycleCounter, RandomizerConfig.cycleBase);
-    }
-
-    @SubscribeEvent
-    public void onLogout(PlayerEvent.PlayerLoggedOutEvent player) {
-        CompoundTag tag = player.getEntity().getPersistentData();
-        tag.putInt("points", points);
-        tag.putInt("point_max", pointMax);
-        tag.putInt("amount_items_given", amtItemsGiven);
-        tag.putInt("cycle", cycle);
-        tag.putInt("cycle_counter", cycleCounter);
+        data.putInt(CYCLE_KEY, cycle);
+        data.putInt(CYCLE_COUNTER_KEY, cycleCounter);
     }
 }
