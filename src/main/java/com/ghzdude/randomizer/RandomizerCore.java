@@ -135,6 +135,7 @@ public class RandomizerCore
             if (RandomizerConfig.generateStructures && selection < RandomizerConfig.structureProbability) {
                 remaining = StructureRandomizer.placeStructure(pointsToUse, player.serverLevel(), player);
             } else if (RandomizerConfig.giveRandomItems) {
+                // todo add lang here
                 player.displayClientMessage(Component.literal("Giving Item..."), true);
                 remaining = ItemRandomizer.giveRandomItem(pointsToUse, player.getInventory());
             }
