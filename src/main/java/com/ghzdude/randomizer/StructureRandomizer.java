@@ -18,12 +18,14 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.chunk.ChunkGenerator;
 import net.minecraft.world.level.levelgen.feature.ConfiguredFeature;
+import net.minecraft.world.level.levelgen.feature.OreFeature;
 import net.minecraft.world.level.levelgen.structure.BoundingBox;
 import net.minecraft.world.level.levelgen.structure.Structure;
 import net.minecraft.world.level.levelgen.structure.StructureStart;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Predicate;
 import java.util.Map;
 import java.util.Objects;
 
@@ -116,7 +118,6 @@ public class StructureRandomizer {
             RandomizerCore.LOGGER.warn("Failed to place feature \"{}\"", feature);
             if (RandomizerConfig.giveRandomItems) {
                 pointsToUse -= ItemRandomizer.giveRandomItem(pointsToUse, player.getInventory());
-                RandomizerCore.incrementAmtItemsGiven();
             }
             return pointsToUse;
         }
@@ -187,13 +188,18 @@ public class StructureRandomizer {
         var feature = FEATURE_REGISTRY.getOrThrow(resourceKey);
 
         RandomizerCore.LOGGER.warn("Placing feature \"{}\"", resourceKey.location());
-
-        var optional = BlockPos.findClosestMatch(blockPos, 5, 32, pos ->
-                feature.place(serverLevel, serverLevel.getChunkSource().getGenerator(), serverLevel.getRandom(), pos));
+        if (feature.feature() instanceof OreFeature) {
+            // todo special handling of ore features?
+        }
+        var optional = BlockPos.findClosestMatch(blockPos, 8, 16, featurePredicate(serverLevel, feature));
         if (optional.isEmpty()) return false;
 
         var pos = optional.get();
         RandomizerCore.LOGGER.warn("Feature \"{}\" placed at [{}X, {}Y, {}Z]", resourceKey.location(), pos.getX(), pos.getY(), pos.getZ());
         return true;
+    }
+
+    private static Predicate<BlockPos> featurePredicate(ServerLevel level, ConfiguredFeature<?, ?> feature) {
+        return pos -> feature.place(level, level.getChunkSource().getGenerator(), level.getRandom(), pos);
     }
 }
