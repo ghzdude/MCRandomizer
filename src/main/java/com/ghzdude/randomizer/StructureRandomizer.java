@@ -97,6 +97,7 @@ public class StructureRandomizer {
         RandomizerCore.LOGGER.warn("Attempting to generate \"{}\"", structure);
 
         if (!tryPlaceStructure(level, ResourceKey.create(STRUCTURE_REGISTRY.key(), structure), target)) {
+            RandomizerCore.LOGGER.warn("Failed to place structure \"{}\"", structure);
             if (RandomizerConfig.giveRandomItems) {
                 pointsToUse -= ItemRandomizer.giveRandomItem(pointsToUse, player.getInventory());
             }
