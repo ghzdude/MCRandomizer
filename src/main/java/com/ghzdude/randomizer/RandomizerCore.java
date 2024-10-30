@@ -120,23 +120,18 @@ public class RandomizerCore
         var data = player.getPersistentData();
 
         if (shouldUsePoints(player)) {
-            int points = data.getInt(POINT_KEY);
             int pointMax = data.getInt(POINT_MAX_KEY);
 
-            if (RandomizerConfig.pointsCarryover) {
-                points += pointMax;
-            }
+            int points = RandomizerConfig.pointsCarryover ?
+                    data.getInt(POINT_KEY) + pointMax : pointMax;
 
             int pointsToUse = seededRNG.nextInt(points) + 1;
             int remaining = pointsToUse;
             points -= pointsToUse;
 
-            int selection = seededRNG.nextInt(100);
-            if (RandomizerConfig.generateStructures && selection < RandomizerConfig.structureProbability) {
+            if (RandomizerConfig.generateStructures && seededRNG.nextInt(100) < RandomizerConfig.structureProbability) {
                 remaining = StructureRandomizer.placeStructure(pointsToUse, player.serverLevel(), player);
             } else if (RandomizerConfig.giveRandomItems) {
-                // todo add lang here
-                player.displayClientMessage(Component.literal("Giving Item..."), true);
                 remaining = ItemRandomizer.giveRandomItem(pointsToUse, player.getInventory());
             }
 
@@ -146,7 +141,7 @@ public class RandomizerCore
             }
 
             points += pointsToUse - remaining;
-            player.getPersistentData().putInt(POINT_KEY, points);
+            data.putInt(POINT_KEY, points);
         }
     }
 
@@ -171,7 +166,7 @@ public class RandomizerCore
             int i = (cycleCounter / 2) + 1;
             cycleCounter = Math.min(cycleCounter + i, COUNTER_MAX);
             data.putInt(POINT_MAX_KEY, pointMax + 1);
-            player.sendSystemMessage(Component.translatable("player.point_max.increased", pointMax));
+            player.sendSystemMessage(Component.translatable("randomizer.player.point_max.increased", pointMax));
         }
         data.putInt(CYCLE_KEY, cycle);
         data.putInt(CYCLE_COUNTER_KEY, cycleCounter);

@@ -4,6 +4,7 @@ import com.ghzdude.randomizer.special.item.SpecialItems;
 import com.ghzdude.randomizer.util.RandomizerUtil;
 import it.unimi.dsi.fastutil.objects.Object2IntMap;
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.flag.FeatureFlagSet;
@@ -61,7 +62,8 @@ public class ItemRandomizer {
         }
     }
 
-    public static int giveRandomItem(int pointsToUse, Inventory inventory){
+    public static int giveRandomItem(int pointsToUse, Inventory inventory) {
+        inventory.player.displayClientMessage(Component.translatable("randomizer.giving_item.label"), true);
         return RandomizerConfig.giveMultipleItems ?
                 RandomizerUtil.giveMultiple(pointsToUse, inventory) :
                 RandomizerUtil.giveOnce(pointsToUse, inventory);

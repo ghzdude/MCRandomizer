@@ -1,13 +1,14 @@
 {
-  "player.point_max.increased": "Points per cycle increased to %d!",
-  "random.potion": "Random Potion",
-  "structure.spawning": "Attempting to generate %s! The game may lag for a while!",
-  "structure.spawning.failed": "Failed to generate %s! Falling back to item...",
-  "structure.spawning.success": "%s generated at %s!",
+  "randomizer.player.point_max.increased": "Points per cycle increased to %d!",
   "randomizer.compat.jei.block_drop_category": "Block Drops",
   "randomizer.compat.jei.block_drop.type.hand": "Requires Hand",
   "randomizer.compat.jei.block_drop.type.pick": "Requires Pick",
   "randomizer.compat.jei.block_drop.type.silk_touch": "Requires Silk Touch",
   "randomizer.compat.jei.block_drop.type.shears": "Requires Shears",
-  "randomizer.compat.jei.block_drop.type.silk_or_shears": "Requires Silk or Shears"
+  "randomizer.compat.jei.block_drop.type.silk_or_shears": "Requires Silk or Shears",
+  "randomizer.giving_item.label": "Giving Item...",
+  "randomizer.potion_title": "Randomly Generated %s",
+  "randomizer.potion_lore": "A randomly generated %s from the Gods!",
+  "randomizer.stew.lore.1": "A randomly generated stew from the Gods!",
+  "randomizer.stew.lore.2": "Has [%d] effect(s)"
 }

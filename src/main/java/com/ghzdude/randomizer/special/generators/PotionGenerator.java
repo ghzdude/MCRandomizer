@@ -1,6 +1,7 @@
 package com.ghzdude.randomizer.special.generators;
 
 import com.ghzdude.randomizer.RandomizerCore;
+import com.ghzdude.randomizer.util.RandomizerUtil;
 import net.minecraft.core.Holder;
 import net.minecraft.core.Registry;
 import net.minecraft.core.RegistryAccess;
@@ -66,57 +67,61 @@ public class PotionGenerator {
         int numOfEffects = rng.nextInt(3) + 1;
 
         if (stack.getItem() == Items.SUSPICIOUS_STEW) {
-            List<Component> lore = new ArrayList<>();
-            lore.add(Component.literal("\"A randomly generated stew from the Gods!\""));
-            lore.add(Component.literal(String.format("\"Has [%d] effect(s)\"", numOfEffects)));
-            stack.set(DataComponents.LORE, new ItemLore(lore));
-
-            List<ResourceLocation> list = new ArrayList<>();
-            for (int i = 0; i < numOfEffects; i++) {
-                int id = rng.nextInt(VALID_EFFECTS.size());
-                if (list.contains(EFFECT_NAMES.get(id))) {
-                    --i;
-                    continue;
-                }
-                list.add(EFFECT_NAMES.get(id));
-            }
-
-            var effects = list.stream()
-                    .map(EFFECT_REGISTRY::get)
-                    .filter(Objects::nonNull)
-                    .map(EFFECT_REGISTRY::wrapAsHolder)
-                    .map(holder -> new SuspiciousStewEffects.Entry(holder, rng.nextInt(100, 2001)))
-                    .toList();
-
-            stack.set(DataComponents.SUSPICIOUS_STEW_EFFECTS, new SuspiciousStewEffects(effects));
-
+            makeStew(stack, rng, numOfEffects);
         } else {
-            List<ResourceLocation> list = new ArrayList<>(numOfEffects);
+            makePotion(stack, rng, numOfEffects);
+        }
+    }
 
-            for (int i = 1; i <= numOfEffects; i++) {
-                int id = rng.nextInt(EFFECT_NAMES.size());
-                var loc = EFFECT_NAMES.get(id);
-                if (list.contains(loc)) {
-                    --i;
-                    continue;
-                }
-                list.add(loc);
+    private static void makeStew(ItemStack stack, Random rng, int numOfEffects) {
+        List<Component> lore = new ArrayList<>();
+        lore.add(Component.translatable("randomizer.stew.lore.1"));
+        lore.add(Component.translatable("randomizer.stew.lore.2", numOfEffects));
+        stack.set(DataComponents.LORE, new ItemLore(lore));
+
+        List<ResourceLocation> list = new ArrayList<>(numOfEffects);
+
+        addEffects(list, numOfEffects);
+
+        var effects = list.stream()
+                .map(EFFECT_REGISTRY::get)
+                .filter(Objects::nonNull)
+                .map(EFFECT_REGISTRY::wrapAsHolder)
+                .map(holder -> new SuspiciousStewEffects.Entry(holder, rng.nextInt(100, 2001)))
+                .toList();
+
+        stack.set(DataComponents.SUSPICIOUS_STEW_EFFECTS, new SuspiciousStewEffects(effects));
+    }
+
+    private static void makePotion(ItemStack stack, Random rng, int numOfEffects) {
+        List<ResourceLocation> list = new ArrayList<>(numOfEffects);
+
+        addEffects(list, numOfEffects);
+
+        var effects = list.stream()
+                .map(loc -> Holder.direct(VALID_EFFECTS.get(loc)))
+                .map(holder -> new MobEffectInstance(holder, rng.nextInt(200, 2001), rng.nextInt(4) + 1))
+                .toList();
+
+        int color = rng.nextInt(0x00FFFFFF);
+        stack.set(DataComponents.POTION_CONTENTS, new PotionContents(Optional.of(Potions.WATER), Optional.of(color), effects));
+
+        Component itemType = Component.translatable(stack.getItem().getDescriptionId());
+        stack.set(DataComponents.CUSTOM_NAME, Component.translatable("randomizer.potion_title", itemType));
+
+        List<Component> lore = new ArrayList<>();
+        lore.add(Component.translatable("randomizer.potion_lore", itemType));
+        stack.set(DataComponents.LORE, new ItemLore(lore));
+    }
+
+    private static void addEffects(List<ResourceLocation> list, int amount) {
+        for (int i = 0; i < amount; i++) {
+            var loc = RandomizerUtil.getRandom(EFFECT_NAMES, RandomizerCore.unseededRNG);
+            if (list.contains(loc)) {
+                --i;
+                continue;
             }
-
-            var effects = list.stream()
-                    .map(loc -> Holder.direct(VALID_EFFECTS.get(loc)))
-                    .map(holder -> new MobEffectInstance(holder, rng.nextInt(200, 2001), rng.nextInt(4) + 1))
-                    .toList();
-
-            int color = rng.nextInt(HexFormat.fromHexDigits("00FFFFFF"));
-            stack.set(DataComponents.POTION_CONTENTS, new PotionContents(Optional.of(Potions.WATER), Optional.of(color), effects));
-
-            String itemType = stack.getItem() == Items.TIPPED_ARROW ? "Arrow" : "Potion";
-            stack.set(DataComponents.CUSTOM_NAME, Component.literal(String.format("\"Randomly Generated %s\"", itemType)));
-
-            List<Component> lore = new ArrayList<>();
-            lore.add(Component.literal(String.format("\"A randomly generated %s from the Gods!\"", itemType)));
-            stack.set(DataComponents.LORE, new ItemLore(lore));
+            list.add(loc);
         }
     }
 }
