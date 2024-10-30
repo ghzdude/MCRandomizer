@@ -2,22 +2,24 @@ package com.ghzdude.randomizer;
 
 
 import com.ghzdude.randomizer.io.ConfigIO;
+import net.minecraft.core.Holder;
+import net.minecraft.core.Registry;
+import net.minecraft.core.RegistryAccess;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.EquipmentSlot;
-import net.minecraft.world.entity.MobCategory;
+import net.minecraft.world.entity.*;
+import net.minecraft.world.entity.ai.attributes.Attribute;
+import net.minecraft.world.entity.ai.attributes.AttributeModifier;
+import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.entity.ai.attributes.RangedAttribute;
 import net.minecraft.world.level.Level;
 import net.minecraftforge.event.entity.EntityJoinLevelEvent;
-import net.minecraftforge.event.server.ServerStartedEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.registries.ForgeRegistries;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 
 /* Mob Spawn Randomizer description
  * when a mob is about to spawn, change the mob
@@ -25,22 +27,95 @@ import java.util.Objects;
  */
 public class MobRandomizer {
     private static final List<ResourceLocation> BLACKLISTED_ENTITIES = ConfigIO.readMobBlacklist();
-    private final ArrayList<EntityType<?>> entityTypes = new ArrayList<>(ForgeRegistries.ENTITY_TYPES.getKeys()
-            .stream()
-            .filter(entityType -> !BLACKLISTED_ENTITIES.contains(entityType))
-            .map(ForgeRegistries.ENTITY_TYPES::getValue)
-            .filter(Objects::nonNull)
-            .filter(e -> e.getCategory() != MobCategory.MISC)
-            .toList());
-    private boolean isEnabled;
-    static final int MAGIC_NUMBER = 289;
+    private static final List<MobCategory> BLACKLISTED_CATEGORIES = List.of(MobCategory.MISC);
+    private static List<ResourceLocation> BLACKLISTED_ATTRIBUTES;
+    private static final List<ResourceLocation> VALID_ATTRIBUTES = new ArrayList<>();
+    private static final List<EntityType<?>> VALID_TYPES = new ArrayList<>();
 
+    private static final int MAGIC_NUMBER = 289;
+    private static Registry<Attribute> ATTRIBUTE_REGISTRY;
+    private static Registry<EntityType<?>> TYPE_REGISTRY;
+
+    public static void init(RegistryAccess access) {
+        ATTRIBUTE_REGISTRY = access.registryOrThrow(Registries.ATTRIBUTE);
+        TYPE_REGISTRY = access.registryOrThrow(Registries.ENTITY_TYPE);
+
+        // todo add configuration
+        for (var type : TYPE_REGISTRY.keySet()) {
+            if (BLACKLISTED_ENTITIES.contains(type)) continue;
+            var value = TYPE_REGISTRY.get(type);
+            if (value == null || BLACKLISTED_CATEGORIES.contains(value.getCategory())) continue;
+            VALID_TYPES.add(value);
+        }
+
+        // todo add configuration
+        BLACKLISTED_ATTRIBUTES = List.of(
+                getLocationOrThrow(Attributes.SCALE),
+                getLocationOrThrow(Attributes.GRAVITY),
+                getLocationOrThrow(Attributes.BURNING_TIME)
+        );
+
+        for (var att : ATTRIBUTE_REGISTRY.keySet()) {
+            if (BLACKLISTED_ATTRIBUTES.contains(att)) continue;
+            VALID_ATTRIBUTES.add(att);
+        }
+    }
+
+    private static @NotNull ResourceLocation getLocationOrThrow(Holder<Attribute> attributeHolder) {
+        var k = ATTRIBUTE_REGISTRY.getKey(attributeHolder.value());
+        if (k == null) throw new NullPointerException();
+        return k;
+    }
+
+    @SubscribeEvent
+    public void onEntityJoin(EntityJoinLevelEvent event) {
+        if (event.getLevel().isClientSide || VALID_TYPES.isEmpty()) {
+            return;
+        }
+
+        Entity mob = event.getEntity();
+        if (!VALID_TYPES.contains(mob.getType())) return;
+
+        if (RandomizerConfig.randomizeMobs) {
+            var randomized = mob.getPersistentData().contains("randomized");
+            if (!randomized && !event.loadedFromDisk()) {
+                randomizeMobSpawn(mob);
+                event.setCanceled(true);
+            }
+        }
+
+        // randomize attributes
+        if (RandomizerConfig.randomizeMobAttributes && mob instanceof LivingEntity livingEntity) {
+            for (var att : VALID_ATTRIBUTES) {
+                var h = ATTRIBUTE_REGISTRY.getHolder(att);
+                if (h.isEmpty()) continue;
+                var inst = livingEntity.getAttribute(h.get());
+                if (inst == null) continue;
+                if (inst.getAttribute().get() instanceof RangedAttribute ranged) {
+                    double min = ranged.getMinValue();
+                    double max = ranged.getMaxValue();
+
+                    min /= 16; max /= 16;
+                    if (h.get() == Attributes.MOVEMENT_SPEED) {
+                        min = -16; max = 16;
+                    }
+
+                    inst.addOrUpdateTransientModifier(createModifier(min, max));
+                }
+            }
+        }
+    }
+
+    private AttributeModifier createModifier(double min, double max) {
+        var loc = ResourceLocation.fromNamespaceAndPath(RandomizerCore.MODID, "attribute");
+        return new AttributeModifier(loc, RandomizerCore.unseededRNG.nextDouble(min, max), AttributeModifier.Operation.ADD_VALUE);
+    }
     @NotNull
     private Entity getRandomMob(Level level) {
         Entity mob;
         do {
-            int id = RandomizerCore.seededRNG.nextInt(entityTypes.size());
-            EntityType<?> entityType = entityTypes.get(id);
+            int id = RandomizerCore.seededRNG.nextInt(VALID_TYPES.size());
+            EntityType<?> entityType = VALID_TYPES.get(id);
             mob = entityType.create(level);
         } while (mob == null);
         return mob;
@@ -68,23 +143,5 @@ public class MobRandomizer {
 
         Entity mob = getRandomMob(level);
         spawnMob(level, mob, toSpawn);
-    }
-
-    @SubscribeEvent
-    public void onServerStart(ServerStartedEvent event) {
-        isEnabled = RandomizerConfig.randomizeMobs;
-    }
-
-    @SubscribeEvent
-    public void onEntityJoin(EntityJoinLevelEvent event) {
-        if (!isEnabled || event.getLevel().isClientSide) return;
-
-        var mob = event.getEntity();
-        if (mob.getType().getCategory() == MobCategory.MISC) return;
-        var randomized = mob.getPersistentData().contains("randomized");
-        if (!randomized && !event.loadedFromDisk()) {
-            randomizeMobSpawn(mob);
-            event.setCanceled(true);
-        }
     }
 }
