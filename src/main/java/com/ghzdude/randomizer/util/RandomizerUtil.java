@@ -1,6 +1,7 @@
 package com.ghzdude.randomizer.util;
 
 import com.ghzdude.randomizer.ItemRandomizer;
+import com.ghzdude.randomizer.MobRandomizer;
 import com.ghzdude.randomizer.RandomizerCore;
 import com.ghzdude.randomizer.StructureRandomizer;
 import com.ghzdude.randomizer.special.generators.*;
@@ -22,6 +23,7 @@ public class RandomizerUtil {
         StructureRandomizer.configureStructures(access);
         EnchantmentGenerator.init(access);
         PotionGenerator.init(access);
+        MobRandomizer.init(access);
         init = true;
     }
 

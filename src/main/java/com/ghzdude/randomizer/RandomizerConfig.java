@@ -22,6 +22,7 @@ public class RandomizerConfig {
     public static boolean randomizeEntityLoot;
     public static boolean randomizeChestLoot;
     public static boolean randomizeMobs;
+    public static boolean randomizeMobAttributes;
 
     static {
         update();
@@ -47,6 +48,7 @@ public class RandomizerConfig {
         randomizeEntityLoot = Holder.randomizeEntityLoot.get();
         randomizeChestLoot = Holder.randomizeChestLoot.get();
         randomizeMobs = Holder.randomizeMobs.get();
+        randomizeMobAttributes = Holder.randomizeMobAttributes.get();
     }
 
     public static class Holder {
@@ -58,20 +60,21 @@ public class RandomizerConfig {
                     .configure(Holder::new);
         }
 
-        public static ForgeConfigSpec.ConfigValue<Integer> itemCooldown;
-        public static ForgeConfigSpec.ConfigValue<Boolean> pointsCarryover;
-        public static ForgeConfigSpec.ConfigValue<Boolean> giveMultipleItems;
-        public static ForgeConfigSpec.ConfigValue<Integer> cycleBase;
-        public static ForgeConfigSpec.ConfigValue<Boolean> randomizeRecipes;
-        public static ForgeConfigSpec.ConfigValue<Boolean> randomizeRecipeInputs;
-        public static ForgeConfigSpec.ConfigValue<Boolean> giveRandomItems;
-        public static ForgeConfigSpec.ConfigValue<Boolean> generateStructures;
-        public static ForgeConfigSpec.ConfigValue<Integer> structureProbability;
-        public static ForgeConfigSpec.ConfigValue<Boolean> randomizeLoot;
-        public static ForgeConfigSpec.ConfigValue<Boolean> randomizeBlockLoot;
-        public static ForgeConfigSpec.ConfigValue<Boolean> randomizeEntityLoot;
-        public static ForgeConfigSpec.ConfigValue<Boolean> randomizeChestLoot;
-        public static ForgeConfigSpec.ConfigValue<Boolean> randomizeMobs;
+        public static ForgeConfigSpec.IntValue itemCooldown;
+        public static ForgeConfigSpec.BooleanValue pointsCarryover;
+        public static ForgeConfigSpec.BooleanValue giveMultipleItems;
+        public static ForgeConfigSpec.IntValue cycleBase;
+        public static ForgeConfigSpec.BooleanValue randomizeRecipes;
+        public static ForgeConfigSpec.BooleanValue randomizeRecipeInputs;
+        public static ForgeConfigSpec.BooleanValue giveRandomItems;
+        public static ForgeConfigSpec.BooleanValue generateStructures;
+        public static ForgeConfigSpec.IntValue structureProbability;
+        public static ForgeConfigSpec.BooleanValue randomizeLoot;
+        public static ForgeConfigSpec.BooleanValue randomizeBlockLoot;
+        public static ForgeConfigSpec.BooleanValue randomizeEntityLoot;
+        public static ForgeConfigSpec.BooleanValue randomizeChestLoot;
+        public static ForgeConfigSpec.BooleanValue randomizeMobs;
+        public static ForgeConfigSpec.BooleanValue randomizeMobAttributes;
 
         public Holder(ForgeConfigSpec.Builder builder) {
 
@@ -81,7 +84,7 @@ public class RandomizerConfig {
                     .define("give_random_items", true);
 
             itemCooldown = builder.comment("Time between items given (measured in ticks, 20 ticks is one second). Default value is 800.")
-                    .define("item_cooldown", 800);
+                    .defineInRange("item_cooldown", 800, 1, Integer.MAX_VALUE);
 
             pointsCarryover = builder.comment("Should unused points carry over after a cycle? : Default value is false.")
                     .define("points_carryover", false);
@@ -90,7 +93,7 @@ public class RandomizerConfig {
                     .define("give_multiple_items", false);
 
             cycleBase = builder.comment("Amount of cycles needed to reach the first point max increment. Default value is 10.")
-                    .define("cycle_base", 10);
+                    .defineInRange("cycle_base", 10, 1, Integer.MAX_VALUE);
             builder.pop();
 
             // Recipe Randomizer
@@ -125,9 +128,11 @@ public class RandomizerConfig {
             builder.pop();
 
             builder.push("Mob Randomizer");
-
             randomizeMobs = builder.comment("Should mobs be randomized when spawning? Attempts to mimic vanilla spawning logic and checks. Ignores spawn egss. Defaults to false.")
                     .define("randomize_mobs", false);
+
+            randomizeMobAttributes = builder.comment("Should the attributes of mobs be randomized when spawned? Defaults to false.")
+                    .define("randomize_attributes", false);
             builder.pop();
         }
 
