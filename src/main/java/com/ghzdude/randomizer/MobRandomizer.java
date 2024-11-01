@@ -87,13 +87,16 @@ public class MobRandomizer {
         // randomize attributes
         // todo should this be a permanent modifier?
         if (RandomizerConfig.randomizeMobAttributes && mob instanceof LivingEntity livingEntity) {
+            final double offset = 40d;
+
             for (var att : VALID_ATTRIBUTES) {
                 if (mob.getRandom().nextBoolean()) continue;
                 var h = ATTRIBUTE_REGISTRY.getHolder(att);
                 if (h.isEmpty()) continue;
                 var inst = livingEntity.getAttribute(h.get());
                 if (inst == null) continue;
-                inst.addOrUpdateTransientModifier(createModifier(-20.0, 20.0));
+                double sanitizedMin = inst.getAttribute().get().sanitizeValue(offset / -2);
+                inst.addOrUpdateTransientModifier(createModifier(sanitizedMin, sanitizedMin + offset));
             }
         }
     }
