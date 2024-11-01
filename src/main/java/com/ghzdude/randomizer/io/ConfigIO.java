@@ -7,13 +7,13 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonToken;
+import net.minecraft.core.Registry;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;
 import net.minecraftforge.fml.loading.FMLPaths;
 import net.minecraftforge.registries.ForgeRegistries;
-import net.minecraftforge.registries.IForgeRegistry;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -60,9 +60,9 @@ public class ConfigIO {
 
     private static final List<String> BLACKLISTED_STRUCTURES = List.of("namespace:structure_name_here");
 
-    public static void writeListToFile(File file, List<String> list) {
+    public static void writeListToFile(File file, List<ResourceLocation> list) {
         JsonArray stringArray = new JsonArray();
-        list.forEach(stringArray::add);
+        list.forEach(loc -> stringArray.add(loc.toString()));
         tryWriteJson(stringArray, file);
     }
 
@@ -75,13 +75,14 @@ public class ConfigIO {
         }
     }
 
-    private static List<ResourceLocation> read(@NotNull String file, @NotNull List< @NotNull String> defaults, @Nullable IForgeRegistry<?> registry) {
+    public static List<ResourceLocation> read(@NotNull String file, @NotNull List< @NotNull ResourceLocation> defaults, @Nullable Registry<?> registry) {
         List<ResourceLocation> blacklist = new ArrayList<>();
 
         File blacklistFile = createFileName(file);
         try {
             if (blacklistFile.createNewFile()) {
                 writeListToFile(blacklistFile, defaults);
+                return defaults;
             }
 
             JsonReader reader = GSON.newJsonReader(Files.newBufferedReader(blacklistFile.toPath()));
@@ -104,20 +105,8 @@ public class ConfigIO {
         return blacklist;
     }
 
-    private static List<ResourceLocation> read(@NotNull String file, @NotNull List< @NotNull String> defaults) {
+    public static List<ResourceLocation> read(@NotNull String file, @NotNull List< @NotNull ResourceLocation> defaults) {
         return read(file, defaults, null);
-    }
-
-    public static List<ResourceLocation> readItemBlacklist() {
-        return read("blacklisted_items", BLACKLISTED_ITEMS, ForgeRegistries.ITEMS);
-    }
-
-    public static List<ResourceLocation> readMobBlacklist() {
-        return read("blacklisted_mobs", BLACKLISTED_ENTITIES, ForgeRegistries.ENTITY_TYPES);
-    }
-
-    public static List<ResourceLocation> readStructureBlacklist() {
-        return read("blacklisted_structures", BLACKLISTED_STRUCTURES);
     }
 
     private static File createFileName(String s) {
