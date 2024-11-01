@@ -101,7 +101,6 @@ public class MobRandomizer {
         }
     }
 
-    @SuppressWarnings("SameParameterValue")
     private AttributeModifier createModifier(double min, double max) {
         var loc = ResourceLocation.fromNamespaceAndPath(RandomizerCore.MODID, "attribute");
         return new AttributeModifier(loc, RandomizerCore.unseededRNG.nextDouble(min, max), AttributeModifier.Operation.ADD_VALUE);
