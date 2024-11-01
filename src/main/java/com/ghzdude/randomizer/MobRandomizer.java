@@ -20,15 +20,17 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
+import java.util.stream.Stream;
 
 /* Mob Spawn Randomizer description
  * when a mob is about to spawn, change the mob
  * should only randomize when naturally spawned, or from spawner.
  */
 public class MobRandomizer {
-    private static final List<ResourceLocation> BLACKLISTED_ENTITIES = ConfigIO.readMobBlacklist();
+    private static final List<ResourceLocation> BLACKLISTED_ENTITIES = new ArrayList<>();
     private static final List<MobCategory> BLACKLISTED_CATEGORIES = List.of(MobCategory.MISC);
-    private static List<ResourceLocation> BLACKLISTED_ATTRIBUTES;
+    private static final List<ResourceLocation> BLACKLISTED_ATTRIBUTES = new ArrayList<>();
     private static final List<ResourceLocation> VALID_ATTRIBUTES = new ArrayList<>();
     private static final List<EntityType<?>> VALID_TYPES = new ArrayList<>();
 
@@ -40,6 +42,28 @@ public class MobRandomizer {
         ATTRIBUTE_REGISTRY = access.registryOrThrow(Registries.ATTRIBUTE);
         TYPE_REGISTRY = access.registryOrThrow(Registries.ENTITY_TYPE);
 
+        if (BLACKLISTED_ENTITIES.isEmpty()) {
+            BLACKLISTED_ENTITIES.addAll(ConfigIO.read("blacklisted_mobs", Stream.of(
+                            EntityType.ENDER_DRAGON,
+                            EntityType.WITHER,
+                            EntityType.WARDEN,
+                            EntityType.GIANT)
+                    .map(TYPE_REGISTRY::getKey)
+                    .filter(Objects::nonNull)
+                    .toList(), TYPE_REGISTRY));
+        }
+
+        if (BLACKLISTED_ATTRIBUTES.isEmpty()) {
+            BLACKLISTED_ATTRIBUTES.addAll(ConfigIO.read("blacklisted_attributes", Stream.of(
+                    Attributes.SCALE,
+                    Attributes.GRAVITY,
+                    Attributes.BURNING_TIME)
+                    .map(Holder::get)
+                    .map(ATTRIBUTE_REGISTRY::getKey)
+                    .filter(Objects::nonNull)
+                    .toList(), ATTRIBUTE_REGISTRY));
+        }
+
         // todo add configuration
         for (var type : TYPE_REGISTRY.keySet()) {
             if (BLACKLISTED_ENTITIES.contains(type)) continue;
@@ -48,23 +72,10 @@ public class MobRandomizer {
             VALID_TYPES.add(value);
         }
 
-        // todo add configuration
-        BLACKLISTED_ATTRIBUTES = List.of(
-                getLocationOrThrow(Attributes.SCALE),
-                getLocationOrThrow(Attributes.GRAVITY),
-                getLocationOrThrow(Attributes.BURNING_TIME)
-        );
-
         for (var att : ATTRIBUTE_REGISTRY.keySet()) {
             if (BLACKLISTED_ATTRIBUTES.contains(att)) continue;
             VALID_ATTRIBUTES.add(att);
         }
-    }
-
-    private static @NotNull ResourceLocation getLocationOrThrow(Holder<Attribute> attributeHolder) {
-        var k = ATTRIBUTE_REGISTRY.getKey(attributeHolder.value());
-        if (k == null) throw new NullPointerException();
-        return k;
     }
 
     @SubscribeEvent

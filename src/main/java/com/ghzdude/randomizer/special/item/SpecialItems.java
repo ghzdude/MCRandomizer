@@ -1,19 +1,15 @@
 package com.ghzdude.randomizer.special.item;
 
-import com.ghzdude.randomizer.io.ConfigIO;
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
-import net.minecraftforge.registries.ForgeRegistries;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
 public class SpecialItems {
-    public static final List<ResourceLocation> BLACKLISTED_ITEMS = ConfigIO.readItemBlacklist();
 
     public static final Map<Item, Integer> EFFECT_ITEMS = new Object2IntOpenHashMap<>();
 
@@ -174,9 +170,5 @@ public class SpecialItems {
         SPECIAL_ITEMS.put(item, value);
         if (item.isEnchantable(new ItemStack(item)))
             ENCHANTABLE.add(item);
-    }
-
-    public static boolean isBlacklisted(Item item) {
-        return BLACKLISTED_ITEMS.contains(ForgeRegistries.ITEMS.getKey(item));
     }
 }

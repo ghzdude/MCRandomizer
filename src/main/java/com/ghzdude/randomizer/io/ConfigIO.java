@@ -9,11 +9,7 @@ import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonToken;
 import net.minecraft.core.Registry;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.item.Items;
 import net.minecraftforge.fml.loading.FMLPaths;
-import net.minecraftforge.registries.ForgeRegistries;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -24,41 +20,12 @@ import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
-import java.util.Objects;
-import java.util.stream.Stream;
 
 @SuppressWarnings({"ResultOfMethodCallIgnored", "SameParameterValue"})
 public class ConfigIO {
     private static final String BLACKLIST_DIR = "config\\" + RandomizerCore.MODID + "\\blacklists\\";
     private static final File directory = new File(FMLPaths.CONFIGDIR.get().toFile(), BLACKLIST_DIR);
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
-
-    private static final List<String> BLACKLISTED_ITEMS = Stream.of(
-            Items.AIR,
-            Items.COMMAND_BLOCK,
-            Items.COMMAND_BLOCK_MINECART,
-            Items.CHAIN_COMMAND_BLOCK,
-            Items.REPEATING_COMMAND_BLOCK,
-            Items.BARRIER,
-            Items.LIGHT,
-            Items.STRUCTURE_BLOCK,
-            Items.STRUCTURE_VOID,
-            Items.KNOWLEDGE_BOOK,
-            Items.JIGSAW,
-            Items.DEBUG_STICK
-    ).map(Item::toString).toList();
-
-    private static final List<String> BLACKLISTED_ENTITIES = Stream.of(
-            EntityType.ENDER_DRAGON,
-            EntityType.WITHER,
-            EntityType.WARDEN,
-            EntityType.GIANT
-    ).map(ForgeRegistries.ENTITY_TYPES::getKey)
-            .filter(Objects::nonNull)
-            .map(Objects::toString)
-            .toList();
-
-    private static final List<String> BLACKLISTED_STRUCTURES = List.of("namespace:structure_name_here");
 
     public static void writeListToFile(File file, List<ResourceLocation> list) {
         JsonArray stringArray = new JsonArray();

@@ -1,6 +1,5 @@
 package com.ghzdude.randomizer;
 
-import com.ghzdude.randomizer.io.ConfigIO;
 import com.ghzdude.randomizer.special.structure.SpecialStructures;
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 import net.minecraft.core.BlockPos;
@@ -30,7 +29,7 @@ import java.util.Map;
  * every so often, generate a structure at some random x, z coordinate near the player
  */
 public class StructureRandomizer {
-    private static final List<ResourceLocation> BLACKLISTED_STRUCTURES = ConfigIO.readStructureBlacklist();
+    private static final List<ResourceLocation> BLACKLISTED_STRUCTURES = List.of(ResourceLocation.parse("namespace:structure_name_here"));;
     private static final Map<ResourceKey<Structure>, Integer> VALID_STRUCTURES = new Object2IntOpenHashMap<>();
     private static final List<ResourceKey<Structure>> STRUCTURES = new ArrayList<>();
 
