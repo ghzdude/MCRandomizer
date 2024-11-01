@@ -2,6 +2,7 @@ package com.ghzdude.randomizer;
 
 
 import com.ghzdude.randomizer.io.ConfigIO;
+import com.ghzdude.randomizer.util.RandomizerUtil;
 import net.minecraft.core.Holder;
 import net.minecraft.core.Registry;
 import net.minecraft.core.RegistryAccess;
@@ -12,7 +13,6 @@ import net.minecraft.world.entity.*;
 import net.minecraft.world.entity.ai.attributes.Attribute;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
-import net.minecraft.world.entity.ai.attributes.RangedAttribute;
 import net.minecraft.world.level.Level;
 import net.minecraftforge.event.entity.EntityJoinLevelEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -85,37 +85,30 @@ public class MobRandomizer {
         }
 
         // randomize attributes
+        // todo should this be a permanent modifier?
         if (RandomizerConfig.randomizeMobAttributes && mob instanceof LivingEntity livingEntity) {
             for (var att : VALID_ATTRIBUTES) {
+                if (mob.getRandom().nextBoolean()) continue;
                 var h = ATTRIBUTE_REGISTRY.getHolder(att);
                 if (h.isEmpty()) continue;
                 var inst = livingEntity.getAttribute(h.get());
                 if (inst == null) continue;
-                if (inst.getAttribute().get() instanceof RangedAttribute ranged) {
-                    double min = ranged.getMinValue();
-                    double max = ranged.getMaxValue();
-
-                    min /= 16; max /= 16;
-                    if (h.get() == Attributes.MOVEMENT_SPEED) {
-                        min = -16; max = 16;
-                    }
-
-                    inst.addOrUpdateTransientModifier(createModifier(min, max));
-                }
+                inst.addOrUpdateTransientModifier(createModifier(-20.0, 20.0));
             }
         }
     }
 
+    @SuppressWarnings("SameParameterValue")
     private AttributeModifier createModifier(double min, double max) {
         var loc = ResourceLocation.fromNamespaceAndPath(RandomizerCore.MODID, "attribute");
         return new AttributeModifier(loc, RandomizerCore.unseededRNG.nextDouble(min, max), AttributeModifier.Operation.ADD_VALUE);
     }
+
     @NotNull
     private Entity getRandomMob(Level level) {
         Entity mob;
         do {
-            int id = RandomizerCore.seededRNG.nextInt(VALID_TYPES.size());
-            EntityType<?> entityType = VALID_TYPES.get(id);
+            EntityType<?> entityType = RandomizerUtil.getRandom(VALID_TYPES, RandomizerCore.unseededRNG);
             mob = entityType.create(level);
         } while (mob == null);
         return mob;

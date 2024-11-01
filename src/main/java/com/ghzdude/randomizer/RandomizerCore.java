@@ -120,6 +120,9 @@ public class RandomizerCore
         var data = player.getPersistentData();
 
         if (shouldUsePoints(player)) {
+            if (!data.contains(POINT_MAX_KEY))
+                data.putInt(POINT_MAX_KEY, 1);
+
             int pointMax = data.getInt(POINT_MAX_KEY);
 
             int points = RandomizerConfig.pointsCarryover ?
@@ -157,6 +160,9 @@ public class RandomizerCore
     }
 
     private void increaseCycle(Player player, CompoundTag data) {
+        if (!data.contains(CYCLE_COUNTER_KEY))
+            data.putInt(CYCLE_COUNTER_KEY, RandomizerConfig.cycleBase);
+
         int cycle = data.getInt(CYCLE_KEY) + 1;
         int cycleCounter = data.getInt(CYCLE_COUNTER_KEY);
         int pointMax = data.getInt(POINT_MAX_KEY);
