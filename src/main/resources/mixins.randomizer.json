@@ -8,12 +8,10 @@
     "AdvancementManagerMixin",
     "IngredientMixin",
     "RandomizeLootMixin",
-    "StructureStartMixin",
     "recipe.CookingMixin",
     "recipe.ShapedMixin",
     "recipe.ShapelessMixin",
-    "recipe.SingleItemMixin",
-    "structure.Randomizer$StructureStart"
+    "recipe.SingleItemMixin"
   ],
   "client": [],
   "server": [],
