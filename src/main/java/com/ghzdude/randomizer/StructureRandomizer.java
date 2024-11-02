@@ -1,6 +1,7 @@
 package com.ghzdude.randomizer;
 
 import com.ghzdude.randomizer.io.ConfigIO;
+import com.ghzdude.randomizer.special.SpecialFeatures;
 import com.ghzdude.randomizer.special.structure.SpecialStructures;
 import com.ghzdude.randomizer.util.RandomizerUtil;
 import it.unimi.dsi.fastutil.objects.Object2IntMap;
@@ -64,9 +65,7 @@ public class StructureRandomizer {
         BLACKLISTED_FEATURES = ConfigIO.read("blacklisted_features",
                 List.of(ResourceLocation.parse("namespace:feature_here")), FEATURE_REGISTRY);
 
-        var defaultFeatures = new Object2IntOpenHashMap<ResourceLocation>();
-        defaultFeatures.put(ResourceLocation.parse("namespace:feature_here"), 1);
-        ConfigIO.readValues("features", defaultFeatures, FEATURE_REGISTRY)
+        ConfigIO.readValues("features", SpecialFeatures.DEFAULT_FEATURES, FEATURE_REGISTRY)
                 .object2IntEntrySet().forEach(StructureRandomizer::putValidFeature);
 
         for (var loc : FEATURE_REGISTRY.keySet()) {

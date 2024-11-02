@@ -9,11 +9,10 @@ import net.minecraft.world.level.levelgen.structure.Structure;
 
 public class SpecialStructures {
 
-    // todo make configurable
     public static final Object2IntMap<ResourceLocation> CONFIGURED_STRUCTURES = new Object2IntOpenHashMap<>();
 
     static {
-        put(BuiltinStructures.NETHER_FOSSIL, 0);
+        put(BuiltinStructures.NETHER_FOSSIL, 0); // todo figure out why this structure doesn't work
         put(BuiltinStructures.ANCIENT_CITY, 6);
         put(BuiltinStructures.BASTION_REMNANT, 2);
         put(BuiltinStructures.FORTRESS, 2);
