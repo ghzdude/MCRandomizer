@@ -3,11 +3,13 @@ package com.ghzdude.randomizer.special.item;
 import it.unimi.dsi.fastutil.objects.Object2IntMap;
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 import net.minecraft.core.component.DataComponents;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Function;
 
 public class SpecialItems {
 
@@ -17,7 +19,7 @@ public class SpecialItems {
     // enchantable items
     public static final List<Item> ENCHANTABLE = new ArrayList<>();
 
-    public static final Object2IntMap<Item> CONFIGURED_ITEMS = new Object2IntOpenHashMap<>();
+    public static final Object2IntMap<ResourceLocation> CONFIGURED_ITEMS = new Object2IntOpenHashMap<>();
 
     public static final List<Item> LEATHER_ARMOR = List.of(
             Items.LEATHER_HELMET,
@@ -121,7 +123,10 @@ public class SpecialItems {
             Items.PINK_SHULKER_BOX
     );
 
-    static {
+    private static Function<Item, ResourceLocation> converter;
+
+    public static void init(Function<Item, ResourceLocation> converter) {
+        SpecialItems.converter = converter;
         WOODEN_TOOLS.forEach(item -> addItem(item, 1));
         STONE_TOOLS.forEach(item -> addItem(item, 2));
         IRON_TOOLS.forEach(item -> addItem(item, 3));
@@ -169,7 +174,7 @@ public class SpecialItems {
     }
 
     private static void addItem(Item item, int value) {
-        CONFIGURED_ITEMS.put(item, value);
+        CONFIGURED_ITEMS.put(converter.apply(item), value);
         if (canEnchant(item)) ENCHANTABLE.add(item);
         if (canHaveEffect(item)) EFFECT_ITEMS.add(item);
     }

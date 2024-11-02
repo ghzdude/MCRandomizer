@@ -4,7 +4,6 @@ import com.ghzdude.randomizer.io.ConfigIO;
 import com.ghzdude.randomizer.special.structure.SpecialStructures;
 import com.ghzdude.randomizer.util.RandomizerUtil;
 import it.unimi.dsi.fastutil.objects.Object2IntMap;
-import it.unimi.dsi.fastutil.objects.Object2IntMap;
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Registry;
@@ -25,9 +24,8 @@ import net.minecraft.world.level.levelgen.structure.StructureStart;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.function.Predicate;
 import java.util.Map;
-import java.util.Objects;
+import java.util.function.Predicate;
 
 /* Structure Randomizer description
  * every so often, generate a structure at some random x, z coordinate near the player
@@ -48,37 +46,58 @@ public class StructureRandomizer {
         STRUCTURE_REGISTRY = access.registryOrThrow(Registries.STRUCTURE);
         FEATURE_REGISTRY = access.registryOrThrow(Registries.CONFIGURED_FEATURE);
 
-        VALID_STRUCTURES.putAll(SpecialStructures.CONFIGURED_STRUCTURES);
-        STRUCTURES.addAll(VALID_STRUCTURES.keySet());
+        // Structures
         BLACKLISTED_STRUCTURES = ConfigIO.read("blacklisted_structures",
                 List.of(ResourceLocation.parse("namespace:structure_name_here")),
                 STRUCTURE_REGISTRY);
 
-        for (var structure : STRUCTURE_REGISTRY) {
+        ConfigIO.readValues("structures", SpecialStructures.CONFIGURED_STRUCTURES, STRUCTURE_REGISTRY)
+                .object2IntEntrySet().forEach(StructureRandomizer::putValidStructure);
+
+        for (var structure : STRUCTURE_REGISTRY.keySet()) {
             putValidStructure(structure, 1);
         }
+
         STRUCTURES.addAll(VALID_STRUCTURES.keySet());
 
-        // todo blacklist
-        for (var loc : FEATURE_REGISTRY.keySet()) {
-            if (BLACKLISTED_FEATURES.contains(loc) || VALID_FEATURES.containsKey(loc))
-                continue;
+        // Features
+        BLACKLISTED_FEATURES = ConfigIO.read("blacklisted_features",
+                List.of(ResourceLocation.parse("namespace:feature_here")), FEATURE_REGISTRY);
 
-            VALID_FEATURES.put(loc, 1);
-            FEATURES.add(loc);
+        var defaultFeatures = new Object2IntOpenHashMap<ResourceLocation>();
+        defaultFeatures.put(ResourceLocation.parse("namespace:feature_here"), 1);
+        ConfigIO.readValues("features", defaultFeatures, FEATURE_REGISTRY)
+                .object2IntEntrySet().forEach(StructureRandomizer::putValidFeature);
+
+        for (var loc : FEATURE_REGISTRY.keySet()) {
+            putValidFeature(loc, 1);
         }
+
+        FEATURES.addAll(VALID_FEATURES.keySet());
     }
 
-    private static void putValidStructure(Map.Entry<Structure, Integer> entry) {
-        if (entry instanceof Object2IntMap.Entry<Structure> intEntry)
+    private static void putValidStructure(Map.Entry<ResourceLocation, Integer> entry) {
+        if (entry instanceof Object2IntMap.Entry<ResourceLocation> intEntry)
             putValidStructure(entry.getKey(), intEntry.getIntValue());
         else putValidStructure(entry.getKey(), entry.getValue());
     }
 
-    private static void putValidStructure(Structure structure, int value) {
-        if (BLACKLISTED_STRUCTURES.contains(STRUCTURE_REGISTRY.getKey(structure)) || VALID_STRUCTURES.containsKey(structure))
+    private static void putValidStructure(ResourceLocation structure, int value) {
+        if (BLACKLISTED_STRUCTURES.contains(structure) || VALID_STRUCTURES.containsKey(structure))
             return;
-//        VALID_STRUCTURES.put(structure, value);
+        VALID_STRUCTURES.put(structure, value);
+    }
+
+    private static void putValidFeature(Map.Entry<ResourceLocation, Integer> entry) {
+        if (entry instanceof Object2IntMap.Entry<ResourceLocation> intEntry)
+            putValidStructure(entry.getKey(), intEntry.getIntValue());
+        else putValidStructure(entry.getKey(), entry.getValue());
+    }
+
+    private static void putValidFeature(ResourceLocation feature, int value) {
+        if (BLACKLISTED_FEATURES.contains(feature) || VALID_FEATURES.containsKey(feature))
+            return;
+        VALID_FEATURES.put(feature, value);
     }
 
     public static int tryPlace(int pointsToUse, ServerLevel level, ServerPlayer player) {
@@ -167,9 +186,9 @@ public class StructureRandomizer {
         }
 
         BoundingBox boundingbox = structurestart.getBoundingBox();
-        ChunkPos chunkpos = new ChunkPos(SectionPos.blockToSectionCoord(boundingbox.minX()), SectionPos.blockToSectionCoord(boundingbox.minZ()));
-        ChunkPos chunkpos1 = new ChunkPos(SectionPos.blockToSectionCoord(boundingbox.maxX()), SectionPos.blockToSectionCoord(boundingbox.maxZ()));
-        List<ChunkPos> toCheck = ChunkPos.rangeClosed(chunkpos, chunkpos1).toList();
+        ChunkPos minpos = new ChunkPos(SectionPos.blockToSectionCoord(boundingbox.minX()), SectionPos.blockToSectionCoord(boundingbox.minZ()));
+        ChunkPos maxpos = new ChunkPos(SectionPos.blockToSectionCoord(boundingbox.maxX()), SectionPos.blockToSectionCoord(boundingbox.maxZ()));
+        List<ChunkPos> toCheck = ChunkPos.rangeClosed(minpos, maxpos).toList();
         for (ChunkPos chunkPos : toCheck) {
             BoundingBox bb = new BoundingBox(
                     chunkPos.getMinBlockX(), serverLevel.getMinBuildHeight(), chunkPos.getMinBlockZ(),
