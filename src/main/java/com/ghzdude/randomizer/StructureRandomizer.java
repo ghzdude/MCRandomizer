@@ -89,8 +89,8 @@ public class StructureRandomizer {
 
     private static void putValidFeature(Map.Entry<ResourceLocation, Integer> entry) {
         if (entry instanceof Object2IntMap.Entry<ResourceLocation> intEntry)
-            putValidStructure(entry.getKey(), intEntry.getIntValue());
-        else putValidStructure(entry.getKey(), entry.getValue());
+            putValidFeature(entry.getKey(), intEntry.getIntValue());
+        else putValidFeature(entry.getKey(), entry.getValue());
     }
 
     private static void putValidFeature(ResourceLocation feature, int value) {
@@ -129,8 +129,7 @@ public class StructureRandomizer {
     private static int placeFeature(int pointsToUse, ServerLevel level, ServerPlayer player) {
         ResourceLocation feature;
         do {
-            int id = RandomizerCore.seededRNG.nextInt(FEATURES.size());
-            feature = FEATURES.get(id);
+            feature = RandomizerUtil.getRandom(FEATURES);
         } while (VALID_FEATURES.getInt(feature) > pointsToUse);
 
         if (!tryPlaceFeature(level, ResourceKey.create(FEATURE_REGISTRY.key(), feature), getPos(player, level, 48))) {
