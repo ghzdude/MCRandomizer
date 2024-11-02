@@ -15,7 +15,6 @@ import net.minecraft.world.flag.FeatureFlagSet;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
-import net.minecraftforge.registries.ForgeRegistries;
 
 import java.util.*;
 import java.util.stream.Stream;
@@ -36,10 +35,12 @@ public class ItemRandomizer {
 
     private static RandomizationMapData INSTANCE;
     private static Registry<Item> ITEM_REGISTRY;
+    private static FeatureFlagSet ENABLED;
 
     public static void init(MinecraftServer server) {
         INSTANCE = RandomizationMapData.get(server, "item");
         ITEM_REGISTRY = server.registryAccess().registryOrThrow(Registries.ITEM);
+        ENABLED = server.getWorldData().enabledFeatures();
 
         if (BLACKLISTED_ITEMS.isEmpty()) {
             BLACKLISTED_ITEMS.addAll(ConfigIO.read("blacklisted_items", Stream.of(
@@ -60,7 +61,12 @@ public class ItemRandomizer {
                     .toList(), ITEM_REGISTRY));
         }
 
-        configureValidItem(server.getWorldData().enabledFeatures());
+        ConfigIO.readValues("items", SpecialItems.CONFIGURED_ITEMS, ITEM_REGISTRY)
+                .object2IntEntrySet().forEach(ItemRandomizer::putValidItem);
+
+        for (Item item : ITEM_REGISTRY) {
+            putValidItem(item, 1);
+        }
 
         VALID_ITEMS.keySet().forEach(item -> {
             if (!RandomizerUtil.canEnchant(item) && !RandomizerUtil.canHaveEffect(item)) {
@@ -70,21 +76,14 @@ public class ItemRandomizer {
         });
     }
 
-    private static void configureValidItem(FeatureFlagSet flagSet) {
-        for (var item : ForgeRegistries.ITEMS.getValues()) {
-            if (isBlacklisted(item) || !item.isEnabled(flagSet)) continue;
-            int value = 1;
+    private static void putValidItem(Object2IntMap.Entry<Item> entry) {
+        putValidItem(entry.getKey(), entry.getIntValue());
+    }
 
-            if (SpecialItems.SPECIAL_ITEMS.containsKey(item)) {
-                value = SpecialItems.SPECIAL_ITEMS.get(item);
-            } else if (SpecialItems.EFFECT_ITEMS.containsKey(item)) {
-                value = SpecialItems.EFFECT_ITEMS.get(item);
-            } else if (SpecialItems.SHULKER_BOXES.contains(item)) {
-                value = 6;
-            }
-
-            VALID_ITEMS.put(item, value);
-        }
+    private static void putValidItem(Item item, int value) {
+        if (isBlacklisted(item) || VALID_ITEMS.containsKey(item) || ENABLED == null || !item.isEnabled(ENABLED))
+            return;
+        VALID_ITEMS.put(item, value);
     }
 
     public static int giveRandomItem(int pointsToUse, Inventory inventory) {

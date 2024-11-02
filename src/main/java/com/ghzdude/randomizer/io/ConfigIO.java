@@ -1,12 +1,11 @@
 package com.ghzdude.randomizer.io;
 
 import com.ghzdude.randomizer.RandomizerCore;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
+import com.google.gson.*;
 import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonToken;
+import it.unimi.dsi.fastutil.objects.Object2IntArrayMap;
+import it.unimi.dsi.fastutil.objects.Object2IntMap;
 import net.minecraft.core.Registry;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.fml.loading.FMLPaths;
@@ -17,15 +16,18 @@ import java.io.File;
 import java.io.IOException;
 import java.io.Writer;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
-@SuppressWarnings({"ResultOfMethodCallIgnored", "SameParameterValue"})
+@SuppressWarnings({"SameParameterValue"})
 public class ConfigIO {
-    private static final String BLACKLIST_DIR = "config\\" + RandomizerCore.MODID + "\\blacklists\\";
-    private static final File directory = new File(FMLPaths.CONFIGDIR.get().toFile(), BLACKLIST_DIR);
+    private static final Path CONFIG_DIR = FMLPaths.CONFIGDIR.get().resolve(RandomizerCore.MODID);
+    private static final Path BLACKLIST_DIR = CONFIG_DIR.resolve("blacklists");
+    private static final Path VALUE_DIR = CONFIG_DIR.resolve("configured_values");
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
+    private static final String JSON_FILE = "%s.json";
 
     public static void writeListToFile(File file, List<ResourceLocation> list) {
         JsonArray stringArray = new JsonArray();
@@ -33,13 +35,58 @@ public class ConfigIO {
         tryWriteJson(stringArray, file);
     }
 
+    public static <T> void writeValues(File valueFile, Object2IntMap<T> valueMap, Registry<T> registry) {
+        JsonObject map = new JsonObject();
+        for (var entry : valueMap.object2IntEntrySet()) {
+            var loc = registry.getKey(entry.getKey());
+            if (loc == null) throw new NullPointerException();
+            map.addProperty(loc.toString(), entry.getIntValue());
+        }
+        tryWriteJson(map, valueFile);
+    }
+
     private static void tryWriteJson(JsonElement toWrite, File file) {
-        try (Writer writer = Files.newBufferedWriter(file.toPath());) {
+        try {
+            if (!file.createNewFile()) return;
+            Writer writer = Files.newBufferedWriter(file.toPath());
             GSON.toJson(toWrite, writer);
+            writer.close();
 
         } catch (IOException | NullPointerException e) {
-            RandomizerCore.LOGGER.warn("Failure to write JSON at {}", file.getAbsolutePath());
+            RandomizerCore.LOGGER.warn("Failure to write JSON at {}", file);
         }
+    }
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    public static <T> Object2IntMap<T> readValues(String file, Object2IntMap<T> defaults, Registry<T> registry) {
+        final Object2IntMap<T> map = new Object2IntArrayMap<>();
+
+        File valueFile = VALUE_DIR.resolve(JSON_FILE.formatted(file)).toFile();
+        if (!valueFile.exists() && valueFile.getParentFile().mkdirs()) {
+            writeValues(valueFile, defaults, registry);
+            return defaults;
+        }
+        try {
+            var reader = GSON.newJsonReader(Files.newBufferedReader(valueFile.toPath()));
+            reader.beginObject();
+            while (reader.peek() != JsonToken.END_OBJECT) {
+                var loc = ResourceLocation.parse(reader.nextName());
+                int i = reader.nextInt();
+                if (registry.containsKey(loc)) {
+                    map.put((T) registry.get(loc), i);
+                    continue;
+                }
+
+                RandomizerCore.LOGGER.warn("Item \"{}\" does not exist or is invalid!", loc);
+            }
+            reader.endObject();
+            reader.close();
+
+        } catch (IOException e) {
+            readFail(valueFile);
+        }
+
+        return map;
     }
 
     public static List<ResourceLocation> read(@NotNull String file, @NotNull List< @NotNull ResourceLocation> defaults, @Nullable Registry<?> registry) {
@@ -67,7 +114,7 @@ public class ConfigIO {
             reader.endArray();
             reader.close();
         } catch (IOException | NullPointerException e) {
-            RandomizerCore.LOGGER.warn("Failure to read JSON at {}", blacklistFile.getAbsolutePath());
+            readFail(blacklistFile);
         }
         return blacklist;
     }
@@ -76,10 +123,15 @@ public class ConfigIO {
         return read(file, defaults, null);
     }
 
+    @SuppressWarnings("ResultOfMethodCallIgnored")
     private static File createFileName(String s) {
-        if (!ConfigIO.directory.exists()) {
-            ConfigIO.directory.mkdirs();
+        if (!Files.exists(BLACKLIST_DIR)) {
+            BLACKLIST_DIR.toFile().mkdirs();
         }
-        return new File(ConfigIO.directory, "\\" + s.toLowerCase(Locale.ROOT).replace(" ", "") + ".json");
+        return BLACKLIST_DIR.resolve(s.toLowerCase(Locale.ROOT).replace(" ", "") + ".json").toFile();
+    }
+
+    private static void readFail(File file) {
+        RandomizerCore.LOGGER.warn("Failure to read JSON at {}", file.getAbsolutePath());
     }
 }
