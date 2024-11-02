@@ -13,12 +13,12 @@ public class SpecialStructures {
 
     static {
         put(BuiltinStructures.NETHER_FOSSIL, 0); // todo figure out why this structure doesn't work
-        put(BuiltinStructures.ANCIENT_CITY, 6);
-        put(BuiltinStructures.BASTION_REMNANT, 2);
-        put(BuiltinStructures.FORTRESS, 2);
-        put(BuiltinStructures.STRONGHOLD, 3);
-        put(BuiltinStructures.END_CITY, 3);
-        put(BuiltinStructures.WOODLAND_MANSION, 4);
+        put(BuiltinStructures.ANCIENT_CITY, 10);
+        put(BuiltinStructures.BASTION_REMNANT, 6);
+        put(BuiltinStructures.FORTRESS, 6);
+        put(BuiltinStructures.STRONGHOLD, 8);
+        put(BuiltinStructures.END_CITY, 8);
+        put(BuiltinStructures.WOODLAND_MANSION, 6);
     }
 
     private static void put(ResourceKey<Structure> resourceKey, int value) {
