@@ -20,7 +20,7 @@ public class RandomizerUtil {
     private static boolean init;
 
     public static void init(RegistryAccess access) {
-        StructureRandomizer.configureStructures(access);
+        StructureRandomizer.init(access);
         EnchantmentGenerator.init(access);
         PotionGenerator.init(access);
         MobRandomizer.init(access);
@@ -59,7 +59,7 @@ public class RandomizerUtil {
     }
 
     public static boolean canHaveEffect(Item item) {
-        return SpecialItems.EFFECT_ITEMS.containsKey(item);
+        return SpecialItems.EFFECT_ITEMS.contains(item);
     }
 
     public static boolean canEnchant(Item item) {

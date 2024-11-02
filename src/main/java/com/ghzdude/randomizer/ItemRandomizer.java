@@ -1,21 +1,23 @@
 package com.ghzdude.randomizer;
 
+import com.ghzdude.randomizer.io.ConfigIO;
 import com.ghzdude.randomizer.special.item.SpecialItems;
 import com.ghzdude.randomizer.util.RandomizerUtil;
 import it.unimi.dsi.fastutil.objects.Object2IntMap;
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
+import net.minecraft.core.Registry;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.flag.FeatureFlagSet;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.minecraftforge.registries.ForgeRegistries;
+import net.minecraft.world.item.Items;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Random;
+import java.util.*;
+import java.util.stream.Stream;
 
 /* Item Randomizer Description
  * Goal is to give the player a random item every so often DONE
@@ -29,13 +31,42 @@ public class ItemRandomizer {
     private static final Object2IntMap<Item> VALID_ITEMS = new Object2IntOpenHashMap<>();
     private static final List<Item> ITEM_LIST = new ArrayList<>();
     private static final Object2IntMap<Item> SIMPLE_ITEMS = new Object2IntOpenHashMap<>();
+    public static final List<ResourceLocation> BLACKLISTED_ITEMS = new ArrayList<>();
 
     private static RandomizationMapData INSTANCE;
+    private static Registry<Item> ITEM_REGISTRY;
+    private static FeatureFlagSet ENABLED;
 
     public static void init(MinecraftServer server) {
         INSTANCE = RandomizationMapData.get(server, "item");
+        ITEM_REGISTRY = server.registryAccess().registryOrThrow(Registries.ITEM);
+        ENABLED = server.getWorldData().enabledFeatures();
 
-        configureValidItem(server.getWorldData().enabledFeatures());
+        if (BLACKLISTED_ITEMS.isEmpty()) {
+            BLACKLISTED_ITEMS.addAll(ConfigIO.read("blacklisted_items", Stream.of(
+                            Items.AIR,
+                            Items.COMMAND_BLOCK,
+                            Items.COMMAND_BLOCK_MINECART,
+                            Items.CHAIN_COMMAND_BLOCK,
+                            Items.REPEATING_COMMAND_BLOCK,
+                            Items.BARRIER,
+                            Items.LIGHT,
+                            Items.STRUCTURE_BLOCK,
+                            Items.STRUCTURE_VOID,
+                            Items.KNOWLEDGE_BOOK,
+                            Items.JIGSAW,
+                            Items.DEBUG_STICK)
+                    .map(ITEM_REGISTRY::getKey)
+                    .filter(Objects::nonNull)
+                    .toList(), ITEM_REGISTRY));
+        }
+
+        ConfigIO.readValues("items", SpecialItems.CONFIGURED_ITEMS, ITEM_REGISTRY)
+                .object2IntEntrySet().forEach(ItemRandomizer::putValidItem);
+
+        for (Item item : ITEM_REGISTRY) {
+            putValidItem(item, 1);
+        }
 
         VALID_ITEMS.keySet().forEach(item -> {
             if (!RandomizerUtil.canEnchant(item) && !RandomizerUtil.canHaveEffect(item)) {
@@ -45,21 +76,16 @@ public class ItemRandomizer {
         });
     }
 
-    private static void configureValidItem(FeatureFlagSet flagSet) {
-        for (var item : ForgeRegistries.ITEMS.getValues()) {
-            if (SpecialItems.isBlacklisted(item) || !item.isEnabled(flagSet)) continue;
-            int value = 1;
+    private static void putValidItem(Map.Entry<Item, Integer> entry) {
+        if (entry instanceof Object2IntMap.Entry<Item> intEntry)
+            putValidItem(entry.getKey(), intEntry.getIntValue());
+        else putValidItem(entry.getKey(), entry.getValue());
+    }
 
-            if (SpecialItems.SPECIAL_ITEMS.containsKey(item)) {
-                value = SpecialItems.SPECIAL_ITEMS.get(item);
-            } else if (SpecialItems.EFFECT_ITEMS.containsKey(item)) {
-                value = SpecialItems.EFFECT_ITEMS.get(item);
-            } else if (SpecialItems.SHULKER_BOXES.contains(item)) {
-                value = 6;
-            }
-
-            VALID_ITEMS.put(item, value);
-        }
+    private static void putValidItem(Item item, int value) {
+        if (isBlacklisted(item) || VALID_ITEMS.containsKey(item) || ENABLED == null || !item.isEnabled(ENABLED))
+            return;
+        VALID_ITEMS.put(item, value);
     }
 
     public static int giveRandomItem(int pointsToUse, Inventory inventory) {
@@ -92,5 +118,9 @@ public class ItemRandomizer {
 
     public static List<Item> getValidItems() {
         return Collections.unmodifiableList(ITEM_LIST);
+    }
+
+    private static boolean isBlacklisted(Item item) {
+        return BLACKLISTED_ITEMS.contains(ITEM_REGISTRY.getKey(item));
     }
 }
