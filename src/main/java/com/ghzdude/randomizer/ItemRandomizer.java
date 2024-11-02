@@ -76,8 +76,10 @@ public class ItemRandomizer {
         });
     }
 
-    private static void putValidItem(Object2IntMap.Entry<Item> entry) {
-        putValidItem(entry.getKey(), entry.getIntValue());
+    private static void putValidItem(Map.Entry<Item, Integer> entry) {
+        if (entry instanceof Object2IntMap.Entry<Item> intEntry)
+            putValidItem(entry.getKey(), intEntry.getIntValue());
+        else putValidItem(entry.getKey(), entry.getValue());
     }
 
     private static void putValidItem(Item item, int value) {

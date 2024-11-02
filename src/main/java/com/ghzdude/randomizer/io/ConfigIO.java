@@ -57,12 +57,11 @@ public class ConfigIO {
         }
     }
 
-    @SuppressWarnings({"unchecked", "rawtypes"})
     public static <T> Object2IntMap<T> readValues(String file, Object2IntMap<T> defaults, Registry<T> registry) {
         final Object2IntMap<T> map = new Object2IntArrayMap<>();
 
         File valueFile = VALUE_DIR.resolve(JSON_FILE.formatted(file)).toFile();
-        if (!valueFile.exists() && valueFile.getParentFile().mkdirs()) {
+        if (!valueFile.exists() && (valueFile.getParentFile().exists() || valueFile.getParentFile().mkdirs())) {
             writeValues(valueFile, defaults, registry);
             return defaults;
         }
@@ -73,11 +72,11 @@ public class ConfigIO {
                 var loc = ResourceLocation.parse(reader.nextName());
                 int i = reader.nextInt();
                 if (registry.containsKey(loc)) {
-                    map.put((T) registry.get(loc), i);
+                    map.put(registry.get(loc), i);
                     continue;
                 }
 
-                RandomizerCore.LOGGER.warn("Item \"{}\" does not exist or is invalid!", loc);
+                RandomizerCore.LOGGER.warn("Value \"{}\" does not exist in {} or is invalid!", loc, registry.key());
             }
             reader.endObject();
             reader.close();
@@ -119,16 +118,12 @@ public class ConfigIO {
         return blacklist;
     }
 
-    public static List<ResourceLocation> read(@NotNull String file, @NotNull List< @NotNull ResourceLocation> defaults) {
-        return read(file, defaults, null);
-    }
-
-    @SuppressWarnings("ResultOfMethodCallIgnored")
-    private static File createFileName(String s) {
-        if (!Files.exists(BLACKLIST_DIR)) {
-            BLACKLIST_DIR.toFile().mkdirs();
+    private static File createFileName(String file) {
+        if (Files.exists(BLACKLIST_DIR) || BLACKLIST_DIR.toFile().mkdirs()) {
+            file = file.toLowerCase(Locale.ROOT).replace(" ", "");
+            return BLACKLIST_DIR.resolve(JSON_FILE.formatted(file)).toFile();
         }
-        return BLACKLIST_DIR.resolve(s.toLowerCase(Locale.ROOT).replace(" ", "") + ".json").toFile();
+        throw new IllegalStateException("Failed to make file for \"%s\" in \"%s\"".formatted(file, BLACKLIST_DIR));
     }
 
     private static void readFail(File file) {

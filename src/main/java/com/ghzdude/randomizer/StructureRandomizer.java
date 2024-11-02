@@ -24,6 +24,7 @@ import net.minecraft.world.level.levelgen.structure.StructureStart;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 /* Structure Randomizer description
@@ -44,18 +45,24 @@ public class StructureRandomizer {
                 STRUCTURE_REGISTRY);
 
         ConfigIO.readValues("structures", SpecialStructures.CONFIGURED_STRUCTURES, STRUCTURE_REGISTRY)
-                .object2IntEntrySet().forEach(entry -> {
-                    if (!BLACKLISTED_STRUCTURES.contains(STRUCTURE_REGISTRY.getKey(entry.getKey())))
-                        VALID_STRUCTURES.put(entry.getKey(), entry.getIntValue());
-                });
+                .object2IntEntrySet().forEach(StructureRandomizer::putValidStructure);
 
-        for (var entry : STRUCTURE_REGISTRY.entrySet()) {
-            if (BLACKLISTED_STRUCTURES.contains(entry.getKey().location()))
-                continue;
-
-            VALID_STRUCTURES.put(entry.getValue(), 1);
+        for (var structure : STRUCTURE_REGISTRY) {
+            putValidStructure(structure, 1);
         }
         STRUCTURES.addAll(VALID_STRUCTURES.keySet());
+    }
+
+    private static void putValidStructure(Map.Entry<Structure, Integer> entry) {
+        if (entry instanceof Object2IntMap.Entry<Structure> intEntry)
+            putValidStructure(entry.getKey(), intEntry.getIntValue());
+        else putValidStructure(entry.getKey(), entry.getValue());
+    }
+
+    private static void putValidStructure(Structure structure, int value) {
+        if (BLACKLISTED_STRUCTURES.contains(STRUCTURE_REGISTRY.getKey(structure)) || VALID_STRUCTURES.containsKey(structure))
+            return;
+        VALID_STRUCTURES.put(structure, value);
     }
 
     public static int placeStructure(int pointsToUse, ServerLevel level, ServerPlayer player) {
