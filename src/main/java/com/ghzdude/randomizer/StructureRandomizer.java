@@ -27,7 +27,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Predicate;
-import java.util.stream.Stream;
 
 /* Structure Randomizer description
  * every so often, generate a structure at some random x, z coordinate near the player
@@ -64,17 +63,7 @@ public class StructureRandomizer {
         STRUCTURES.addAll(VALID_STRUCTURES.keySet());
 
         // Features
-        BLACKLISTED_FEATURES = ConfigIO.read("blacklisted_features", Stream.of(
-                "lake_lava",
-                "sculk_patch_deep_dark",
-                "disk_sand",
-                "disk_grass")
-                .map(ResourceLocation::withDefaultNamespace)
-                .toList(), FEATURE_REGISTRY);
-        // lava lake feature is causing log spam
-        // also minecraft:sculk_patch_deep_dark
-        // minecraft:disk_sand
-        // "minecraft:disk_grass"
+        BLACKLISTED_FEATURES = ConfigIO.read("blacklisted_features", SpecialFeatures.BLACKLISTED_FEATURES, FEATURE_REGISTRY);
 
         ConfigIO.readValues("features", SpecialFeatures.DEFAULT_FEATURES, FEATURE_REGISTRY)
                 .object2IntEntrySet().forEach(StructureRandomizer::putValidFeature);
