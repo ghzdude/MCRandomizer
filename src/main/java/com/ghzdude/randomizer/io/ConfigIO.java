@@ -25,7 +25,7 @@ import java.util.Locale;
 public class ConfigIO {
     private static final Path CONFIG_DIR = FMLPaths.CONFIGDIR.get().resolve(RandomizerCore.MODID);
     private static final Path BLACKLIST_DIR = CONFIG_DIR.resolve("blacklists");
-    private static final Path VALUE_DIR = CONFIG_DIR.resolve("configured_values");
+    private static final Path VALUE_DIR = CONFIG_DIR.resolve("values");
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
     private static final String JSON_FILE = "%s.json";
 
