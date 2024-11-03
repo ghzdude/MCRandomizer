@@ -28,19 +28,20 @@ import java.util.stream.Stream;
  * items have a defined value, otherwise stacksize is used
  */
 public class ItemRandomizer {
-    private static final Object2IntMap<Item> VALID_ITEMS = new Object2IntOpenHashMap<>();
-    private static final List<Item> ITEM_LIST = new ArrayList<>();
-    private static final Object2IntMap<Item> SIMPLE_ITEMS = new Object2IntOpenHashMap<>();
+    private static final Object2IntMap<ResourceLocation> VALID_ITEMS = new Object2IntOpenHashMap<>();
+    private static final List<ResourceLocation> ITEM_LIST = new ArrayList<>();
+    private static final Object2IntMap<ResourceLocation> SIMPLE_ITEMS = new Object2IntOpenHashMap<>();
     public static final List<ResourceLocation> BLACKLISTED_ITEMS = new ArrayList<>();
 
-    private static RandomizationMapData INSTANCE;
     private static Registry<Item> ITEM_REGISTRY;
+    private static RandomizationMapData INSTANCE;
     private static FeatureFlagSet ENABLED;
 
     public static void init(MinecraftServer server) {
-        INSTANCE = RandomizationMapData.get(server, "item");
         ITEM_REGISTRY = server.registryAccess().registryOrThrow(Registries.ITEM);
+        INSTANCE = RandomizationMapData.get(server, "item");
         ENABLED = server.getWorldData().enabledFeatures();
+        SpecialItems.init(ITEM_REGISTRY::getKey);
 
         if (BLACKLISTED_ITEMS.isEmpty()) {
             BLACKLISTED_ITEMS.addAll(ConfigIO.read("blacklisted_items", Stream.of(
@@ -64,28 +65,30 @@ public class ItemRandomizer {
         ConfigIO.readValues("items", SpecialItems.CONFIGURED_ITEMS, ITEM_REGISTRY)
                 .object2IntEntrySet().forEach(ItemRandomizer::putValidItem);
 
-        for (Item item : ITEM_REGISTRY) {
-            putValidItem(item, 1);
+        for (ResourceLocation loc : ITEM_REGISTRY.keySet()) {
+            putValidItem(loc, 1);
         }
 
-        VALID_ITEMS.keySet().forEach(item -> {
+        for (ResourceLocation loc : VALID_ITEMS.keySet()) {
+            var item = Objects.requireNonNull(ITEM_REGISTRY.get(loc));
             if (!RandomizerUtil.canEnchant(item) && !RandomizerUtil.canHaveEffect(item)) {
-                SIMPLE_ITEMS.put(item, VALID_ITEMS.getInt(item));
+                SIMPLE_ITEMS.put(loc, VALID_ITEMS.getInt(item));
             }
-            ITEM_LIST.add(item);
-        });
+        }
+        ITEM_LIST.addAll(VALID_ITEMS.keySet());
     }
 
-    private static void putValidItem(Map.Entry<Item, Integer> entry) {
-        if (entry instanceof Object2IntMap.Entry<Item> intEntry)
+    private static void putValidItem(Map.Entry<ResourceLocation, Integer> entry) {
+        if (entry instanceof Object2IntMap.Entry<ResourceLocation> intEntry)
             putValidItem(entry.getKey(), intEntry.getIntValue());
         else putValidItem(entry.getKey(), entry.getValue());
     }
 
-    private static void putValidItem(Item item, int value) {
-        if (isBlacklisted(item) || VALID_ITEMS.containsKey(item) || ENABLED == null || !item.isEnabled(ENABLED))
+    private static void putValidItem(ResourceLocation loc, int value) {
+        var item = Objects.requireNonNull(ITEM_REGISTRY.get(loc));
+        if (isBlacklisted(item) || VALID_ITEMS.containsKey(loc) || ENABLED == null || !item.isEnabled(ENABLED))
             return;
-        VALID_ITEMS.put(item, value);
+        VALID_ITEMS.put(loc, value);
     }
 
     public static int giveRandomItem(int pointsToUse, Inventory inventory) {
@@ -96,15 +99,19 @@ public class ItemRandomizer {
     }
 
     public static int getPointValue(Item item) {
+        return getPointValue(ITEM_REGISTRY.getKey(item));
+    }
+
+    public static int getPointValue(ResourceLocation item) {
         return VALID_ITEMS.getInt(item);
     }
 
     public static Item getRandomItem(Random rng, int points) {
-        Item toReturn;
+        ResourceLocation toReturn;
         do {
             toReturn = RandomizerUtil.getRandom(ITEM_LIST, rng);
         } while (getPointValue(toReturn) > points);
-        return toReturn;
+        return ITEM_REGISTRY.get(toReturn);
     }
 
     public static Item getRandomItem(int points) {
@@ -113,11 +120,11 @@ public class ItemRandomizer {
 
     public static ItemStack getRandomItemStack(Random rng) {
         var item = RandomizerUtil.getRandom(ITEM_LIST, rng);
-        return RandomizerUtil.itemToStack(INSTANCE.getItemFor(item));
+        return RandomizerUtil.itemToStack(INSTANCE.getItemFor(ITEM_REGISTRY.get(item)));
     }
 
     public static List<Item> getValidItems() {
-        return Collections.unmodifiableList(ITEM_LIST);
+        return ITEM_LIST.stream().map(ITEM_REGISTRY::get).toList();
     }
 
     private static boolean isBlacklisted(Item item) {

@@ -68,7 +68,6 @@ public class RandomizerCore
     private void commonSetup(final FMLCommonSetupEvent event) {
         MinecraftForge.EVENT_BUS.register(new RecipeRandomizer());
         MinecraftForge.EVENT_BUS.register(new MobRandomizer());
-        MinecraftForge.EVENT_BUS.register(RandomizerConfig.class);
     }
 
     public static void incrementAmtItemsGiven(Player player) {
@@ -87,6 +86,7 @@ public class RandomizerCore
         ItemRandomizer.init(server);
         LootRandomizer.init(server);
         RandomizerUtil.init(server.registryAccess());
+        RandomizerConfig.update();
         serverStarted = true;
     }
 
@@ -130,10 +130,9 @@ public class RandomizerCore
 
             int pointsToUse = seededRNG.nextInt(points) + 1;
             int remaining = pointsToUse;
-            points -= pointsToUse;
 
             if (RandomizerConfig.generateStructures && seededRNG.nextInt(100) < RandomizerConfig.structureProbability) {
-                remaining = StructureRandomizer.placeStructure(pointsToUse, player.serverLevel(), player);
+                remaining = StructureRandomizer.tryPlace(pointsToUse, player.serverLevel(), player);
             } else if (RandomizerConfig.giveRandomItems) {
                 remaining = ItemRandomizer.giveRandomItem(pointsToUse, player.getInventory());
             }
@@ -143,8 +142,7 @@ public class RandomizerCore
                 increaseCycle(player, data);
             }
 
-            points += pointsToUse - remaining;
-            data.putInt(POINT_KEY, points);
+            data.putInt(POINT_KEY, remaining);
         }
     }
 

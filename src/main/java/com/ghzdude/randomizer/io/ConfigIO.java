@@ -35,12 +35,10 @@ public class ConfigIO {
         tryWriteJson(stringArray, file);
     }
 
-    public static <T> void writeValues(File valueFile, Object2IntMap<T> valueMap, Registry<T> registry) {
+    public static void writeValues(File valueFile, Object2IntMap<ResourceLocation> valueMap) {
         JsonObject map = new JsonObject();
-        for (var entry : valueMap.object2IntEntrySet()) {
-            var loc = registry.getKey(entry.getKey());
-            if (loc == null) throw new NullPointerException();
-            map.addProperty(loc.toString(), entry.getIntValue());
+        for (var location : valueMap.keySet()) {
+            map.addProperty(location.toString(), valueMap.getInt(location));
         }
         tryWriteJson(map, valueFile);
     }
@@ -57,12 +55,12 @@ public class ConfigIO {
         }
     }
 
-    public static <T> Object2IntMap<T> readValues(String file, Object2IntMap<T> defaults, Registry<T> registry) {
-        final Object2IntMap<T> map = new Object2IntArrayMap<>();
+    public static <T> Object2IntMap<ResourceLocation> readValues(String file, Object2IntMap<ResourceLocation> defaults, Registry<T> registry) {
+        final Object2IntMap<ResourceLocation> map = new Object2IntArrayMap<>();
 
         File valueFile = VALUE_DIR.resolve(JSON_FILE.formatted(file)).toFile();
         if (!valueFile.exists() && (valueFile.getParentFile().exists() || valueFile.getParentFile().mkdirs())) {
-            writeValues(valueFile, defaults, registry);
+            writeValues(valueFile, defaults);
             return defaults;
         }
         try {
@@ -72,7 +70,7 @@ public class ConfigIO {
                 var loc = ResourceLocation.parse(reader.nextName());
                 int i = reader.nextInt();
                 if (registry.containsKey(loc)) {
-                    map.put(registry.get(loc), i);
+                    map.put(loc, i);
                     continue;
                 }
 
