@@ -38,7 +38,7 @@ public class LootRandomizer {
         final var withSilkPick = createLootParams(server, Items.NETHERITE_PICKAXE, true);
         final var withShears = createLootParams(server, Items.SHEARS, false);
 
-        for (Item item : INSTANCE.getItems()) {
+        for (Item item : INSTANCE.getAsItems()) {
             if (!(item instanceof BlockItem blockItem)) continue;
             var table = server.reloadableRegistries().getLootTable(blockItem.getBlock().getLootTable());
             if (table == LootTable.EMPTY) continue;

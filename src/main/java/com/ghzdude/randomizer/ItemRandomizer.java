@@ -123,8 +123,8 @@ public class ItemRandomizer {
         return RandomizerUtil.itemToStack(INSTANCE.getItemFor(ITEM_REGISTRY.get(item)));
     }
 
-    public static List<Item> getValidItems() {
-        return ITEM_LIST.stream().map(ITEM_REGISTRY::get).toList();
+    public static List<ResourceLocation> getValidItems() {
+        return Collections.unmodifiableList(ITEM_LIST);
     }
 
     private static boolean isBlacklisted(Item item) {

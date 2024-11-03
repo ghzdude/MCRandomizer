@@ -83,9 +83,9 @@ public class RandomizerCore
         var server = event.getServer();
         seededRNG = new Random(server.getWorldData().worldGenOptions().seed());
         unseededRNG = new Random();
+        RandomizerUtil.init(server.registryAccess());
         ItemRandomizer.init(server);
         LootRandomizer.init(server);
-        RandomizerUtil.init(server.registryAccess());
         RandomizerConfig.update();
         serverStarted = true;
     }
