@@ -11,7 +11,6 @@ import net.minecraft.core.Registry;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.SectionPos;
 import net.minecraft.core.registries.Registries;
-import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -114,7 +113,7 @@ public class StructureRandomizer {
 
         RandomizerCore.LOGGER.warn("Attempting to generate structure \"{}\"", structure);
 
-        if (!tryPlaceStructure(level, ResourceKey.create(STRUCTURE_REGISTRY.key(), structure), target)) {
+        if (!tryPlaceStructure(level, structure, target)) {
             RandomizerCore.LOGGER.warn("Failed to place structure \"{}\"", structure);
             if (RandomizerConfig.giveRandomItems) {
                 pointsToUse -= ItemRandomizer.giveRandomItem(pointsToUse, player.getInventory());
@@ -132,7 +131,7 @@ public class StructureRandomizer {
             feature = RandomizerUtil.getRandom(FEATURES);
         } while (VALID_FEATURES.getInt(feature) > pointsToUse);
 
-        if (!tryPlaceFeature(level, ResourceKey.create(FEATURE_REGISTRY.key(), feature), getPos(player, level, 48))) {
+        if (!tryPlaceFeature(level, feature, getPos(player, level, 48))) {
             RandomizerCore.LOGGER.warn("Failed to place feature \"{}\"", feature);
             if (RandomizerConfig.giveRandomItems) {
                 pointsToUse -= ItemRandomizer.giveRandomItem(pointsToUse, player.getInventory());
@@ -167,8 +166,8 @@ public class StructureRandomizer {
         return player.getOnPos().offset(offsetX, 1, offsetZ);
     }
 
-    private static boolean tryPlaceStructure(ServerLevel serverLevel, ResourceKey<Structure> resourceKey, BlockPos blockPos) {
-        Structure structure = STRUCTURE_REGISTRY.getOrThrow(resourceKey);
+    private static boolean tryPlaceStructure(ServerLevel serverLevel, ResourceLocation resourceKey, BlockPos blockPos) {
+        Structure structure = RandomizerUtil.getOrThrow(STRUCTURE_REGISTRY, resourceKey);
 
         ChunkGenerator chunkgenerator = serverLevel.getChunkSource().getGenerator();
         StructureStart structurestart = structure.generate(
@@ -201,10 +200,10 @@ public class StructureRandomizer {
         return true;
     }
 
-    private static boolean tryPlaceFeature(ServerLevel serverLevel, ResourceKey<ConfiguredFeature<?, ?>> resourceKey, BlockPos blockPos) {
-        var feature = FEATURE_REGISTRY.getOrThrow(resourceKey);
+    private static boolean tryPlaceFeature(ServerLevel serverLevel, ResourceLocation location, BlockPos blockPos) {
+        var feature = RandomizerUtil.getOrThrow(FEATURE_REGISTRY, location);
 
-        RandomizerCore.LOGGER.warn("Placing feature \"{}\"", resourceKey.location());
+        RandomizerCore.LOGGER.warn("Placing feature \"{}\"", location);
         if (feature.config() instanceof OreConfiguration oreConfiguration) {
             // todo special handling of ore features?
         }
@@ -212,7 +211,7 @@ public class StructureRandomizer {
         if (optional.isEmpty()) return false;
 
         var pos = optional.get();
-        RandomizerCore.LOGGER.warn("Feature \"{}\" placed at [{}X, {}Y, {}Z]", resourceKey.location(), pos.getX(), pos.getY(), pos.getZ());
+        RandomizerCore.LOGGER.warn("Feature \"{}\" placed at [{}X, {}Y, {}Z]", location, pos.getX(), pos.getY(), pos.getZ());
         return true;
     }
     private static Predicate<BlockPos> featurePredicate(ServerLevel level, ConfiguredFeature<?, ?> feature) {

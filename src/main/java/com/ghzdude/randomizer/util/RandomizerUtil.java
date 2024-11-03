@@ -6,13 +6,17 @@ import com.ghzdude.randomizer.RandomizerCore;
 import com.ghzdude.randomizer.StructureRandomizer;
 import com.ghzdude.randomizer.special.generators.*;
 import com.ghzdude.randomizer.special.item.SpecialItems;
+import net.minecraft.core.Registry;
 import net.minecraft.core.RegistryAccess;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.Random;
 
 public class RandomizerUtil {
@@ -80,6 +84,10 @@ public class RandomizerUtil {
 
     public static <T> T getRandom(List<T> list) {
         return getRandom(list, RandomizerCore.unseededRNG);
+    }
+
+    public static <T> @NotNull T getOrThrow(Registry<T> registry, ResourceLocation location) {
+        return Objects.requireNonNull(registry.get(location), "%s does not exist in %s".formatted(location, registry.key()));
     }
 
     public static ItemStack specialItemToStack(Item item, int points) {
