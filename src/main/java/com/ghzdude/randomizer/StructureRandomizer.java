@@ -31,11 +31,11 @@ import java.util.function.Predicate;
  * every so often, generate a structure at some random x, z coordinate near the player
  */
 public class StructureRandomizer {
-    private static List<ResourceLocation> BLACKLISTED_STRUCTURES;
+    private static List<ResourceLocation> BLACKLISTED_STRUCTURES = null;
     private static final Object2IntMap<ResourceLocation> VALID_STRUCTURES = new Object2IntOpenHashMap<>();
     private static final List<ResourceLocation> STRUCTURES = new ArrayList<>();
 
-    private static List<ResourceLocation> BLACKLISTED_FEATURES;
+    private static List<ResourceLocation> BLACKLISTED_FEATURES = null;
     private static final Object2IntMap<ResourceLocation> VALID_FEATURES = new Object2IntOpenHashMap<>();
     private static final List<ResourceLocation> FEATURES = new ArrayList<>();
 
@@ -48,12 +48,16 @@ public class StructureRandomizer {
 
         // stronghold is causing log spam
         // Structures
-        BLACKLISTED_STRUCTURES = ConfigIO.read("blacklisted_structures",
+        if (BLACKLISTED_STRUCTURES == null) {
+            BLACKLISTED_STRUCTURES = ConfigIO.read("blacklisted_structures",
                 List.of(ResourceLocation.parse("namespace:structure_name_here")),
                 STRUCTURE_REGISTRY);
+        }
 
-        ConfigIO.readValues("structures", SpecialStructures.CONFIGURED_STRUCTURES, STRUCTURE_REGISTRY)
+        if (VALID_STRUCTURES.isEmpty()) {
+            ConfigIO.readValues("structures", SpecialStructures.CONFIGURED_STRUCTURES, STRUCTURE_REGISTRY)
                 .object2IntEntrySet().forEach(StructureRandomizer::putValidStructure);
+        }
 
         for (var structure : STRUCTURE_REGISTRY.keySet()) {
             putValidStructure(structure, 1);
@@ -62,10 +66,14 @@ public class StructureRandomizer {
         STRUCTURES.addAll(VALID_STRUCTURES.keySet());
 
         // Features
-        BLACKLISTED_FEATURES = ConfigIO.read("blacklisted_features", SpecialFeatures.BLACKLISTED_FEATURES, FEATURE_REGISTRY);
+        if (BLACKLISTED_FEATURES == null) {
+            BLACKLISTED_FEATURES = ConfigIO.read("blacklisted_features", SpecialFeatures.BLACKLISTED_FEATURES, FEATURE_REGISTRY);
+        }
 
-        ConfigIO.readValues("features", SpecialFeatures.DEFAULT_FEATURES, FEATURE_REGISTRY)
+        if (VALID_FEATURES.isEmpty()) {
+            ConfigIO.readValues("features", SpecialFeatures.DEFAULT_FEATURES, FEATURE_REGISTRY)
                 .object2IntEntrySet().forEach(StructureRandomizer::putValidFeature);
+        }
 
         for (var loc : FEATURE_REGISTRY.keySet()) {
             putValidFeature(loc, 1);

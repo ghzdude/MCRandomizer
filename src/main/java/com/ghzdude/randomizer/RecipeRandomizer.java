@@ -9,7 +9,9 @@ import net.minecraft.advancements.Advancement;
 import net.minecraft.advancements.AdvancementHolder;
 import net.minecraft.advancements.AdvancementRewards;
 import net.minecraft.advancements.critereon.InventoryChangeTrigger;
+import net.minecraft.core.Registry;
 import net.minecraft.core.RegistryAccess;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.ServerAdvancementManager;
 import net.minecraft.tags.TagKey;
@@ -24,7 +26,6 @@ import net.minecraftforge.event.server.ServerStartedEvent;
 import net.minecraftforge.event.server.ServerStoppingEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.registries.ForgeRegistries;
-import net.minecraftforge.registries.IForgeRegistry;
 import net.minecraftforge.registries.tags.ITag;
 import net.minecraftforge.registries.tags.ITagManager;
 import org.jetbrains.annotations.NotNull;
@@ -52,10 +53,12 @@ public class RecipeRandomizer {
     private static final Map<ResourceLocation, List<ResourceLocation>> MODIFIED = new Object2ObjectOpenHashMap<>();
 
     private static RandomizationMapData INSTANCE = null;
+    private static Registry<Item> ITEM_REGISTRY;
 
     @SubscribeEvent
     public void start(ServerStartedEvent event) {
         if (RandomizerConfig.randomizeRecipes) {
+            ITEM_REGISTRY = event.getServer().registryAccess().registryOrThrow(Registries.ITEM);
             if (INSTANCE == null)
                 INSTANCE = RandomizationMapData.get(event.getServer(), "recipes");
 
@@ -104,8 +107,6 @@ public class RecipeRandomizer {
     }
 
     private static void modifyRecipeInputs(List<Ingredient> ingredients, ResourceLocation recipe) {
-        IForgeRegistry<Item> registry = ForgeRegistries.ITEMS;
-
         for (int k = 0; k < ingredients.size(); k++) {
             if (ingredients.get(k) instanceof IngredientRandomizable randomizable) {
                 randomizable.randomizer$randomizeInputs(value -> {
@@ -113,7 +114,7 @@ public class RecipeRandomizer {
                     Ingredient.Value random;
                     if (value instanceof Ingredient.ItemValue itemValue) {
                         ItemStack stack = INSTANCE.getStackFor(itemValue.item());
-                        ingredient = registry.getKey(stack.getItem());
+                        ingredient = ITEM_REGISTRY.getKey(stack.getItem());
                         if (ingredient == null) return value;
                         random = new Ingredient.ItemValue(stack);
                     } else {

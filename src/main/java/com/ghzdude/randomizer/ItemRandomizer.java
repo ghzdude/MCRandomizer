@@ -70,7 +70,7 @@ public class ItemRandomizer {
         }
 
         for (ResourceLocation loc : VALID_ITEMS.keySet()) {
-            var item = Objects.requireNonNull(ITEM_REGISTRY.get(loc));
+            var item = RandomizerUtil.getOrThrow(ITEM_REGISTRY, loc);
             if (!RandomizerUtil.canEnchant(item) && !RandomizerUtil.canHaveEffect(item)) {
                 SIMPLE_ITEMS.put(loc, VALID_ITEMS.getInt(item));
             }
@@ -85,7 +85,7 @@ public class ItemRandomizer {
     }
 
     private static void putValidItem(ResourceLocation loc, int value) {
-        var item = Objects.requireNonNull(ITEM_REGISTRY.get(loc));
+        var item = RandomizerUtil.getOrThrow(ITEM_REGISTRY, loc);
         if (isBlacklisted(item) || VALID_ITEMS.containsKey(loc) || ENABLED == null || !item.isEnabled(ENABLED))
             return;
         VALID_ITEMS.put(loc, value);
