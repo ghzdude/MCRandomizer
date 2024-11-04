@@ -9,6 +9,8 @@ import net.minecraft.advancements.Advancement;
 import net.minecraft.advancements.AdvancementHolder;
 import net.minecraft.advancements.AdvancementRewards;
 import net.minecraft.advancements.critereon.InventoryChangeTrigger;
+import net.minecraft.core.Holder;
+import net.minecraft.core.HolderSet;
 import net.minecraft.core.Registry;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.registries.Registries;
@@ -25,9 +27,6 @@ import net.minecraft.world.item.crafting.RecipeManager;
 import net.minecraftforge.event.server.ServerStartedEvent;
 import net.minecraftforge.event.server.ServerStoppingEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.registries.ForgeRegistries;
-import net.minecraftforge.registries.tags.ITag;
-import net.minecraftforge.registries.tags.ITagManager;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
@@ -137,21 +136,22 @@ public class RecipeRandomizer {
     }
 
     public static void buildAdvancements(ImmutableMap.Builder<ResourceLocation, AdvancementHolder> map) {
-        ITagManager<Item> tagManager = ForgeRegistries.ITEMS.tags();
-        if (tagManager == null) return;
-
         MODIFIED.forEach((ing, recipes) -> {
             Item[] changedItems;
-            Item item = ForgeRegistries.ITEMS.getValue(ing);
-            Optional<ITag<Item>> tag = tagManager.getTagNames()
+            Item item = ITEM_REGISTRY.get(ing);
+            HolderSet.Named<Item> tag = ITEM_REGISTRY.getTagNames()
                     .filter(key -> key.location().equals(ing))
-                    .map(tagManager::getTag)
-                    .findFirst();
+                    .map(key -> ITEM_REGISTRY.getTag(key))
+                    .filter(Optional::isPresent)
+                    .map(Optional::get)
+                    .findFirst().orElse(null);
 
             if (item != Items.AIR && item != null) {
                 changedItems = new Item[]{item};
-            } else if (tag.isPresent()) {
-                changedItems = tag.get().stream().toArray(Item[]::new);
+            } else if (tag != null) {
+                changedItems = tag.stream()
+                        .map(Holder::get)
+                        .toArray(Item[]::new);
             } else {
                 RandomizerCore.LOGGER.warn("{} is not a valid item or tag!", ing);
                 return;
