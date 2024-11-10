@@ -66,7 +66,6 @@ public class RandomizerCore
     }
 
     private void commonSetup(final FMLCommonSetupEvent event) {
-        MinecraftForge.EVENT_BUS.register(new RecipeRandomizer());
         MinecraftForge.EVENT_BUS.register(new MobRandomizer());
     }
 
@@ -80,10 +79,11 @@ public class RandomizerCore
 
     @SubscribeEvent
     public void onStart(ServerStartedEvent event) {
-        var server = event.getServer();
+        final var server = event.getServer();
         seededRNG = new Random(server.getWorldData().worldGenOptions().seed());
         unseededRNG = new Random();
         ItemRandomizer.init(server);
+        RecipeRandomizer.init(server);
         LootRandomizer.init(server);
         RandomizerUtil.init(server.registryAccess());
         RandomizerConfig.update();

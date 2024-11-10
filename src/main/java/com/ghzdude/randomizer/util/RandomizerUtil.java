@@ -1,9 +1,6 @@
 package com.ghzdude.randomizer.util;
 
-import com.ghzdude.randomizer.ItemRandomizer;
-import com.ghzdude.randomizer.MobRandomizer;
-import com.ghzdude.randomizer.RandomizerCore;
-import com.ghzdude.randomizer.StructureRandomizer;
+import com.ghzdude.randomizer.*;
 import com.ghzdude.randomizer.special.generators.*;
 import com.ghzdude.randomizer.special.item.SpecialItems;
 import net.minecraft.core.Registry;
@@ -32,6 +29,7 @@ public class RandomizerUtil {
     }
 
     public static void dispose() {
+        RecipeRandomizer.dispose();
         init = false;
     }
 

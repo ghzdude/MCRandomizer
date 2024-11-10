@@ -13,6 +13,7 @@ import net.minecraft.core.Registry;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.ServerAdvancementManager;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.item.Item;
@@ -22,9 +23,6 @@ import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.item.crafting.Recipe;
 import net.minecraft.world.item.crafting.RecipeHolder;
 import net.minecraft.world.item.crafting.RecipeManager;
-import net.minecraftforge.event.server.ServerStartedEvent;
-import net.minecraftforge.event.server.ServerStoppingEvent;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.registries.ForgeRegistries;
 import net.minecraftforge.registries.tags.ITag;
 import net.minecraftforge.registries.tags.ITagManager;
@@ -55,25 +53,19 @@ public class RecipeRandomizer {
     private static RandomizationMapData INSTANCE = null;
     private static Registry<Item> ITEM_REGISTRY;
 
-    @SubscribeEvent
-    public void start(ServerStartedEvent event) {
+    public static void init(MinecraftServer server) {
         if (RandomizerConfig.randomizeRecipes) {
-            ITEM_REGISTRY = event.getServer().registryAccess().registryOrThrow(Registries.ITEM);
-            if (INSTANCE == null)
-                INSTANCE = RandomizationMapData.get(event.getServer(), "recipes");
+            ITEM_REGISTRY = server.registryAccess().registryOrThrow(Registries.ITEM);
+            INSTANCE = RandomizationMapData.get(server, "recipes");
 
             RandomizerCore.LOGGER.warn("Recipe Randomizer Running!");
-            randomizeRecipes(
-                    event.getServer().getRecipeManager(),
-                    event.getServer().registryAccess()
-            );
+            randomizeRecipes(server.getRecipeManager(), server.registryAccess());
 
-            setAdvancements(event.getServer().getAdvancements());
+            setAdvancements(server.getAdvancements());
         }
     }
 
-    @SubscribeEvent
-    public void stop(ServerStoppingEvent event) {
+    public static void dispose() {
         MODIFIED.clear();
     }
 
