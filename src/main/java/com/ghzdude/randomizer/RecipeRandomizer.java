@@ -9,6 +9,7 @@ import net.minecraft.advancements.Advancement;
 import net.minecraft.advancements.AdvancementHolder;
 import net.minecraft.advancements.AdvancementRewards;
 import net.minecraft.advancements.critereon.InventoryChangeTrigger;
+import net.minecraft.core.Holder;
 import net.minecraft.core.Registry;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.registries.Registries;
@@ -18,14 +19,10 @@ import net.minecraft.server.ServerAdvancementManager;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
 import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.item.crafting.Recipe;
 import net.minecraft.world.item.crafting.RecipeHolder;
 import net.minecraft.world.item.crafting.RecipeManager;
-import net.minecraftforge.registries.ForgeRegistries;
-import net.minecraftforge.registries.tags.ITag;
-import net.minecraftforge.registries.tags.ITagManager;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
@@ -84,10 +81,7 @@ public class RecipeRandomizer {
 
             // if inputs are not to be randomized, move on to the next recipe
             if (RandomizerConfig.randomizeRecipeInputs) {
-                modifyRecipeInputs(
-                        recipe.getIngredients().stream()
-                        .distinct().filter(ingredient -> !ingredient.isEmpty()).toList(), holder.id()
-                );
+                modifyRecipeInputs(recipe.getIngredients(), holder.id());
             }
         }
     }
@@ -99,8 +93,11 @@ public class RecipeRandomizer {
     }
 
     private static void modifyRecipeInputs(List<Ingredient> ingredients, ResourceLocation recipe) {
-        for (int k = 0; k < ingredients.size(); k++) {
-            if (ingredients.get(k) instanceof IngredientRandomizable randomizable) {
+        List<Ingredient> checked = new ArrayList<>();
+        for (var ing : ingredients) {
+            if (checked.contains(ing)) continue;
+            if (ing instanceof IngredientRandomizable randomizable) {
+                checked.add(ing);
                 randomizable.randomizer$randomizeInputs(value -> {
                     ResourceLocation ingredient;
                     Ingredient.Value random;
@@ -123,40 +120,35 @@ public class RecipeRandomizer {
     }
 
     public static void addToMap(@NotNull ResourceLocation recipe, @NotNull ResourceLocation ingredient) {
-        RecipeRandomizer.MODIFIED
-                .computeIfAbsent(ingredient, key -> new ArrayList<>())
+        MODIFIED.computeIfAbsent(ingredient, key -> new ArrayList<>())
                 .add(recipe);
     }
 
     public static void buildAdvancements(ImmutableMap.Builder<ResourceLocation, AdvancementHolder> map) {
-        ITagManager<Item> tagManager = ForgeRegistries.ITEMS.tags();
-        if (tagManager == null) return;
-
-        MODIFIED.forEach((ing, recipes) -> {
+        for (var ing : MODIFIED.keySet()) {
             Item[] changedItems;
-            Item item = ForgeRegistries.ITEMS.getValue(ing);
-            Optional<ITag<Item>> tag = tagManager.getTagNames()
+            Optional<Item> item = ITEM_REGISTRY.getOptional(ing);
+            var tag = ITEM_REGISTRY.getTagNames()
                     .filter(key -> key.location().equals(ing))
-                    .map(tagManager::getTag)
                     .findFirst();
 
-            if (item != Items.AIR && item != null) {
-                changedItems = new Item[]{item};
+            if (item.isPresent()) {
+                changedItems = new Item[]{ item.get() };
             } else if (tag.isPresent()) {
-                changedItems = tag.get().stream().toArray(Item[]::new);
+                changedItems = ITEM_REGISTRY.getTag(tag.get()).orElseThrow().stream().map(Holder::get).toArray(Item[]::new);
             } else {
                 RandomizerCore.LOGGER.warn("{} is not a valid item or tag!", ing);
                 return;
             }
 
             Advancement.Builder builder = new Advancement.Builder();
-            for (ResourceLocation recipe : recipes) {
+            for (ResourceLocation recipe : MODIFIED.get(ing)) {
                 builder.rewards(AdvancementRewards.Builder.recipe(recipe));
             }
             builder.addCriterion("has_item", InventoryChangeTrigger.TriggerInstance.hasItems(changedItems));
             String path = "%s-%s_gives_recipes".formatted(ing.getNamespace(), ing.getPath());
             AdvancementHolder toAdd = builder.build(ResourceLocation.fromNamespaceAndPath(RandomizerCore.MODID, path));
             map.put(toAdd.id(), toAdd);
-        });
+        }
     }
 }
