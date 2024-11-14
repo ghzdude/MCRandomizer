@@ -8,6 +8,7 @@
     "AdvancementManagerMixin",
     "IngredientMixin",
     "RandomizeLootMixin",
+    "VillagerMixin",
     "recipe.CookingMixin",
     "recipe.ShapedMixin",
     "recipe.ShapelessMixin",

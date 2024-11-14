@@ -21,6 +21,7 @@ public class RandomizerConfig {
     public static boolean randomizeChestLoot;
     public static boolean randomizeMobs;
     public static boolean randomizeMobAttributes;
+    public static boolean randomizeVillagerTrades;
 
     static {
         update();
@@ -42,6 +43,7 @@ public class RandomizerConfig {
         randomizeChestLoot = Holder.randomizeChestLoot.get();
         randomizeMobs = Holder.randomizeMobs.get();
         randomizeMobAttributes = Holder.randomizeMobAttributes.get();
+        randomizeVillagerTrades = Holder.randomizeVillagerTrades.get();
     }
 
     public static class Holder {
@@ -68,6 +70,7 @@ public class RandomizerConfig {
         public static ForgeConfigSpec.BooleanValue randomizeChestLoot;
         public static ForgeConfigSpec.BooleanValue randomizeMobs;
         public static ForgeConfigSpec.BooleanValue randomizeMobAttributes;
+        public static ForgeConfigSpec.BooleanValue randomizeVillagerTrades;
 
         public Holder(ForgeConfigSpec.Builder builder) {
 
@@ -126,6 +129,9 @@ public class RandomizerConfig {
 
             randomizeMobAttributes = builder.comment("Should the attributes of mobs be randomized when spawned? Defaults to false.")
                     .define("randomize_attributes", false);
+
+            randomizeVillagerTrades = builder.comment("Should villager trades give random output item stacks? Defaults to true.")
+                            .define("randomize_trades", true);
             builder.pop();
         }
 
