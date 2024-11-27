@@ -135,10 +135,11 @@ public class RecipeRandomizer {
             if (item.isPresent()) {
                 changedItems = new Item[]{ item.get() };
             } else if (tag.isPresent()) {
-                changedItems = ITEM_REGISTRY.getTag(tag.get()).orElseThrow().stream().map(Holder::get).toArray(Item[]::new);
+                changedItems = ITEM_REGISTRY.getTag(tag.get()).orElseThrow()
+                        .stream().map(Holder::get).toArray(Item[]::new);
             } else {
                 RandomizerCore.LOGGER.warn("{} is not a valid item or tag!", ing);
-                return;
+                continue;
             }
 
             Advancement.Builder builder = new Advancement.Builder();
