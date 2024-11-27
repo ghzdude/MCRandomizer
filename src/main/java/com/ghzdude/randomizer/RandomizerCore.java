@@ -19,7 +19,6 @@ import net.minecraftforge.event.server.ServerStartedEvent;
 import net.minecraftforge.event.server.ServerStoppingEvent;
 import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.fml.ModLoadingContext;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.config.ModConfig;
 import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
@@ -53,10 +52,10 @@ public class RandomizerCore
     private int OFFSET = 0;
     private static final int COUNTER_MAX = 50;
 
-    public RandomizerCore() {
-        IEventBus modEventBus = FMLJavaModLoadingContext.get().getModEventBus();
+    public RandomizerCore(FMLJavaModLoadingContext context) {
+        IEventBus modEventBus = context.getModEventBus();
 
-        ModLoadingContext.get().registerConfig(ModConfig.Type.COMMON, RandomizerConfig.Holder.getSpec());
+        context.registerConfig(ModConfig.Type.COMMON, RandomizerConfig.Holder.getSpec());
 
         // Register the commonSetup method for modloading
         modEventBus.addListener(this::commonSetup);
