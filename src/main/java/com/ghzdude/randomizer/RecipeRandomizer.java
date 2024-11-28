@@ -3,6 +3,7 @@ package com.ghzdude.randomizer;
 import com.ghzdude.randomizer.api.AdvancementModify;
 import com.ghzdude.randomizer.api.IngredientRandomizable;
 import com.ghzdude.randomizer.api.OutputSetter;
+import com.ghzdude.randomizer.util.RandomizerUtil;
 import com.google.common.collect.ImmutableMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import net.minecraft.advancements.Advancement;
@@ -148,7 +149,7 @@ public class RecipeRandomizer {
             }
             builder.addCriterion("has_item", InventoryChangeTrigger.TriggerInstance.hasItems(changedItems));
             String path = "%s-%s_gives_recipes".formatted(ing.getNamespace(), ing.getPath());
-            AdvancementHolder toAdd = builder.build(ResourceLocation.fromNamespaceAndPath(RandomizerCore.MODID, path));
+            AdvancementHolder toAdd = builder.build(RandomizerUtil.location(path));
             map.put(toAdd.id(), toAdd);
         }
     }

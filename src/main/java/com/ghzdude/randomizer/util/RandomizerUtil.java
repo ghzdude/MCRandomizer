@@ -118,4 +118,8 @@ public class RandomizerUtil {
         }
         return stack;
     }
+
+    public static ResourceLocation location(String path) {
+        return ResourceLocation.fromNamespaceAndPath(RandomizerCore.MODID, path);
+    }
 }
