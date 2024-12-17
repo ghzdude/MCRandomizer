@@ -20,6 +20,7 @@ import net.minecraft.server.ServerAdvancementManager;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.item.crafting.Recipe;
 import net.minecraft.world.item.crafting.RecipeHolder;
@@ -78,7 +79,8 @@ public class RecipeRandomizer {
             Recipe<?> recipe = holder.value();
             ItemStack newResult = INSTANCE.getStackFor(recipe.getResultItem(access));
 
-            modifyRecipeOutputs(recipe, newResult);
+            if (!recipe.getResultItem(access).is(Items.ENDER_EYE) || !RandomizerConfig.ensureCompletability)
+                modifyRecipeOutputs(recipe, newResult);
 
             // if inputs are not to be randomized, move on to the next recipe
             if (RandomizerConfig.randomizeRecipeInputs) {

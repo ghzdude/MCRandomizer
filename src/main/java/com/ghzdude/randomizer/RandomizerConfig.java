@@ -22,6 +22,7 @@ public class RandomizerConfig {
     public static boolean randomizeMobs;
     public static boolean randomizeMobAttributes;
     public static boolean randomizeVillagerTrades;
+    public static boolean ensureCompletability;
 
     static {
         update();
@@ -44,6 +45,7 @@ public class RandomizerConfig {
         randomizeMobs = Holder.randomizeMobs.get();
         randomizeMobAttributes = Holder.randomizeMobAttributes.get();
         randomizeVillagerTrades = Holder.randomizeVillagerTrades.get();
+        ensureCompletability = Holder.ensureCompletability.get();
     }
 
     public static class Holder {
@@ -71,6 +73,7 @@ public class RandomizerConfig {
         public static ForgeConfigSpec.BooleanValue randomizeMobs;
         public static ForgeConfigSpec.BooleanValue randomizeMobAttributes;
         public static ForgeConfigSpec.BooleanValue randomizeVillagerTrades;
+        public static ForgeConfigSpec.BooleanValue ensureCompletability;
 
         public Holder(ForgeConfigSpec.Builder builder) {
 
@@ -96,8 +99,12 @@ public class RandomizerConfig {
             builder.push("Recipe Randomizer");
             randomizeRecipes = builder.comment("Should recipes be randomized? Defaults to true.")
                     .define("randomize_recipes", true);
+
             randomizeRecipeInputs = builder.comment("Should recipe inputs also be randomized? This also attempts to change advancements for unlocking recipes. Defaults to true.")
                     .define("randomize_recipe_inputs", true);
+
+            ensureCompletability = builder.comment("Ensures that Ender Eyes have at least one crafting recipe and the game is completable. Defaults to false.")
+                            .define("force_completable", false);
             builder.pop();
 
             // Structure Randomizer
