@@ -71,6 +71,10 @@ public class LootRandomizer {
         }
     }
 
+    public static void dispose() {
+        BlockDropRecipe.clearRegistry();
+    }
+
     @SuppressWarnings("deprecation")
     private static ItemStack getDrop(LootTable table, MutableLootParams params) {
         var list = new ObjectArrayList<ItemStack>();

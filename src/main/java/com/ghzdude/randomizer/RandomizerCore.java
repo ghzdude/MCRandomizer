@@ -112,6 +112,7 @@ public class RandomizerCore
     @SubscribeEvent
     public void onStop(ServerStoppingEvent event) {
         RandomizerUtil.dispose();
+        LootRandomizer.dispose();
         serverStarted = false;
     }
 

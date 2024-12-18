@@ -21,6 +21,10 @@ public record BlockDropRecipe(ItemStack input, ItemStack output, Type type) {
         registerRecipe(in, output, Type.HAND);
     }
 
+    public static void clearRegistry() {
+        REGISTRY.clear();
+    }
+
     public static List<BlockDropRecipe> getRecipes() {
         return REGISTRY;
     }
