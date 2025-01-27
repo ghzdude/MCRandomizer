@@ -52,6 +52,7 @@ public class RecipeRandomizer {
     private static RandomizationMapData INSTANCE = null;
     private static Registry<Item> ITEM_REGISTRY;
 
+    // todo look into RecipesUpdatedEvent
     public static void init(MinecraftServer server) {
         if (RandomizerConfig.randomizeRecipes) {
             ITEM_REGISTRY = server.registryAccess().registryOrThrow(Registries.ITEM);

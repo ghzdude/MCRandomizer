@@ -3,6 +3,7 @@ package com.ghzdude.randomizer;
 import com.ghzdude.randomizer.util.RandomizerUtil;
 import net.minecraft.world.item.trading.MerchantOffer;
 
+// todo look into WandererTradesEvent and/or VillagerTradesEvent instead of mixin
 public class VillagerRandomizer {
     public static MerchantOffer randomizeOffer(MerchantOffer vanilla) {
         int count = vanilla.getResult().getCount();

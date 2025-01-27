@@ -38,6 +38,7 @@ public class MobRandomizer {
     private static Registry<Attribute> ATTRIBUTE_REGISTRY;
     private static Registry<EntityType<?>> TYPE_REGISTRY;
 
+    // todo utilize SpawnPlacementCheck, PositionCheck, and FinalizeSpawn somehow
     public static void init(RegistryAccess access) {
         ATTRIBUTE_REGISTRY = access.registryOrThrow(Registries.ATTRIBUTE);
         TYPE_REGISTRY = access.registryOrThrow(Registries.ENTITY_TYPE);
