@@ -1,20 +1,27 @@
 package com.ghzdude.randomizer.compat.jei;
 
+import com.ghzdude.randomizer.util.RandomizerUtil;
+import com.google.common.collect.ImmutableList;
+import it.unimi.dsi.fastutil.objects.Object2ObjectMap;
+import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 
-import java.util.ArrayList;
 import java.util.List;
 
 public record BlockDropRecipe(ItemStack input, ItemStack output, Type type) {
-    private static final List<BlockDropRecipe> REGISTRY = new ArrayList<>();
+
+    private static final Object2ObjectMap<ResourceLocation, BlockDropRecipe> REGISTRY = new Object2ObjectOpenHashMap<>();
 
     public static void registerRecipe(Item in, ItemStack output, Type type) {
         if (output.isEmpty()) return;
-        REGISTRY.add(new BlockDropRecipe(new ItemStack(in), output, type));
+        BlockDropRecipe recipe = new BlockDropRecipe(new ItemStack(in), output, type);
+        REGISTRY.put(RandomizerUtil.location("%s_drops_%s_%s".formatted(in, output.getItem(), type)), recipe);
+//        CompletabilityVerifier.addBlockDrop(recipe, ItemRandomizer.getRegistry());
     }
 
     public static void registerRecipe(Item in, ItemStack output) {
@@ -26,7 +33,11 @@ public record BlockDropRecipe(ItemStack input, ItemStack output, Type type) {
     }
 
     public static List<BlockDropRecipe> getRecipes() {
-        return REGISTRY;
+        return ImmutableList.copyOf(REGISTRY.values());
+    }
+
+    public static BlockDropRecipe get(ResourceLocation location) {
+        return REGISTRY.get(location);
     }
 
     public enum Type {

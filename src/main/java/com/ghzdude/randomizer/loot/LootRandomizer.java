@@ -4,8 +4,8 @@ import com.ghzdude.randomizer.RandomizationMapData;
 import com.ghzdude.randomizer.RandomizerConfig;
 import com.ghzdude.randomizer.compat.jei.BlockDropRecipe;
 import com.ghzdude.randomizer.util.RandomizerUtil;
-import it.unimi.dsi.fastutil.objects.ObjectArrayList;
-import it.unimi.dsi.fastutil.objects.Reference2ObjectArrayMap;
+import it.unimi.dsi.fastutil.objects.*;
+import net.minecraft.core.Registry;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
@@ -25,49 +25,76 @@ import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Map;
+import java.util.Optional;
 
 public class LootRandomizer {
 
     private static RandomizationMapData INSTANCE = null;
+    private static Registry<LootTable> LOOT_REGISTRY;
+    private static Registry<Item> ITEM_REGISTRY;
+    private static final ObjectOpenHashSet<ResourceLocation> TABLES = new ObjectOpenHashSet<>();
+    private static final Object2ObjectMap<ResourceLocation, ResourceLocation> BLOCK_MAP = new Object2ObjectOpenHashMap<>();
+    private static MutableLootParams HAND, PICK, SILK, SHEARS;
 
     public static void init(MinecraftServer server) {
         INSTANCE = RandomizationMapData.get(server, "loot");
+        Optional<Registry<LootTable>> optional = server.reloadableRegistries().get().registry(Registries.LOOT_TABLE);
+        if (optional.isEmpty()) throw new NullPointerException();
+        LOOT_REGISTRY = optional.get();
+        ITEM_REGISTRY = server.registryAccess().registryOrThrow(Registries.ITEM);
+        TABLES.clear();
 
-        final var hand = createLootParams(server, Items.AIR, false);
-        final var withPick = createLootParams(server, Items.NETHERITE_PICKAXE, false);
-        final var withSilkPick = createLootParams(server, Items.NETHERITE_PICKAXE, true);
-        final var withShears = createLootParams(server, Items.SHEARS, false);
+        HAND = createLootParams(server, Items.AIR, false);
+        PICK = createLootParams(server, Items.NETHERITE_PICKAXE, false);
+        SILK = createLootParams(server, Items.NETHERITE_PICKAXE, true);
+        SHEARS = createLootParams(server, Items.SHEARS, false);
 
         for (Item item : INSTANCE.getItems()) {
-            if (!(item instanceof BlockItem blockItem)) continue;
-            var table = server.reloadableRegistries().getLootTable(blockItem.getBlock().getLootTable());
-            if (table == LootTable.EMPTY) continue;
-
-            hand.updateState(blockItem);
-            withPick.updateState(blockItem);
-            withSilkPick.updateState(blockItem);
-            withShears.updateState(blockItem);
-
-            ItemStack handDrop = getDrop(table, hand);
-            ItemStack pickDrop = getDrop(table, withPick);
-            ItemStack silkDrop = getDrop(table, withSilkPick);
-            ItemStack shearDrop = getDrop(table, withShears);
-
-            BlockDropRecipe.registerRecipe(blockItem, INSTANCE.getStackFor(handDrop));
-
-            if (!ItemStack.isSameItemSameComponents(pickDrop, handDrop))
-                BlockDropRecipe.registerRecipe(blockItem, INSTANCE.getStackFor(pickDrop), BlockDropRecipe.Type.PICK);
-
-            if (!ItemStack.isSameItemSameComponents(silkDrop, handDrop) && !ItemStack.isSameItemSameComponents(shearDrop, silkDrop))
-                BlockDropRecipe.registerRecipe(blockItem, INSTANCE.getStackFor(silkDrop), BlockDropRecipe.Type.SILK_PICK);
-
-            if (!ItemStack.isSameItemSameComponents(shearDrop, handDrop)) {
-                var type = ItemStack.isSameItemSameComponents(shearDrop, silkDrop) ?
-                        BlockDropRecipe.Type.SHEARS_OR_SILK :
-                        BlockDropRecipe.Type.SHEARS;
-
-                BlockDropRecipe.registerRecipe(blockItem, INSTANCE.getStackFor(shearDrop), type);
+            if (item instanceof BlockItem blockItem) {
+                BLOCK_MAP.put(blockItem.getBlock().getLootTable().location(), ITEM_REGISTRY.getKey(blockItem));
             }
+        }
+
+        for (LootTable table : LOOT_REGISTRY) {
+            ResourceLocation key = table.getLootTableId();
+            if (isBlacklisted(key)) continue;
+            TABLES.add(key);
+
+            if (isBlock(key)) {
+                // handle block
+                handleBlock(table);
+            }
+        }
+    }
+
+    private static void handleBlock(LootTable blockTable) {
+        BlockItem blockItem = (BlockItem) ITEM_REGISTRY.get(BLOCK_MAP.get(blockTable.getLootTableId()));
+        if (blockItem == null) throw new NullPointerException();
+
+        HAND.updateState(blockItem);
+        PICK.updateState(blockItem);
+        SILK.updateState(blockItem);
+        SHEARS.updateState(blockItem);
+
+        ItemStack handDrop = getDrop(blockTable, HAND);
+        ItemStack pickDrop = getDrop(blockTable, PICK);
+        ItemStack silkDrop = getDrop(blockTable, SILK);
+        ItemStack shearDrop = getDrop(blockTable, SHEARS);
+
+        BlockDropRecipe.registerRecipe(blockItem, INSTANCE.getStackFor(handDrop));
+
+        if (!ItemStack.isSameItemSameComponents(pickDrop, handDrop))
+            BlockDropRecipe.registerRecipe(blockItem, INSTANCE.getStackFor(pickDrop), BlockDropRecipe.Type.PICK);
+
+        if (!ItemStack.isSameItemSameComponents(silkDrop, handDrop) && !ItemStack.isSameItemSameComponents(shearDrop, silkDrop))
+            BlockDropRecipe.registerRecipe(blockItem, INSTANCE.getStackFor(silkDrop), BlockDropRecipe.Type.SILK_PICK);
+
+        if (!ItemStack.isSameItemSameComponents(shearDrop, handDrop)) {
+            var type = ItemStack.isSameItemSameComponents(shearDrop, silkDrop) ?
+                    BlockDropRecipe.Type.SHEARS_OR_SILK :
+                    BlockDropRecipe.Type.SHEARS;
+
+            BlockDropRecipe.registerRecipe(blockItem, INSTANCE.getStackFor(shearDrop), type);
         }
     }
 
@@ -84,19 +111,34 @@ public class LootRandomizer {
         return list.isEmpty() ? ItemStack.EMPTY : list.getFirst();
     }
 
+    private static boolean isBlacklisted(ResourceLocation location) {
+        return !RandomizerConfig.randomizeBlockLoot && isBlock(location) ||
+                !RandomizerConfig.randomizeEntityLoot && isEntityDrop(location) ||
+                !RandomizerConfig.randomizeChestLoot && isChestLoot(location);
+    }
+
+    private static boolean isBlock(ResourceLocation location) {
+        return location.getPath().contains("blocks/");
+    }
+
+    private static boolean isEntityDrop(ResourceLocation location) {
+        return location.getPath().contains("entities/");
+    }
+
+    private static boolean isChestLoot(ResourceLocation location) {
+        return location.getPath().contains("chests/");
+    }
+
     public static @NotNull ObjectArrayList<ItemStack> randomizeLoot(ObjectArrayList<ItemStack> generatedLoot, LootContext context) {
-        String path = context.getQueriedLootTableId().getPath();
-        if (INSTANCE == null || !RandomizerConfig.randomizeBlockLoot && path.contains("blocks/") ||
-            !RandomizerConfig.randomizeEntityLoot && path.contains("entities/") ||
-            !RandomizerConfig.randomizeChestLoot && path.contains("chests/"))
-        { return generatedLoot; }
+        if (!TABLES.contains(context.getQueriedLootTableId())) return generatedLoot;
 
         ObjectArrayList<ItemStack> ret = new ObjectArrayList<>();
         for (ItemStack stack : generatedLoot) {
-            if (stack.isEmpty()) ret.add(ItemStack.EMPTY);
-            else {
+            if (!stack.isEmpty()) {
                 var random = INSTANCE.getItemFor(stack.getItem());
                 ret.add(RandomizerUtil.itemToStack(random, stack.getCount()));
+            } else {
+                ret.add(ItemStack.EMPTY);
             }
         }
 

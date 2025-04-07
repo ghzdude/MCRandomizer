@@ -47,9 +47,13 @@ import java.util.Optional;
  *
  */
 public class RecipeRandomizer {
+
+    //
     private static final Map<ResourceLocation, List<ResourceLocation>> MODIFIED = new Object2ObjectOpenHashMap<>();
 
-    private static RandomizationMapData INSTANCE = null;
+    private static final Map<ResourceLocation, RecipeHolder<?>> CACHED_RECIPES = new Object2ObjectOpenHashMap<>();
+
+    static RandomizationMapData INSTANCE = null;
     private static Registry<Item> ITEM_REGISTRY;
 
     // todo look into RecipesUpdatedEvent
@@ -76,10 +80,16 @@ public class RecipeRandomizer {
     }
 
     public static void randomizeRecipes(RecipeManager manager, RegistryAccess access) {
+        Optional<RecipeHolder<?>> optional = manager.byKey(CompletabilityVerifier.ENDER_EYE);
+        if (optional.isEmpty()) throw new NullPointerException();
+
+        CACHED_RECIPES.clear();
         for (RecipeHolder<?> holder : manager.getRecipes()) {
+            CACHED_RECIPES.put(holder.id(), holder);
             Recipe<?> recipe = holder.value();
             ItemStack newResult = INSTANCE.getStackFor(recipe.getResultItem(access));
 
+            // if we don't craft ender eye, or we don't care about completablility
             if (!recipe.getResultItem(access).is(Items.ENDER_EYE) || !RandomizerConfig.ensureCompletability)
                 modifyRecipeOutputs(recipe, newResult);
 
@@ -87,7 +97,10 @@ public class RecipeRandomizer {
             if (RandomizerConfig.randomizeRecipeInputs) {
                 modifyRecipeInputs(recipe.getIngredients(), holder.id());
             }
+
+//            CompletabilityVerifier.addRecipe(recipe.getIngredients(), recipe.getResultItem(access), holder.id());
         }
+//        CompletabilityVerifier.ensureCompletability();
     }
 
     private static void modifyRecipeOutputs(Recipe<?> recipe, ItemStack newResult) {
@@ -105,8 +118,8 @@ public class RecipeRandomizer {
                 randomizable.randomizer$randomizeInputs(value -> {
                     ResourceLocation ingredient;
                     Ingredient.Value random;
-                    if (value instanceof Ingredient.ItemValue itemValue) {
-                        ItemStack stack = INSTANCE.getStackFor(itemValue.item());
+                    if (value instanceof Ingredient.ItemValue(ItemStack item)) {
+                        ItemStack stack = INSTANCE.getStackFor(item);
                         ingredient = ITEM_REGISTRY.getKey(stack.getItem());
                         if (ingredient == null) return value;
                         random = new Ingredient.ItemValue(stack);
