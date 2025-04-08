@@ -101,11 +101,16 @@ public class RandomizerCore
         final var server = event.getServer();
         seededRNG = new Random(server.getWorldData().worldGenOptions().seed());
         unseededRNG = new Random();
-        CompletabilityVerifier.init(server);
+        if (RandomizerConfig.ensureCompletability) {
+            CompletabilityVerifier.init(server);
+        }
         ItemRandomizer.init(server);
         RecipeRandomizer.init(server);
         LootRandomizer.init(server);
         RandomizerUtil.init(server.registryAccess());
+        if (RandomizerConfig.ensureCompletability) {
+            CompletabilityVerifier.ensureCompletability();
+        }
         RandomizerConfig.update();
         serverStarted = true;
     }

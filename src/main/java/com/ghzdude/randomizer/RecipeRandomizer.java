@@ -27,10 +27,7 @@ import net.minecraft.world.item.crafting.RecipeHolder;
 import net.minecraft.world.item.crafting.RecipeManager;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 
 /* Recipe Randomizer Description.
  * on resource re/load, randomize every recipe.
@@ -48,10 +45,14 @@ import java.util.Optional;
  */
 public class RecipeRandomizer {
 
-    //
+    // item ingredients -> recipes
     private static final Map<ResourceLocation, List<ResourceLocation>> MODIFIED = new Object2ObjectOpenHashMap<>();
 
+    // recipe id -> recipe
     private static final Map<ResourceLocation, RecipeHolder<?>> CACHED_RECIPES = new Object2ObjectOpenHashMap<>();
+
+    // item output -> recipe
+    public static final Map<ResourceLocation, List<ResourceLocation>> OUTPUT_MAP = new Object2ObjectOpenHashMap<>();
 
     static RandomizationMapData INSTANCE = null;
     private static Registry<Item> ITEM_REGISTRY;
@@ -71,6 +72,28 @@ public class RecipeRandomizer {
 
     public static void dispose() {
         MODIFIED.clear();
+        CACHED_RECIPES.clear();
+        OUTPUT_MAP.clear();
+    }
+
+    public static List<ResourceLocation> getRecipesForItem(Item item) {
+        return getRecipesFor(ITEM_REGISTRY.getKey(item));
+    }
+
+    public static List<ResourceLocation> getRecipesForTag(TagKey<Item> tagKey) {
+        return getRecipesFor(tagKey.location());
+    }
+
+    public static List<ResourceLocation> getRecipesFor(ResourceLocation location) {
+        return OUTPUT_MAP.getOrDefault(location, Collections.emptyList());
+    }
+
+    public static List<Ingredient> getIngredients(ResourceLocation loc) {
+        RecipeHolder<?> holder = CACHED_RECIPES.get(loc);
+        if (holder != null) {
+            return holder.value().getIngredients();
+        }
+        return Collections.emptyList();
     }
 
     public static void setAdvancements(ServerAdvancementManager manager) {
@@ -80,27 +103,27 @@ public class RecipeRandomizer {
     }
 
     public static void randomizeRecipes(RecipeManager manager, RegistryAccess access) {
-        Optional<RecipeHolder<?>> optional = manager.byKey(CompletabilityVerifier.ENDER_EYE);
-        if (optional.isEmpty()) throw new NullPointerException();
 
-        CACHED_RECIPES.clear();
         for (RecipeHolder<?> holder : manager.getRecipes()) {
             CACHED_RECIPES.put(holder.id(), holder);
             Recipe<?> recipe = holder.value();
-            ItemStack newResult = INSTANCE.getStackFor(recipe.getResultItem(access));
+            ItemStack result = recipe.getResultItem(access);
+            ItemStack newResult = INSTANCE.getStackFor(result);
 
-            // if we don't craft ender eye, or we don't care about completablility
-            if (!recipe.getResultItem(access).is(Items.ENDER_EYE) || !RandomizerConfig.ensureCompletability)
-                modifyRecipeOutputs(recipe, newResult);
+            // set the new result back to the ender eye
+            if (RandomizerConfig.ensureCompletability && result.is(Items.ENDER_EYE)) {
+                newResult = result;
+            }
+
+            modifyRecipeOutputs(recipe, newResult);
+            OUTPUT_MAP.computeIfAbsent(ITEM_REGISTRY.getKey(newResult.getItem()), k -> new ArrayList<>())
+                    .add(holder.id());
 
             // if inputs are not to be randomized, move on to the next recipe
             if (RandomizerConfig.randomizeRecipeInputs) {
                 modifyRecipeInputs(recipe.getIngredients(), holder.id());
             }
-
-//            CompletabilityVerifier.addRecipe(recipe.getIngredients(), recipe.getResultItem(access), holder.id());
         }
-//        CompletabilityVerifier.ensureCompletability();
     }
 
     private static void modifyRecipeOutputs(Recipe<?> recipe, ItemStack newResult) {

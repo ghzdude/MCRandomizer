@@ -1,5 +1,6 @@
 package com.ghzdude.randomizer.compat.jei;
 
+import com.ghzdude.randomizer.loot.LootRandomizer;
 import com.ghzdude.randomizer.util.RandomizerUtil;
 import com.google.common.collect.ImmutableList;
 import it.unimi.dsi.fastutil.objects.Object2ObjectMap;
@@ -20,8 +21,8 @@ public record BlockDropRecipe(ItemStack input, ItemStack output, Type type) {
     public static void registerRecipe(Item in, ItemStack output, Type type) {
         if (output.isEmpty()) return;
         BlockDropRecipe recipe = new BlockDropRecipe(new ItemStack(in), output, type);
-        REGISTRY.put(RandomizerUtil.location("%s_drops_%s_%s".formatted(in, output.getItem(), type)), recipe);
-//        CompletabilityVerifier.addBlockDrop(recipe, ItemRandomizer.getRegistry());
+        String s = LootRandomizer.ITEM_REGISTRY.getKey(in).getPath(), s1 = LootRandomizer.ITEM_REGISTRY.getKey(output.getItem()).getPath();
+        REGISTRY.put(RandomizerUtil.location("%s_drops_%s_%s".formatted(s, s1, type.lower)), recipe);
     }
 
     public static void registerRecipe(Item in, ItemStack output) {
@@ -47,20 +48,20 @@ public record BlockDropRecipe(ItemStack input, ItemStack output, Type type) {
         SHEARS("Shears"),
         SHEARS_OR_SILK("Silk or Shears");
 
-        final Component translation;
-        final String name;
-        final ItemStack stack;
+        private final String name;
+        private final ItemStack stack;
+        private final String lower;
 
         Type(String name) {
-            this.translation = Component.translatable("randomizer.compat.jei.block_drop.type." + name.toLowerCase().replace(' ', '_'));
             this.name = name;
+            this.lower = name.toLowerCase().replace(' ', '_');
             this.stack = new ItemStack(Items.ENCHANTED_BOOK);
-            this.stack.set(DataComponents.CUSTOM_NAME, this.translation);
+            this.stack.set(DataComponents.CUSTOM_NAME, Component.translatable("randomizer.compat.jei.block_drop.type." + this.lower));
         }
 
         @Override
         public String toString() {
-            return name;
+            return "Type{%s}".formatted(name);
         }
 
         public ItemStack getStack() {

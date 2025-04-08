@@ -2,6 +2,7 @@ package com.ghzdude.randomizer.loot;
 
 import com.ghzdude.randomizer.RandomizationMapData;
 import com.ghzdude.randomizer.RandomizerConfig;
+import com.ghzdude.randomizer.RandomizerCore;
 import com.ghzdude.randomizer.compat.jei.BlockDropRecipe;
 import com.ghzdude.randomizer.util.RandomizerUtil;
 import it.unimi.dsi.fastutil.objects.*;
@@ -15,6 +16,8 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.enchantment.Enchantments;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.storage.loot.LootContext;
 import net.minecraft.world.level.storage.loot.LootParams;
@@ -30,8 +33,8 @@ import java.util.Optional;
 public class LootRandomizer {
 
     private static RandomizationMapData INSTANCE = null;
-    private static Registry<LootTable> LOOT_REGISTRY;
-    private static Registry<Item> ITEM_REGISTRY;
+    public static Registry<LootTable> LOOT_REGISTRY;
+    public static Registry<Item> ITEM_REGISTRY;
     private static final ObjectOpenHashSet<ResourceLocation> TABLES = new ObjectOpenHashSet<>();
     private static final Object2ObjectMap<ResourceLocation, ResourceLocation> BLOCK_MAP = new Object2ObjectOpenHashMap<>();
     private static MutableLootParams HAND, PICK, SILK, SHEARS;
@@ -50,14 +53,16 @@ public class LootRandomizer {
         SHEARS = createLootParams(server, Items.SHEARS, false);
 
         for (Item item : INSTANCE.getItems()) {
-            if (item instanceof BlockItem blockItem) {
-                BLOCK_MAP.put(blockItem.getBlock().getLootTable().location(), ITEM_REGISTRY.getKey(blockItem));
+            Block block = Block.byItem(item);
+            if (block != Blocks.AIR) {
+                BLOCK_MAP.put(block.getLootTable().location(), ITEM_REGISTRY.getKey(item));
             }
         }
 
         for (LootTable table : LOOT_REGISTRY) {
             ResourceLocation key = table.getLootTableId();
-            if (isBlacklisted(key)) continue;
+            //noinspection ConstantValue
+            if (isBlacklisted(key) || key == null) continue;
             TABLES.add(key);
 
             if (isBlock(key)) {
@@ -68,8 +73,19 @@ public class LootRandomizer {
     }
 
     private static void handleBlock(LootTable blockTable) {
-        BlockItem blockItem = (BlockItem) ITEM_REGISTRY.get(BLOCK_MAP.get(blockTable.getLootTableId()));
-        if (blockItem == null) throw new NullPointerException();
+        if (!BLOCK_MAP.containsKey(blockTable.getLootTableId())) {
+            RandomizerCore.LOGGER.warn("table is not in map when it should be! {}", blockTable);
+            return;
+        }
+        var loc = BLOCK_MAP.get(blockTable.getLootTableId());
+        BlockItem blockItem = null;
+        if (ITEM_REGISTRY.get(loc) instanceof BlockItem) {
+            blockItem = (BlockItem) ITEM_REGISTRY.get(loc);
+        }
+
+        if (blockItem == null) {
+            RandomizerCore.LOGGER.warn("table does not give block! {}", blockTable);
+        }
 
         HAND.updateState(blockItem);
         PICK.updateState(blockItem);
