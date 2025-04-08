@@ -1,10 +1,8 @@
 package com.ghzdude.randomizer;
 
-import com.ghzdude.randomizer.api.IngredientRandomizable;
 import com.ghzdude.randomizer.compat.jei.BlockDropRecipe;
 import it.unimi.dsi.fastutil.objects.Object2ObjectMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
-import it.unimi.dsi.fastutil.objects.ObjectArraySet;
 import net.minecraft.core.NonNullList;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.Registries;
@@ -25,22 +23,24 @@ import java.util.*;
 
 public class CompletabilityVerifier {
 
-    // item -> what the item makes
-    private static final Object2ObjectMap<ResourceLocation, Set<ResourceLocation>> INGREDIENTS = new Object2ObjectOpenHashMap<>();
+    /**
+     * Maps an item (result) to a set of recipes that the item can make
+     */
+    private static final Object2ObjectMap<ResourceLocation, Set<ResourceLocation>> RESULT_MAP = new Object2ObjectOpenHashMap<>();
 
-    // item -> recipe that makes this item
-    private static final Object2ObjectMap<ResourceLocation, Set<ResourceLocation>> RECIPES = new Object2ObjectOpenHashMap<>();
+    /**
+     * Maps a recipe to the ingredients used in it
+     */
+    private static final Object2ObjectOpenHashMap<ResourceLocation, Set<ResourceLocation>> INGREDIENT_MAP = new Object2ObjectOpenHashMap<>();
 
     // ender eye recipe location
     public static final ResourceLocation ENDER_EYE = ResourceLocation.withDefaultNamespace("ender_eye");
 
     // the set of recipes that can craft the ender eye
-    private static final Deque<ResourceLocation> RECIPE_PATH = new ArrayDeque<>(List.of(ENDER_EYE));
+    static Deque<ResourceLocation> recipePath = new ArrayDeque<>();
 
     static boolean requiresNether = false;
-    static ResourceLocation lastValue;
-    static Deque<ResourceLocation> currentPath = new ArrayDeque<>();
-    static Deque<Iterator<ResourceLocation>> iteratorStack = new ArrayDeque<>();
+    static boolean isCompletable = false;
 
     private static Registry<Item> REGISTRY;
 
@@ -48,14 +48,24 @@ public class CompletabilityVerifier {
     private static final List<Item> OVERWORLD = List.of(
             Items.GRASS_BLOCK,
             Items.DIRT,
-            Items.STONE
+            Items.STONE,
+            Items.ACACIA_WOOD,
+            Items.BIRCH_WOOD,
+            Items.CHERRY_WOOD,
+            Items.OAK_WOOD,
+            Items.SPRUCE_WOOD,
+            Items.ANDESITE,
+            Items.GRANITE,
+            Items.DIORITE
     );
 
     // nether
     private static final List<Item> NETHER = List.of(
             Items.NETHERRACK,
             Items.SOUL_SAND,
-            Items.SOUL_SOIL
+            Items.SOUL_SOIL,
+            Items.BLACKSTONE,
+            Items.BASALT
     );
 
     public static void init(MinecraftServer server) {
@@ -71,72 +81,77 @@ public class CompletabilityVerifier {
                 .map(ItemStack::getItem)
                 .distinct()
                 .map(REGISTRY::getKey)
-                .forEach(key -> addPath(key, REGISTRY.getKey(result.getItem())));
+                .forEach(key -> addIngredient(key, id));
+
+        addResult(REGISTRY.getKey(result.getItem()), id);
     }
 
-    public static void addBlockDrop(BlockDropRecipe recipe) {
+    public static void addBlockDrop(BlockDropRecipe recipe, ResourceLocation id) {
         if (!RandomizerConfig.ensureCompletability) return;
-        ResourceLocation loc = REGISTRY.getKey(recipe.input().getItem());
-        addPath(loc, REGISTRY.getKey(recipe.output().getItem()));
+        addIngredient(REGISTRY.getKey(recipe.input().getItem()), id);
+        addResult(REGISTRY.getKey(recipe.output().getItem()), id);
     }
 
-    private static void addPath(ResourceLocation loc, ResourceLocation end) {
-        INGREDIENTS.computeIfAbsent(loc, k -> new ObjectArraySet<>())
-                .add(end);
-        RECIPES.computeIfAbsent(end, k -> new ObjectArraySet<>())
-                .add(loc);
+    private static void addIngredient(ResourceLocation key, ResourceLocation recipe) {
+        INGREDIENT_MAP.computeIfAbsent(recipe, k -> new HashSet<>()).add(key);
     }
 
-    public static void addRecipe(ResourceLocation loc) {
-        if (RECIPE_PATH.contains(loc)) return;
-        RECIPE_PATH.push(loc);
+    private static void addResult(ResourceLocation key, ResourceLocation recipe) {
+        RESULT_MAP.computeIfAbsent(key, k -> new HashSet<>()).add(recipe);
     }
 
     public static void ensureCompletability() {
-        currentPath.push(ENDER_EYE);
-        iteratorStack.push(RecipeRandomizer.getRecipesForItem(Items.ENDER_EYE).iterator());
-        Iterator<ResourceLocation> itr;
-
-        while (!iteratorStack.isEmpty()) {
-            itr = iteratorStack.peek();
-            if (!itr.hasNext()) {
-                iteratorStack.pop();
-                currentPath.pop();
-                continue;
-            }
-
-            ResourceLocation recipe = itr.next();
-            List<Ingredient> ingredients = RecipeRandomizer.getIngredients(recipe);
-            if (iterateIngredients(ingredients)) {
-                currentPath.push(recipe);
-                iteratorStack.push(RecipeRandomizer.getRecipesFor(lastValue).iterator());
+        for (ResourceLocation recipe : RESULT_MAP.getOrDefault(ENDER_EYE, Collections.emptySet())) {
+            recipePath.add(recipe);
+            if (!iterateIngredients(INGREDIENT_MAP.get(recipe)))
+                recipePath.pollLast();
+            else {
+                isCompletable = true;
+                return;
             }
         }
-
-        StringBuilder b = new StringBuilder();
-        boolean newline = false;
-        for (ResourceLocation loc : currentPath) {
-            b.append(loc.toString());
-            if (!newline) {
-                newline = true;
-            } else {
-                b.append('\n');
-            }
-        }
-        RandomizerCore.LOGGER.warn("Recipe Path: {}", b);
     }
 
-    private static boolean iterateIngredients(List<Ingredient> ingredients) {
-        for (Ingredient ingredient : ingredients) {
-            Ingredient.Value[] values = ((IngredientRandomizable) ingredient).randomizer$getValues();
-            for (Ingredient.Value value : values) {
-                if (checkValue(value)) {
-                    lastValue = getLocation(value);
-                    return true;
-                } else {
+    private static boolean iterateIngredients(Set<ResourceLocation> ingredients) {
+        for (ResourceLocation ingredient : ingredients) {
+            Item item = REGISTRY.get(ingredient);
+            Item vanilla = RecipeRandomizer.INSTANCE.getOriginalItem(item);
+            if (OVERWORLD.contains(vanilla)) {
+                return true;
+            } else {
+                if (!requiresNether && NETHER.contains(vanilla))
+                    requiresNether = true;
 
+                Set<ResourceLocation> recipes = RESULT_MAP.get(ingredient);
+                for (ResourceLocation recipe : recipes) {
+                    if (!INGREDIENT_MAP.containsKey(recipe) || recipePath.contains(recipe)) continue;
+                    recipePath.add(recipe);
+                    if (!iterateIngredients(INGREDIENT_MAP.get(recipe))) {
+                        recipePath.pollLast();
+                    } else {
+                        return true;
+                    }
                 }
             }
+//            Ingredient.Value[] values = ((IngredientRandomizable) ingredient).randomizer$getValues();
+//            for (Ingredient.Value value : values) {
+//                if (checkValue(value)) {
+//                    // we can stop here
+//                    printPath();
+//                    isCompletable = true;
+//                    return;
+//                } else {
+//                    // this is a potential ingredient to investigate
+//                    var loc = getLocation(value);
+////                    List<ResourceLocation> recipes = RecipeRandomizer.getRecipesFor(loc);
+//                    Set<ResourceLocation> recipes = RESULT_MAP.get(loc);
+//                    for (ResourceLocation recipe : recipes) {
+//                        recipePath.add(recipe);
+//                        iterateIngredients(RecipeRandomizer.getIngredients(recipe));
+//                        if (!isCompletable) recipePath.pollLast();
+//                    }
+//                }
+//            }
         }
         return false;
     }
@@ -151,9 +166,10 @@ public class CompletabilityVerifier {
 
     private static boolean checkValue(Ingredient.Value value) {
         for (ItemStack item : value.getItems()) {
-            if (OVERWORLD.contains(item.getItem())) {
+            Item vanilla = RecipeRandomizer.INSTANCE.getOriginalItem(item.getItem());
+            if (OVERWORLD.contains(vanilla)) {
                 return true;
-            } else if (NETHER.contains(item.getItem())) {
+            } else if (NETHER.contains(vanilla)) {
                 requiresNether = true;
                 return true;
             }
@@ -186,7 +202,17 @@ public class CompletabilityVerifier {
 //        }
 //    }
 
-//    private static void printPath() {
-//
-//    }
+    private static void printPath() {
+        StringBuilder b = new StringBuilder();
+        boolean newline = false;
+        for (ResourceLocation loc : recipePath) {
+            b.append(loc.toString());
+            if (!newline) {
+                newline = true;
+            } else {
+                b.append('\n');
+            }
+        }
+        RandomizerCore.LOGGER.warn("Recipe Path: {}", b);
+    }
 }

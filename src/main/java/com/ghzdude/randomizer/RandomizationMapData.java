@@ -1,8 +1,9 @@
 package com.ghzdude.randomizer;
 
 import com.ghzdude.randomizer.util.RandomizerUtil;
+import com.google.common.collect.BiMap;
+import com.google.common.collect.HashBiMap;
 import com.google.common.collect.Lists;
-import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;
@@ -20,12 +21,11 @@ import net.minecraftforge.registries.tags.ITagManager;
 
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.Random;
 
 public class RandomizationMapData extends SavedData {
-    private final Map<Item, Item> ITEM_MAP = new Object2ObjectOpenHashMap<>();
-    private final Map<TagKey<Item>, TagKey<Item>> TAGKEY_MAP = new Object2ObjectOpenHashMap<>();
+    private final BiMap<Item, Item> ITEM_MAP = HashBiMap.create();
+    private final BiMap<TagKey<Item>, TagKey<Item>> TAGKEY_MAP = HashBiMap.create();
     private List<Item> ITEM_LIST = List.of();
     private List<TagKey<Item>> TAGKEY_LIST = List.of();
 
@@ -167,6 +167,14 @@ public class RandomizationMapData extends SavedData {
 
     public Item getItemFor(Item item) {
         return ITEM_MAP.get(item);
+    }
+
+    public Item getOriginalItem(Item random) {
+        return ITEM_MAP.inverse().getOrDefault(random, Items.AIR);
+    }
+
+    public TagKey<Item> getOriginalTagKey(TagKey<Item> random) {
+        return TAGKEY_MAP.inverse().get(random);
     }
 
     public TagKey<Item> getTagKeyFor(TagKey<Item> vanilla) {

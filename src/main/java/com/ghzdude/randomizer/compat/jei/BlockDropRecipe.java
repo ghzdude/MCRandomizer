@@ -1,5 +1,6 @@
 package com.ghzdude.randomizer.compat.jei;
 
+import com.ghzdude.randomizer.CompletabilityVerifier;
 import com.ghzdude.randomizer.loot.LootRandomizer;
 import com.ghzdude.randomizer.util.RandomizerUtil;
 import com.google.common.collect.ImmutableList;
@@ -22,7 +23,9 @@ public record BlockDropRecipe(ItemStack input, ItemStack output, Type type) {
         if (output.isEmpty()) return;
         BlockDropRecipe recipe = new BlockDropRecipe(new ItemStack(in), output, type);
         String s = LootRandomizer.ITEM_REGISTRY.getKey(in).getPath(), s1 = LootRandomizer.ITEM_REGISTRY.getKey(output.getItem()).getPath();
-        REGISTRY.put(RandomizerUtil.location("%s_drops_%s_%s".formatted(s, s1, type.lower)), recipe);
+        ResourceLocation loc = RandomizerUtil.location("%s_drops_%s_%s".formatted(s, s1, type.lower));
+        REGISTRY.put(loc, recipe);
+        CompletabilityVerifier.addBlockDrop(recipe, loc);
     }
 
     public static void registerRecipe(Item in, ItemStack output) {
