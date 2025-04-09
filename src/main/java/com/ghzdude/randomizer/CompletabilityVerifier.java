@@ -1,6 +1,9 @@
 package com.ghzdude.randomizer;
 
 import com.ghzdude.randomizer.compat.jei.BlockDropRecipe;
+import com.ghzdude.randomizer.loot.LootRandomizer;
+import it.unimi.dsi.fastutil.objects.Object2BooleanArrayMap;
+import it.unimi.dsi.fastutil.objects.Object2BooleanMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import net.minecraft.core.NonNullList;
@@ -14,6 +17,8 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.item.crafting.Ingredient;
 
 import java.util.*;
+
+import static net.minecraft.world.item.Items.*;
 
 /* Description
  * This is to ensure that eyes of ender are always obtainable regardless of randomization
@@ -31,10 +36,15 @@ public class CompletabilityVerifier {
     /**
      * Maps a recipe to the ingredients used in it
      */
-    private static final Object2ObjectOpenHashMap<ResourceLocation, Set<ResourceLocation>> INGREDIENT_MAP = new Object2ObjectOpenHashMap<>();
+    private static final Object2ObjectMap<ResourceLocation, Set<ResourceLocation>> INGREDIENT_MAP = new Object2ObjectOpenHashMap<>();
 
-    // ender eye recipe location
-    public static final ResourceLocation ENDER_EYE = ResourceLocation.withDefaultNamespace("ender_eye");
+    /**
+     * maps a recipe to its associated map data for getting the original vanilla item
+     */
+    private static final Object2ObjectMap<ResourceLocation, RandomizationMapData> DATA_MAP = new Object2ObjectOpenHashMap<>();
+
+    public static ResourceLocation ENDER_EYE;
+    public static ResourceLocation OBSIDIAN;
 
     // the set of recipes that can craft the ender eye
     static Deque<ResourceLocation> recipePath = new ArrayDeque<>();
@@ -46,30 +56,59 @@ public class CompletabilityVerifier {
 
     // overworld
     private static final List<Item> OVERWORLD = List.of(
-            Items.GRASS_BLOCK,
-            Items.DIRT,
-            Items.STONE,
-            Items.ACACIA_WOOD,
-            Items.BIRCH_WOOD,
-            Items.CHERRY_WOOD,
-            Items.OAK_WOOD,
-            Items.SPRUCE_WOOD,
-            Items.ANDESITE,
-            Items.GRANITE,
-            Items.DIORITE
+            // surface
+            GRASS_BLOCK,
+            DIRT,
+
+            // underground
+            STONE,
+            ANDESITE,
+            GRANITE,
+            DIORITE,
+            AMETHYST_BLOCK,
+            AMETHYST_SHARD,
+
+            // woode
+            ACACIA_WOOD,
+            BIRCH_WOOD,
+            CHERRY_WOOD,
+            OAK_WOOD,
+            DARK_OAK_WOOD,
+            SPRUCE_WOOD,
+
+            // raw ores
+            RAW_IRON,
+            RAW_GOLD,
+            RAW_COPPER,
+            COAL,
+            DIAMOND,
+
+            // flowers
+            CORNFLOWER,
+            SUNFLOWER,
+            DANDELION,
+            ORANGE_TULIP,
+            PINK_TULIP,
+            RED_TULIP,
+            WHITE_TULIP,
+            ROSE_BUSH
     );
 
     // nether
     private static final List<Item> NETHER = List.of(
-            Items.NETHERRACK,
-            Items.SOUL_SAND,
-            Items.SOUL_SOIL,
-            Items.BLACKSTONE,
-            Items.BASALT
+            NETHERRACK,
+            SOUL_SAND,
+            SOUL_SOIL,
+            BLACKSTONE,
+            BASALT,
+            QUARTZ,
+            GLOWSTONE_DUST
     );
 
     public static void init(MinecraftServer server) {
         REGISTRY = server.registryAccess().registryOrThrow(Registries.ITEM);
+        ENDER_EYE = REGISTRY.getKey(Items.ENDER_EYE);
+        OBSIDIAN = REGISTRY.getKey(Items.OBSIDIAN);
     }
 
     public static void addRecipe(NonNullList<Ingredient> ingredients, ItemStack result, ResourceLocation id) {
@@ -84,12 +123,14 @@ public class CompletabilityVerifier {
                 .forEach(key -> addIngredient(key, id));
 
         addResult(REGISTRY.getKey(result.getItem()), id);
+        DATA_MAP.put(id, RecipeRandomizer.INSTANCE);
     }
 
     public static void addBlockDrop(BlockDropRecipe recipe, ResourceLocation id) {
         if (!RandomizerConfig.ensureCompletability) return;
         addIngredient(REGISTRY.getKey(recipe.input().getItem()), id);
         addResult(REGISTRY.getKey(recipe.output().getItem()), id);
+        DATA_MAP.put(id, LootRandomizer.INSTANCE);
     }
 
     private static void addIngredient(ResourceLocation key, ResourceLocation recipe) {
@@ -100,15 +141,59 @@ public class CompletabilityVerifier {
         RESULT_MAP.computeIfAbsent(key, k -> new HashSet<>()).add(recipe);
     }
 
+    private static RandomizationMapData getDataFor(ResourceLocation recipe) {
+        return DATA_MAP.getOrDefault(recipe, RecipeRandomizer.INSTANCE);
+    }
+
     public static void ensureCompletability() {
-        for (ResourceLocation recipe : RESULT_MAP.getOrDefault(ENDER_EYE, Collections.emptySet())) {
+//        isCompletable = ensureCompletability(ENDER_EYE);
+
+        Object2BooleanMap<ResourceLocation> map = new Object2BooleanArrayMap<>();
+        Object2ObjectMap<ResourceLocation, String> strings = new Object2ObjectOpenHashMap<>();
+        for (ResourceLocation ing : INGREDIENT_MAP.get(ENDER_EYE)) {
+            recipePath.clear();
+            map.put(ing, canCraftIngredient(ing, ENDER_EYE));
+            strings.put(ing, printPath());
+        }
+
+        if (requiresNether) {
+            isCompletable = ensureCompletability(OBSIDIAN);
+        }
+    }
+
+    /**
+     * @param ingredient the registry location of the item ingredient
+     * @return true if this ingredient is obtainable from common blocks in the overworld or nether
+     */
+    private static boolean ensureCompletability(ResourceLocation ingredient) {
+        if (!RESULT_MAP.containsKey(ingredient)) return false;
+        for (ResourceLocation recipe : RESULT_MAP.get(ingredient)) {
+            if (!INGREDIENT_MAP.containsKey(recipe) || recipePath.contains(recipe)) continue;
             recipePath.add(recipe);
-            if (!iterateIngredients(INGREDIENT_MAP.get(recipe)))
+            Set<ResourceLocation> ingredients = INGREDIENT_MAP.get(recipe);
+            long i = ingredients.stream()
+                    .filter(ing -> canCraftIngredient(ing, recipe))
+                    .count();
+            if (i == ingredients.size()) {
+                return true;
+            } else {
                 recipePath.pollLast();
-            else {
-                isCompletable = true;
-                return;
             }
+        }
+        return false;
+    }
+
+    private static boolean canCraftIngredient(ResourceLocation ingredient, ResourceLocation recipe) {
+        Item item = REGISTRY.get(ingredient);
+        Item vanilla = getDataFor(recipe).getOriginalItem(item);
+        if (OVERWORLD.contains(vanilla)) {
+            return true;
+        } else {
+            if (!requiresNether && NETHER.contains(vanilla)) {
+                requiresNether = true;
+            }
+
+            return ensureCompletability(ingredient);
         }
     }
 
@@ -133,6 +218,8 @@ public class CompletabilityVerifier {
                     }
                 }
             }
+        }
+        return false;
 //            Ingredient.Value[] values = ((IngredientRandomizable) ingredient).randomizer$getValues();
 //            for (Ingredient.Value value : values) {
 //                if (checkValue(value)) {
@@ -143,7 +230,7 @@ public class CompletabilityVerifier {
 //                } else {
 //                    // this is a potential ingredient to investigate
 //                    var loc = getLocation(value);
-////                    List<ResourceLocation> recipes = RecipeRandomizer.getRecipesFor(loc);
+//                    List<ResourceLocation> recipes = RecipeRandomizer.getRecipesFor(loc);
 //                    Set<ResourceLocation> recipes = RESULT_MAP.get(loc);
 //                    for (ResourceLocation recipe : recipes) {
 //                        recipePath.add(recipe);
@@ -152,8 +239,6 @@ public class CompletabilityVerifier {
 //                    }
 //                }
 //            }
-        }
-        return false;
     }
 
     private static ResourceLocation getLocation(Ingredient.Value value) {
@@ -202,17 +287,19 @@ public class CompletabilityVerifier {
 //        }
 //    }
 
-    private static void printPath() {
+    private static String printPath() {
         StringBuilder b = new StringBuilder();
+        if (requiresNether) b.append("Requires nether access!\n");
+        b.append("Recipe Path:\n");
         boolean newline = false;
         for (ResourceLocation loc : recipePath) {
             b.append(loc.toString());
-            if (!newline) {
-                newline = true;
+            if (newline) {
+                b.append('\n').append(" -> ");
             } else {
-                b.append('\n');
+                newline = true;
             }
         }
-        RandomizerCore.LOGGER.warn("Recipe Path: {}", b);
+        return b.toString();
     }
 }

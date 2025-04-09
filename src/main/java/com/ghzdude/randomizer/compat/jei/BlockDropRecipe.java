@@ -28,10 +28,6 @@ public record BlockDropRecipe(ItemStack input, ItemStack output, Type type) {
         CompletabilityVerifier.addBlockDrop(recipe, loc);
     }
 
-    public static void registerRecipe(Item in, ItemStack output) {
-        registerRecipe(in, output, Type.HAND);
-    }
-
     public static void clearRegistry() {
         REGISTRY.clear();
     }

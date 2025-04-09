@@ -158,7 +158,10 @@ public class RandomizationMapData extends SavedData {
 
     public ItemStack getStackFor(Item vanilla, int count) {
         Item randomItem = getItemFor(vanilla);
-        if (randomItem == null || count < 1 || vanilla == Items.AIR) return ItemStack.EMPTY;
+        if (randomItem == null || count < 1) {
+            // cannot return empty
+            return new ItemStack(vanilla, Math.max(count, 1));
+        }
 
         ItemStack random = new ItemStack(randomItem);
         random.setCount(Math.min(random.getMaxStackSize(), count));
@@ -166,6 +169,7 @@ public class RandomizationMapData extends SavedData {
     }
 
     public Item getItemFor(Item item) {
+        if (item == Items.AIR) throw new IllegalArgumentException("Cannot randomize Air!");
         return ITEM_MAP.get(item);
     }
 

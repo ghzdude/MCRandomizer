@@ -107,6 +107,7 @@ public class RecipeRandomizer {
         for (RecipeHolder<?> holder : manager.getRecipes()) {
             CACHED_RECIPES.put(holder.id(), holder);
             Recipe<?> recipe = holder.value();
+            if (recipe.isSpecial()) continue;
             ItemStack result = recipe.getResultItem(access);
             ItemStack newResult = INSTANCE.getStackFor(result);
 

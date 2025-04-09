@@ -32,7 +32,7 @@ import java.util.Optional;
 
 public class LootRandomizer {
 
-    private static RandomizationMapData INSTANCE = null;
+    public static RandomizationMapData INSTANCE = null;
     public static Registry<LootTable> LOOT_REGISTRY;
     public static Registry<Item> ITEM_REGISTRY;
     private static final ObjectOpenHashSet<ResourceLocation> TABLES = new ObjectOpenHashSet<>();
@@ -74,7 +74,7 @@ public class LootRandomizer {
 
     private static void handleBlock(LootTable blockTable) {
         if (!BLOCK_MAP.containsKey(blockTable.getLootTableId())) {
-            RandomizerCore.LOGGER.warn("table is not in map when it should be! {}", blockTable);
+            RandomizerCore.LOGGER.warn("table is not in map when it should be! {}", blockTable.getLootTableId());
             return;
         }
         var loc = BLOCK_MAP.get(blockTable.getLootTableId());
@@ -97,20 +97,28 @@ public class LootRandomizer {
         ItemStack silkDrop = getDrop(blockTable, SILK);
         ItemStack shearDrop = getDrop(blockTable, SHEARS);
 
-        BlockDropRecipe.registerRecipe(blockItem, INSTANCE.getStackFor(handDrop));
+        handleDrop(blockItem, handDrop, BlockDropRecipe.Type.HAND);
 
-        if (!ItemStack.isSameItemSameComponents(pickDrop, handDrop))
-            BlockDropRecipe.registerRecipe(blockItem, INSTANCE.getStackFor(pickDrop), BlockDropRecipe.Type.PICK);
+        if (!ItemStack.isSameItemSameComponents(pickDrop, handDrop)) {
+            handleDrop(blockItem, pickDrop, BlockDropRecipe.Type.PICK);
+        }
 
-        if (!ItemStack.isSameItemSameComponents(silkDrop, handDrop) && !ItemStack.isSameItemSameComponents(shearDrop, silkDrop))
-            BlockDropRecipe.registerRecipe(blockItem, INSTANCE.getStackFor(silkDrop), BlockDropRecipe.Type.SILK_PICK);
+        if (!ItemStack.isSameItemSameComponents(silkDrop, handDrop) && !ItemStack.isSameItemSameComponents(shearDrop, silkDrop)) {
+            handleDrop(blockItem, silkDrop, BlockDropRecipe.Type.SILK_PICK);
+        }
 
         if (!ItemStack.isSameItemSameComponents(shearDrop, handDrop)) {
             var type = ItemStack.isSameItemSameComponents(shearDrop, silkDrop) ?
                     BlockDropRecipe.Type.SHEARS_OR_SILK :
                     BlockDropRecipe.Type.SHEARS;
 
-            BlockDropRecipe.registerRecipe(blockItem, INSTANCE.getStackFor(shearDrop), type);
+            handleDrop(blockItem, shearDrop, type);
+        }
+    }
+
+    public static void handleDrop(BlockItem blockItem, ItemStack drop, BlockDropRecipe.Type type) {
+        if (!drop.isEmpty()) {
+            BlockDropRecipe.registerRecipe(blockItem, INSTANCE.getStackFor(drop), type);
         }
     }
 
