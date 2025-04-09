@@ -103,7 +103,6 @@ public class RecipeRandomizer {
     }
 
     public static void randomizeRecipes(RecipeManager manager, RegistryAccess access) {
-
         for (RecipeHolder<?> holder : manager.getRecipes()) {
             CACHED_RECIPES.put(holder.id(), holder);
             Recipe<?> recipe = holder.value();
@@ -125,7 +124,7 @@ public class RecipeRandomizer {
                 modifyRecipeInputs(recipe.getIngredients(), holder.id());
             }
 
-            CompletabilityVerifier.addRecipe(recipe.getIngredients(), newResult, holder.id());
+//            CompletabilityVerifier.addRecipe(recipe.getIngredients(), newResult, holder.id());
         }
     }
 
