@@ -3,6 +3,7 @@ package com.ghzdude.randomizer.loot;
 import com.ghzdude.randomizer.RandomizationMapData;
 import com.ghzdude.randomizer.RandomizerConfig;
 import com.ghzdude.randomizer.RandomizerCore;
+import com.ghzdude.randomizer.api.EntryAccessor;
 import com.ghzdude.randomizer.compat.jei.BlockDropRecipe;
 import com.ghzdude.randomizer.util.RandomizerUtil;
 import it.unimi.dsi.fastutil.objects.*;
@@ -28,8 +29,6 @@ import net.minecraft.world.level.storage.loot.parameters.LootContextParams;
 import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -80,9 +79,11 @@ public class LootRandomizer {
                 // handle chest loot
                 // get the drops somehow
                 // we need to ignore chance
-                List<ItemStack> stacks = new ArrayList<>();
-                table.getRandomItems(HAND, stacks::add);
-                RandomizerCore.LOGGER.warn("{} has {} stacks", key, stacks.size());
+                ItemStack[] stacks = new ItemStack[0];
+                if (table instanceof EntryAccessor accessor) {
+                    stacks = accessor.randomizer$getStacks();
+                }
+                RandomizerCore.LOGGER.warn("{} has {} stacks", key, stacks.length);
             }
         }
     }
@@ -105,7 +106,7 @@ public class LootRandomizer {
         }
 
         if (blockItem == null) {
-            RandomizerCore.LOGGER.warn("table does not give block! {}", blockTable);
+            RandomizerCore.LOGGER.warn("table does not give block! {}", blockTable.getLootTableId());
             return;
         }
 
@@ -147,6 +148,7 @@ public class LootRandomizer {
     public static void dispose() {
         BlockDropRecipe.clearRegistry();
         TABLES.clear();
+        EntryAccessor.counter.incrementAndGet();
     }
 
     @SuppressWarnings("deprecation")
