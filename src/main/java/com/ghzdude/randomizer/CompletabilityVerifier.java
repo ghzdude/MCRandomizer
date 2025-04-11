@@ -10,6 +10,7 @@ import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import net.minecraft.core.NonNullList;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.item.Item;
@@ -18,9 +19,11 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.item.crafting.Recipe;
 import net.minecraft.world.item.crafting.RecipeHolder;
+import net.minecraft.world.level.storage.loot.BuiltInLootTables;
 
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Stream;
 
 import static net.minecraft.world.item.Items.*;
 
@@ -55,16 +58,15 @@ public class CompletabilityVerifier {
     public static ResourceLocation ENDER_EYE;
     public static ResourceLocation OBSIDIAN;
 
-    // the set of recipes that can craft the ender eye
-    static Deque<ResourceLocation> recipePath = new ArrayDeque<>();
+    private static final Deque<ResourceLocation> recipePath = new ArrayDeque<>();
 
-    static boolean requiresNether = false;
-    static boolean isCompletable = false;
+    private static boolean requiresNether = false;
+    private static boolean isCompletable = false;
 
     private static Registry<Item> REGISTRY;
 
     // overworld
-    private static final List<Item> OVERWORLD = List.of(
+    private static final List<Item> OVERWORLD_ITEMS = List.of(
             // surface
             GRASS_BLOCK,
             DIRT,
@@ -77,7 +79,7 @@ public class CompletabilityVerifier {
             AMETHYST_BLOCK,
             AMETHYST_SHARD,
 
-            // woode
+            // wood
             ACACIA_WOOD,
             BIRCH_WOOD,
             CHERRY_WOOD,
@@ -103,8 +105,17 @@ public class CompletabilityVerifier {
             ROSE_BUSH
     );
 
+    private static final List<ResourceLocation> OVERWORLD_LOOT = Stream.of(
+            BuiltInLootTables.BURIED_TREASURE,
+            BuiltInLootTables.ABANDONED_MINESHAFT,
+            BuiltInLootTables.SIMPLE_DUNGEON,
+            BuiltInLootTables.DESERT_PYRAMID,
+            BuiltInLootTables.ANCIENT_CITY,
+            BuiltInLootTables.ANCIENT_CITY_ICE_BOX
+    ).map(ResourceKey::location).toList();
+
     // nether
-    private static final List<Item> NETHER = List.of(
+    private static final List<Item> NETHER_ITEMS = List.of(
             NETHERRACK,
             SOUL_SAND,
             SOUL_SOIL,
@@ -113,6 +124,14 @@ public class CompletabilityVerifier {
             QUARTZ,
             GLOWSTONE_DUST
     );
+
+    private static final List<ResourceLocation> NETHER_LOOT = Stream.of(
+            BuiltInLootTables.BASTION_BRIDGE,
+            BuiltInLootTables.BASTION_OTHER,
+            BuiltInLootTables.BASTION_HOGLIN_STABLE,
+            BuiltInLootTables.BASTION_TREASURE,
+            BuiltInLootTables.NETHER_BRIDGE
+    ).map(ResourceKey::location).toList();
 
     public static void init(MinecraftServer server) {
         REGISTRY = server.registryAccess().registryOrThrow(Registries.ITEM);
@@ -130,8 +149,7 @@ public class CompletabilityVerifier {
         }
 
         for (ResourceLocation key : BlockDropRecipe.getKeys()) {
-            var recipe = BlockDropRecipe.get(key);
-            addBlockDrop(recipe, key);
+            addBlockDrop(BlockDropRecipe.get(key), key);
         }
     }
 
@@ -151,14 +169,18 @@ public class CompletabilityVerifier {
                 });
 
         addResult(REGISTRY.getKey(result.getItem()), id);
-        DATA_MAP.put(id, RecipeRandomizer.INSTANCE);
+        DATA_MAP.put(id, RecipeRandomizer.getMapData());
     }
 
     public static void addBlockDrop(BlockDropRecipe recipe, ResourceLocation id) {
         if (!RandomizerConfig.ensureCompletability) return;
         addIngredient(REGISTRY.getKey(recipe.input().getItem()), -1, id);
         addResult(REGISTRY.getKey(recipe.output().getItem()), id);
-        DATA_MAP.put(id, LootRandomizer.INSTANCE);
+        DATA_MAP.put(id, LootRandomizer.getMapData());
+    }
+
+    public static void addLootTable() {
+
     }
 
     private static void addIngredient(ResourceLocation key, int index, ResourceLocation recipe) {
@@ -173,7 +195,7 @@ public class CompletabilityVerifier {
     }
 
     private static RandomizationMapData getDataFor(ResourceLocation recipe) {
-        return DATA_MAP.getOrDefault(recipe, RecipeRandomizer.INSTANCE);
+        return DATA_MAP.getOrDefault(recipe, RandomizationMapData.VANILLA);
     }
 
     public static void ensureCompletability() {
@@ -251,10 +273,10 @@ public class CompletabilityVerifier {
     private static boolean canCraftIngredient(ResourceLocation ingredient, ResourceLocation recipe) {
         Item item = REGISTRY.get(ingredient);
         Item vanilla = getDataFor(recipe).getOriginalItem(item);
-        if (OVERWORLD.contains(vanilla)) {
+        if (OVERWORLD_ITEMS.contains(vanilla)) {
             return true;
         } else {
-            if (!requiresNether && NETHER.contains(vanilla)) {
+            if (!requiresNether && NETHER_ITEMS.contains(vanilla)) {
                 requiresNether = true;
             }
 

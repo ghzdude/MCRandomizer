@@ -8,6 +8,7 @@ import com.ghzdude.randomizer.util.RandomizerUtil;
 import it.unimi.dsi.fastutil.objects.*;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
@@ -27,14 +28,17 @@ import net.minecraft.world.level.storage.loot.parameters.LootContextParams;
 import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
 public class LootRandomizer {
 
-    public static RandomizationMapData INSTANCE = null;
+    private static RandomizationMapData INSTANCE = null;
     public static Registry<LootTable> LOOT_REGISTRY;
     public static Registry<Item> ITEM_REGISTRY;
+    public static Registry<Block> BLOCK_REGISTRY;
     private static final ObjectOpenHashSet<ResourceLocation> TABLES = new ObjectOpenHashSet<>();
     private static final Object2ObjectMap<ResourceLocation, ResourceLocation> BLOCK_MAP = new Object2ObjectOpenHashMap<>();
     private static MutableLootParams HAND, PICK, SILK, SHEARS;
@@ -45,31 +49,48 @@ public class LootRandomizer {
         if (optional.isEmpty()) throw new NullPointerException();
         LOOT_REGISTRY = optional.get();
         ITEM_REGISTRY = server.registryAccess().registryOrThrow(Registries.ITEM);
-        TABLES.clear();
+        BLOCK_REGISTRY = server.registryAccess().registryOrThrow(Registries.BLOCK);
 
         HAND = createLootParams(server, Items.AIR, false);
         PICK = createLootParams(server, Items.NETHERITE_PICKAXE, false);
         SILK = createLootParams(server, Items.NETHERITE_PICKAXE, true);
         SHEARS = createLootParams(server, Items.SHEARS, false);
 
-        for (Item item : INSTANCE.getItems()) {
-            Block block = Block.byItem(item);
-            if (block != Blocks.AIR) {
-                BLOCK_MAP.put(block.getLootTable().location(), ITEM_REGISTRY.getKey(item));
-            }
+        for (Block block : BLOCK_REGISTRY) {
+            if (block == Blocks.AIR) continue;
+
+            BLOCK_MAP.put(block.getLootTable().location(), BLOCK_REGISTRY.getKey(block));
         }
 
         for (LootTable table : LOOT_REGISTRY) {
-            ResourceLocation key = table.getLootTableId();
-            //noinspection ConstantValue
-            if (isBlacklisted(key) || key == null) continue;
-            TABLES.add(key);
+            Optional<ResourceKey<LootTable>> resourceKey = LOOT_REGISTRY.getResourceKey(table);
+            if (resourceKey.isEmpty()) continue;
+            ResourceLocation key = resourceKey.get().location();
+
+            if (!isBlacklisted(key)) {
+                TABLES.add(key);
+            }
 
             if (isBlock(key)) {
                 // handle block
                 handleBlock(table);
             }
+
+            if (isChestLoot(key)) {
+                // handle chest loot
+                // get the drops somehow
+                // we need to ignore chance
+                List<ItemStack> stacks = new ArrayList<>();
+                table.getRandomItems(HAND, stacks::add);
+                RandomizerCore.LOGGER.warn("{} has {} stacks", key, stacks.size());
+            }
         }
+    }
+
+    public static RandomizationMapData getMapData() {
+        if (RandomizerConfig.randomizeLoot)
+            return INSTANCE;
+        return RandomizationMapData.VANILLA;
     }
 
     private static void handleBlock(LootTable blockTable) {
@@ -85,6 +106,7 @@ public class LootRandomizer {
 
         if (blockItem == null) {
             RandomizerCore.LOGGER.warn("table does not give block! {}", blockTable);
+            return;
         }
 
         HAND.updateState(blockItem);
@@ -118,12 +140,13 @@ public class LootRandomizer {
 
     public static void handleDrop(BlockItem blockItem, ItemStack drop, BlockDropRecipe.Type type) {
         if (!drop.isEmpty()) {
-            BlockDropRecipe.registerRecipe(blockItem, INSTANCE.getStackFor(drop), type);
+            BlockDropRecipe.registerRecipe(blockItem, getMapData().getStackFor(drop), type);
         }
     }
 
     public static void dispose() {
         BlockDropRecipe.clearRegistry();
+        TABLES.clear();
     }
 
     @SuppressWarnings("deprecation")
@@ -159,7 +182,7 @@ public class LootRandomizer {
         ObjectArrayList<ItemStack> ret = new ObjectArrayList<>();
         for (ItemStack stack : generatedLoot) {
             if (!stack.isEmpty()) {
-                var random = INSTANCE.getItemFor(stack.getItem());
+                var random = getMapData().getItemFor(stack.getItem());
                 ret.add(RandomizerUtil.itemToStack(random, stack.getCount()));
             } else {
                 ret.add(ItemStack.EMPTY);

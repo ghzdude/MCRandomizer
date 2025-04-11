@@ -24,6 +24,9 @@ import java.util.List;
 import java.util.Random;
 
 public class RandomizationMapData extends SavedData {
+
+    public static final RandomizationMapData VANILLA = new DefaultedMapData();
+
     private final BiMap<Item, Item> ITEM_MAP = HashBiMap.create();
     private final BiMap<TagKey<Item>, TagKey<Item>> TAGKEY_MAP = HashBiMap.create();
     private List<Item> ITEM_LIST = List.of();
@@ -203,5 +206,43 @@ public class RandomizationMapData extends SavedData {
 
     public boolean isLoaded() {
         return isLoaded;
+    }
+
+    private static class DefaultedMapData extends RandomizationMapData {
+
+        @Override
+        public boolean isLoaded() {
+            return true;
+        }
+
+        @Override
+        public ItemStack getStackFor(Item vanilla, int count) {
+            return new ItemStack(vanilla, count);
+        }
+
+        @Override
+        public ItemStack getStackFor(ItemStack stack) {
+            return stack;
+        }
+
+        @Override
+        public Item getItemFor(Item item) {
+            return item;
+        }
+
+        @Override
+        public Item getOriginalItem(Item random) {
+            return getItemFor(random);
+        }
+
+        @Override
+        public TagKey<Item> getOriginalTagKey(TagKey<Item> random) {
+            return random;
+        }
+
+        @Override
+        public TagKey<Item> getTagKeyFor(TagKey<Item> vanilla) {
+            return vanilla;
+        }
     }
 }

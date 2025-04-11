@@ -24,7 +24,6 @@ public record BlockDropRecipe(ItemStack input, ItemStack output, Type type) {
         String s = LootRandomizer.ITEM_REGISTRY.getKey(in).getPath(), s1 = LootRandomizer.ITEM_REGISTRY.getKey(output.getItem()).getPath();
         ResourceLocation loc = RandomizerUtil.location("%s_drops_%s_%s".formatted(s, s1, type.lower));
         REGISTRY.put(loc, recipe);
-//        CompletabilityVerifier.addBlockDrop(recipe, loc);
     }
 
     public static void clearRegistry() {

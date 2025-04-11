@@ -54,7 +54,7 @@ public class RecipeRandomizer {
     // item output -> recipe
     public static final Map<ResourceLocation, List<ResourceLocation>> OUTPUT_MAP = new Object2ObjectOpenHashMap<>();
 
-    public static RandomizationMapData INSTANCE = null;
+    private static RandomizationMapData INSTANCE = null;
     private static Registry<Item> ITEM_REGISTRY;
 
     // todo look into RecipesUpdatedEvent
@@ -74,6 +74,13 @@ public class RecipeRandomizer {
         MODIFIED.clear();
         CACHED_RECIPES.clear();
         OUTPUT_MAP.clear();
+    }
+
+    public static RandomizationMapData getMapData() {
+        if (RandomizerConfig.randomizeRecipes && INSTANCE != null) {
+            return INSTANCE;
+        }
+        return RandomizationMapData.VANILLA;
     }
 
     public static List<ResourceLocation> getRecipesForItem(Item item) {
@@ -123,8 +130,6 @@ public class RecipeRandomizer {
             if (RandomizerConfig.randomizeRecipeInputs) {
                 modifyRecipeInputs(recipe.getIngredients(), holder.id());
             }
-
-//            CompletabilityVerifier.addRecipe(recipe.getIngredients(), newResult, holder.id());
         }
     }
 
