@@ -179,8 +179,13 @@ public class CompletabilityVerifier {
         DATA_MAP.put(id, LootRandomizer.getMapData());
     }
 
-    public static void addLootTable() {
-
+    public static void addLootTable(ResourceLocation key, ItemStack[] stacks) {
+        if (!RandomizerConfig.ensureCompletability) return;
+        for (ItemStack stack : stacks) {
+            addIngredient(REGISTRY.getKey(stack.getItem()), -1, key);
+        }
+        addResult(key, key);
+        DATA_MAP.put(key, LootRandomizer.getMapData());
     }
 
     private static void addIngredient(ResourceLocation key, int index, ResourceLocation recipe) {

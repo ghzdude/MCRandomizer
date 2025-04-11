@@ -1,5 +1,6 @@
 package com.ghzdude.randomizer.loot;
 
+import com.ghzdude.randomizer.CompletabilityVerifier;
 import com.ghzdude.randomizer.RandomizationMapData;
 import com.ghzdude.randomizer.RandomizerConfig;
 import com.ghzdude.randomizer.RandomizerCore;
@@ -82,8 +83,8 @@ public class LootRandomizer {
                 ItemStack[] stacks = new ItemStack[0];
                 if (table instanceof EntryAccessor accessor) {
                     stacks = accessor.randomizer$getStacks();
+                    CompletabilityVerifier.addLootTable(key, stacks);
                 }
-                RandomizerCore.LOGGER.warn("{} has {} stacks", key, stacks.length);
             }
         }
     }
@@ -100,34 +101,31 @@ public class LootRandomizer {
             return;
         }
         var loc = BLOCK_MAP.get(blockTable.getLootTableId());
-        BlockItem blockItem = null;
-        if (ITEM_REGISTRY.get(loc) instanceof BlockItem) {
-            blockItem = (BlockItem) ITEM_REGISTRY.get(loc);
-        }
+        Block block = BLOCK_REGISTRY.get(loc);
 
-        if (blockItem == null) {
+        if (block == null) {
             RandomizerCore.LOGGER.warn("table does not give block! {}", blockTable.getLootTableId());
             return;
         }
 
-        HAND.updateState(blockItem);
-        PICK.updateState(blockItem);
-        SILK.updateState(blockItem);
-        SHEARS.updateState(blockItem);
+        HAND.updateState(block);
+        PICK.updateState(block);
+        SILK.updateState(block);
+        SHEARS.updateState(block);
 
         ItemStack handDrop = getDrop(blockTable, HAND);
         ItemStack pickDrop = getDrop(blockTable, PICK);
         ItemStack silkDrop = getDrop(blockTable, SILK);
         ItemStack shearDrop = getDrop(blockTable, SHEARS);
 
-        handleDrop(blockItem, handDrop, BlockDropRecipe.Type.HAND);
+        handleDrop(block, handDrop, BlockDropRecipe.Type.HAND);
 
         if (!ItemStack.isSameItemSameComponents(pickDrop, handDrop)) {
-            handleDrop(blockItem, pickDrop, BlockDropRecipe.Type.PICK);
+            handleDrop(block, pickDrop, BlockDropRecipe.Type.PICK);
         }
 
         if (!ItemStack.isSameItemSameComponents(silkDrop, handDrop) && !ItemStack.isSameItemSameComponents(shearDrop, silkDrop)) {
-            handleDrop(blockItem, silkDrop, BlockDropRecipe.Type.SILK_PICK);
+            handleDrop(block, silkDrop, BlockDropRecipe.Type.SILK_PICK);
         }
 
         if (!ItemStack.isSameItemSameComponents(shearDrop, handDrop)) {
@@ -135,13 +133,13 @@ public class LootRandomizer {
                     BlockDropRecipe.Type.SHEARS_OR_SILK :
                     BlockDropRecipe.Type.SHEARS;
 
-            handleDrop(blockItem, shearDrop, type);
+            handleDrop(block, shearDrop, type);
         }
     }
 
-    public static void handleDrop(BlockItem blockItem, ItemStack drop, BlockDropRecipe.Type type) {
+    public static void handleDrop(Block blockItem, ItemStack drop, BlockDropRecipe.Type type) {
         if (!drop.isEmpty()) {
-            BlockDropRecipe.registerRecipe(blockItem, getMapData().getStackFor(drop), type);
+            BlockDropRecipe.registerRecipe(blockItem.asItem(), getMapData().getStackFor(drop), type);
         }
     }
 
@@ -221,7 +219,11 @@ public class LootRandomizer {
         }
 
         public void updateState(BlockItem item) {
-            params.put(LootContextParams.BLOCK_STATE, item.getBlock().defaultBlockState());
+            updateState(item.getBlock());
+        }
+
+        public void updateState(Block block) {
+            params.put(LootContextParams.BLOCK_STATE, block.defaultBlockState());
         }
 
         public boolean willDrop() {
