@@ -20,7 +20,7 @@ public class LootTagMixin implements EntryAccessor {
 
     @Shadow @Final private TagKey<Item> tag;
     @Unique
-    private static ItemStack[] randomizer$stacks = null;
+    private ItemStack[] randomizer$stacks = null;
 
     @Override
     public ItemStack[] randomizer$getStacks() {

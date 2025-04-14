@@ -3,6 +3,9 @@ package com.ghzdude.randomizer;
 import com.ghzdude.randomizer.compat.jei.BlockDropRecipe;
 import com.ghzdude.randomizer.loot.LootRandomizer;
 import it.unimi.dsi.fastutil.ints.Int2ObjectArrayMap;
+import it.unimi.dsi.fastutil.ints.IntArraySet;
+import it.unimi.dsi.fastutil.ints.IntIterator;
+import it.unimi.dsi.fastutil.ints.IntSet;
 import it.unimi.dsi.fastutil.objects.Object2BooleanArrayMap;
 import it.unimi.dsi.fastutil.objects.Object2BooleanMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectMap;
@@ -13,6 +16,7 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -22,10 +26,7 @@ import net.minecraft.world.item.crafting.RecipeHolder;
 import net.minecraft.world.level.storage.loot.BuiltInLootTables;
 
 import java.util.*;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
-
-import static net.minecraft.world.item.Items.*;
 
 /* Description
  * This is to ensure that eyes of ender are always obtainable regardless of randomization
@@ -68,69 +69,162 @@ public class CompletabilityVerifier {
     // overworld
     private static final List<Item> OVERWORLD_ITEMS = List.of(
             // surface
-            GRASS_BLOCK,
-            DIRT,
+            Items.GRASS_BLOCK,
+            Items.DIRT,
 
             // underground
-            STONE,
-            ANDESITE,
-            GRANITE,
-            DIORITE,
-            AMETHYST_BLOCK,
-            AMETHYST_SHARD,
+            Items.STONE,
+            Items.ANDESITE,
+            Items.GRANITE,
+            Items.DIORITE,
+            Items.AMETHYST_BLOCK,
+            Items.AMETHYST_SHARD,
+            Items.OBSIDIAN,
+            Items.COBBLESTONE,
 
             // wood
-            ACACIA_WOOD,
-            BIRCH_WOOD,
-            CHERRY_WOOD,
-            OAK_WOOD,
-            DARK_OAK_WOOD,
-            SPRUCE_WOOD,
+            Items.ACACIA_WOOD,
+            Items.BIRCH_WOOD,
+            Items.CHERRY_WOOD,
+            Items.OAK_WOOD,
+            Items.DARK_OAK_WOOD,
+            Items.SPRUCE_WOOD,
 
             // raw ores
-            RAW_IRON,
-            RAW_GOLD,
-            RAW_COPPER,
-            COAL,
-            DIAMOND,
+            Items.RAW_IRON,
+            Items.RAW_GOLD,
+            Items.RAW_COPPER,
+            Items.COAL,
+            Items.DIAMOND,
 
             // flowers
-            CORNFLOWER,
-            SUNFLOWER,
-            DANDELION,
-            ORANGE_TULIP,
-            PINK_TULIP,
-            RED_TULIP,
-            WHITE_TULIP,
-            ROSE_BUSH
+            Items.CORNFLOWER,
+            Items.SUNFLOWER,
+            Items.DANDELION,
+            Items.ORANGE_TULIP,
+            Items.PINK_TULIP,
+            Items.RED_TULIP,
+            Items.WHITE_TULIP,
+            Items.ROSE_BUSH
     );
 
     private static final List<ResourceLocation> OVERWORLD_LOOT = Stream.of(
+            // chests
             BuiltInLootTables.BURIED_TREASURE,
             BuiltInLootTables.ABANDONED_MINESHAFT,
             BuiltInLootTables.SIMPLE_DUNGEON,
             BuiltInLootTables.DESERT_PYRAMID,
             BuiltInLootTables.ANCIENT_CITY,
-            BuiltInLootTables.ANCIENT_CITY_ICE_BOX
+            BuiltInLootTables.ANCIENT_CITY_ICE_BOX,
+            BuiltInLootTables.STRONGHOLD_CORRIDOR,
+            BuiltInLootTables.STRONGHOLD_CROSSING,
+            BuiltInLootTables.STRONGHOLD_LIBRARY,
+            BuiltInLootTables.SHIPWRECK_TREASURE,
+            BuiltInLootTables.SHIPWRECK_MAP,
+            BuiltInLootTables.SHIPWRECK_SUPPLY,
+            BuiltInLootTables.SPAWN_BONUS_CHEST,
+            BuiltInLootTables.VILLAGE_WEAPONSMITH,
+            BuiltInLootTables.VILLAGE_TOOLSMITH,
+            BuiltInLootTables.VILLAGE_ARMORER,
+            BuiltInLootTables.VILLAGE_CARTOGRAPHER,
+            BuiltInLootTables.VILLAGE_MASON,
+            BuiltInLootTables.VILLAGE_SHEPHERD,
+            BuiltInLootTables.VILLAGE_BUTCHER,
+            BuiltInLootTables.VILLAGE_FLETCHER,
+            BuiltInLootTables.VILLAGE_FISHER,
+            BuiltInLootTables.VILLAGE_TANNERY,
+            BuiltInLootTables.VILLAGE_TEMPLE,
+            BuiltInLootTables.VILLAGE_DESERT_HOUSE,
+            BuiltInLootTables.VILLAGE_PLAINS_HOUSE,
+            BuiltInLootTables.VILLAGE_TAIGA_HOUSE,
+            BuiltInLootTables.VILLAGE_SNOWY_HOUSE,
+            BuiltInLootTables.RUINED_PORTAL,
+            BuiltInLootTables.TRIAL_CHAMBERS_REWARD,
+            BuiltInLootTables.TRIAL_CHAMBERS_REWARD_COMMON,
+            BuiltInLootTables.TRIAL_CHAMBERS_REWARD_RARE,
+            BuiltInLootTables.TRIAL_CHAMBERS_REWARD_UNIQUE,
+            BuiltInLootTables.TRIAL_CHAMBERS_REWARD_OMINOUS,
+            BuiltInLootTables.TRIAL_CHAMBERS_REWARD_OMINOUS_COMMON,
+            BuiltInLootTables.TRIAL_CHAMBERS_REWARD_OMINOUS_RARE,
+            BuiltInLootTables.TRIAL_CHAMBERS_REWARD_OMINOUS_UNIQUE,
+            BuiltInLootTables.TRIAL_CHAMBERS_SUPPLY,
+            BuiltInLootTables.TRIAL_CHAMBERS_CORRIDOR,
+            BuiltInLootTables.TRIAL_CHAMBERS_INTERSECTION,
+            BuiltInLootTables.TRIAL_CHAMBERS_INTERSECTION_BARREL,
+            BuiltInLootTables.TRIAL_CHAMBERS_ENTRANCE,
+            BuiltInLootTables.TRIAL_CHAMBERS_CORRIDOR_DISPENSER,
+            BuiltInLootTables.TRIAL_CHAMBERS_CHAMBER_DISPENSER,
+            BuiltInLootTables.TRIAL_CHAMBERS_WATER_DISPENSER,
+            BuiltInLootTables.TRIAL_CHAMBERS_CORRIDOR_POT,
+            BuiltInLootTables.EQUIPMENT_TRIAL_CHAMBER,
+            BuiltInLootTables.EQUIPMENT_TRIAL_CHAMBER_RANGED,
+            BuiltInLootTables.EQUIPMENT_TRIAL_CHAMBER_MELEE,
+
+            // sheep
+            BuiltInLootTables.SHEEP_BLACK,
+            BuiltInLootTables.SHEEP_GRAY,
+            BuiltInLootTables.SHEEP_LIGHT_GRAY,
+            BuiltInLootTables.SHEEP_WHITE,
+            BuiltInLootTables.SHEEP_RED,
+            BuiltInLootTables.SHEEP_ORANGE,
+            BuiltInLootTables.SHEEP_YELLOW,
+            BuiltInLootTables.SHEEP_GREEN,
+            BuiltInLootTables.SHEEP_CYAN,
+            BuiltInLootTables.SHEEP_BLUE,
+            BuiltInLootTables.SHEEP_PURPLE,
+            BuiltInLootTables.SHEEP_BROWN,
+            BuiltInLootTables.SHEEP_LIGHT_BLUE,
+            BuiltInLootTables.SHEEP_LIME,
+            BuiltInLootTables.SHEEP_MAGENTA,
+            BuiltInLootTables.SHEEP_PINK,
+
+            // mobs
+            EntityType.COW.getDefaultLootTable(),
+            EntityType.COD.getDefaultLootTable(),
+            EntityType.TROPICAL_FISH.getDefaultLootTable(),
+            EntityType.PUFFERFISH.getDefaultLootTable(),
+            EntityType.SILVERFISH.getDefaultLootTable(),
+            EntityType.ILLUSIONER.getDefaultLootTable(),
+            EntityType.PIG.getDefaultLootTable(),
+            EntityType.PILLAGER.getDefaultLootTable(),
+            EntityType.ILLUSIONER.getDefaultLootTable(),
+            EntityType.ZOMBIE.getDefaultLootTable(),
+            EntityType.CREEPER.getDefaultLootTable(),
+            EntityType.SPIDER.getDefaultLootTable(),
+            EntityType.SKELETON.getDefaultLootTable(),
+            EntityType.WITCH.getDefaultLootTable(),
+            EntityType.BREEZE.getDefaultLootTable(),
+            EntityType.ARMADILLO.getDefaultLootTable()
     ).map(ResourceKey::location).toList();
 
     // nether
     private static final List<Item> NETHER_ITEMS = List.of(
-            NETHERRACK,
-            SOUL_SAND,
-            SOUL_SOIL,
-            BLACKSTONE,
-            BASALT,
-            QUARTZ,
-            GLOWSTONE_DUST
+            Items.NETHERRACK,
+            Items.SOUL_SAND,
+            Items.SOUL_SOIL,
+            Items.BLACKSTONE,
+            Items.BASALT,
+            Items.QUARTZ,
+            Items.GLOWSTONE_DUST
     );
 
     private static final List<ResourceLocation> NETHER_LOOT = Stream.of(
+            // chests
             BuiltInLootTables.BASTION_BRIDGE,
             BuiltInLootTables.BASTION_OTHER,
             BuiltInLootTables.BASTION_HOGLIN_STABLE,
             BuiltInLootTables.BASTION_TREASURE,
-            BuiltInLootTables.NETHER_BRIDGE
+            BuiltInLootTables.NETHER_BRIDGE,
+
+            // mobs
+            EntityType.BLAZE.getDefaultLootTable(),
+            EntityType.PIGLIN.getDefaultLootTable(),
+            EntityType.PIGLIN_BRUTE.getDefaultLootTable(),
+            EntityType.ZOGLIN.getDefaultLootTable(),
+            EntityType.HOGLIN.getDefaultLootTable(),
+            EntityType.GHAST.getDefaultLootTable(),
+            EntityType.WITHER_SKELETON.getDefaultLootTable(),
+            EntityType.MAGMA_CUBE.getDefaultLootTable()
     ).map(ResourceKey::location).toList();
 
     public static void init(MinecraftServer server) {
@@ -151,22 +245,26 @@ public class CompletabilityVerifier {
         for (ResourceLocation key : BlockDropRecipe.getKeys()) {
             addBlockDrop(BlockDropRecipe.get(key), key);
         }
+
+        for (ResourceLocation key : LootRandomizer.LOOT_MAP.keySet()) {
+            addLootTable(key, LootRandomizer.LOOT_MAP.get(key));
+        }
     }
 
     public static void addRecipe(NonNullList<Ingredient> ingredients, ItemStack result, ResourceLocation id) {
         if (!RandomizerConfig.ensureCompletability) return;
 
-        AtomicInteger index = new AtomicInteger();
-        ingredients.stream()
-                .distinct()
-                .map(Ingredient::getItems)
-                .forEach(stacks -> {
-                    int i = index.getAndIncrement();
-                    for (ItemStack stack : stacks) {
-                        ResourceLocation key = REGISTRY.getKey(stack.getItem());
-                        addIngredient(key, i, id);
-                    }
-                });
+        List<ItemStack[]> stackList = ingredients.stream()
+                .distinct().map(Ingredient::getItems)
+                .toList();
+
+        int i = 0;
+        for (ItemStack[] stacks : stackList) {
+            for (ItemStack stack : stacks) {
+                addIngredient(REGISTRY.getKey(stack.getItem()), i, id);
+            }
+            i++;
+        }
 
         addResult(REGISTRY.getKey(result.getItem()), id);
         DATA_MAP.put(id, RecipeRandomizer.getMapData());
@@ -181,22 +279,25 @@ public class CompletabilityVerifier {
 
     public static void addLootTable(ResourceLocation key, ItemStack[] stacks) {
         if (!RandomizerConfig.ensureCompletability) return;
+        Set<Item> looked = new HashSet<>();
         for (ItemStack stack : stacks) {
-            addIngredient(REGISTRY.getKey(stack.getItem()), -1, key);
+            if (looked.add(stack.getItem())) {
+                addIngredient(REGISTRY.getKey(stack.getItem()), -1, key);
+                addResult(REGISTRY.getKey(stack.getItem()), key);
+            }
         }
-        addResult(key, key);
         DATA_MAP.put(key, LootRandomizer.getMapData());
     }
 
-    private static void addIngredient(ResourceLocation key, int index, ResourceLocation recipe) {
+    private static void addIngredient(ResourceLocation item, int index, ResourceLocation recipe) {
         INGREDIENT_MAP.computeIfAbsent(recipe, k -> new Int2ObjectArrayMap<>())
                 .computeIfAbsent(index, i -> new HashSet<>())
-                .add(key);
+                .add(item);
     }
 
-    private static void addResult(ResourceLocation key, ResourceLocation recipe) {
-        RESULT_MAP.computeIfAbsent(key, k -> new HashSet<>()).add(recipe);
-        RECIPE_MAP.put(recipe, key);
+    private static void addResult(ResourceLocation item, ResourceLocation recipe) {
+        RESULT_MAP.computeIfAbsent(item, k -> new HashSet<>()).add(recipe);
+        RECIPE_MAP.put(recipe, item);
     }
 
     private static RandomizationMapData getDataFor(ResourceLocation recipe) {
@@ -204,24 +305,39 @@ public class CompletabilityVerifier {
     }
 
     public static void ensureCompletability() {
-        Object2BooleanMap<ResourceLocation> map = new Object2BooleanArrayMap<>();
-        Object2ObjectMap<ResourceLocation, String> strings = new Object2ObjectOpenHashMap<>();
+        Object2BooleanMap<ResourceLocation> completabilityMap = new Object2BooleanArrayMap<>();
+        Object2ObjectMap<ResourceLocation, String> pathMap = new Object2ObjectOpenHashMap<>();
         Int2ObjectArrayMap<Set<ResourceLocation>> indexMap = INGREDIENT_MAP.get(ENDER_EYE);
+
         for (var entry : indexMap.int2ObjectEntrySet()) {
             for (ResourceLocation ing : entry.getValue()) {
                 recipePath.clear();
-                map.put(ing, canCraftIngredient(ing, ENDER_EYE));
-                strings.put(ing, printPath());
+                completabilityMap.put(ing, canCraftIngredient(ing, ENDER_EYE));
+                pathMap.put(ing, printPath());
             }
         }
 
-        if (requiresNether && INGREDIENT_MAP.containsKey(OBSIDIAN)) {
-            indexMap = INGREDIENT_MAP.get(OBSIDIAN);
-            for (var entry : indexMap.int2ObjectEntrySet()) {
-                for (ResourceLocation ing : entry.getValue()) {
-                    recipePath.clear();
-                    map.put(ing, canCraftIngredient(ing, OBSIDIAN));
-                    strings.put(ing, printPath());
+        if (requiresNether && RESULT_MAP.containsKey(OBSIDIAN)) {
+            // get a set of recipes that can give obsidian
+            for (ResourceLocation recipe : RESULT_MAP.get(OBSIDIAN)) {
+                // if this is a loot table...
+                if (isLoot(recipe)) {
+                    // if the table is overworld
+                    if (checkLoot(recipe))
+                        break;
+
+                    // else continue
+                    continue;
+                }
+
+                // iterate ingredients...
+                indexMap = INGREDIENT_MAP.get(recipe);
+                for (var entry : indexMap.int2ObjectEntrySet()) {
+                    for (ResourceLocation ing : entry.getValue()) {
+                        recipePath.clear();
+                        completabilityMap.put(ing, canCraftIngredient(ing, recipe));
+                        pathMap.put(ing, printPath());
+                    }
                 }
             }
         }
@@ -229,20 +345,16 @@ public class CompletabilityVerifier {
         if (requiresNether) RandomizerCore.LOGGER.warn("Requires nether access!");
 
         int i = 0;
-        for (ResourceLocation ing : strings.keySet()) {
-            if (map.getBoolean(ing)) {
-                RandomizerCore.LOGGER.warn("can craft \"{}\"\n{}", ing, strings.get(ing));
+        for (ResourceLocation ing : pathMap.keySet()) {
+            if (completabilityMap.getBoolean(ing)) {
+                RandomizerCore.LOGGER.warn("can craft \"{}\"\n{}", ing, pathMap.get(ing));
                 i++;
             } else {
-                RandomizerCore.LOGGER.warn("unable to craft \"{}\"\n{}", ing, strings.get(ing));
+                RandomizerCore.LOGGER.warn("unable to craft \"{}\"\n{}", ing, pathMap.get(ing));
             }
         }
 
-        isCompletable = i == strings.size() - 1;
-
-        if (requiresNether && !INGREDIENT_MAP.containsKey(OBSIDIAN)) {
-            isCompletable = false;
-        }
+        isCompletable = i == pathMap.size() - 1;
 
         if (!isCompletable) {
             RandomizerCore.LOGGER.warn("Game is Incompletable!");
@@ -254,39 +366,91 @@ public class CompletabilityVerifier {
      * @return true if this ingredient is obtainable from common blocks in the overworld or nether
      */
     private static boolean ensureCompletability(ResourceLocation ingredient) {
-        if (!RESULT_MAP.containsKey(ingredient)) return false;
         for (ResourceLocation recipe : RESULT_MAP.get(ingredient)) {
             if (!INGREDIENT_MAP.containsKey(recipe) || recipePath.contains(recipe)) continue;
             recipePath.add(recipe);
-            Int2ObjectArrayMap<Set<ResourceLocation>> indexMap = INGREDIENT_MAP.get(recipe);
-            for (Set<ResourceLocation> ingredients : indexMap.values()) {
-                boolean canCraft = false;
-                for (ResourceLocation ing : ingredients) {
-                    if (canCraftIngredient(ing, recipe)) {
-                        canCraft = true;
-                        break;
-                    }
+
+            if (isLoot(recipe)) {
+                if (checkLoot(recipe)) {
+                    return true;
                 }
-                if (!canCraft) {
-                    return false;
+                if (requiresNether) return true;
+                recipePath.pollLast();
+                continue;
+            }
+
+            Int2ObjectArrayMap<Set<ResourceLocation>> ingredients = INGREDIENT_MAP.get(recipe);
+            IntSet toCheck = new IntArraySet(ingredients.size());
+
+            // for each index
+            for (int index : ingredients.keySet()) {
+                // for each ingredient
+                for (ResourceLocation ing : ingredients.get(index)) {
+                    // is this ingredient obtainable from the overworld
+                    // if it is not, add the index to a set to check later
+                    Item vanilla = getDataFor(recipe).getOriginalItem(REGISTRY.get(ing));
+                    if (!checkItem(vanilla))
+                        toCheck.add(index);
                 }
             }
+
+            // if to check is empty, then everything is obtainable
+
+            // for each index to check
+            IntIterator intItr = toCheck.iterator();
+            while (intItr.hasNext()) {
+                // for each ingredient in that index
+                for (ResourceLocation ing : ingredients.get(intItr.nextInt())) {
+                    // get the recipes for this ingredient
+                    if (canCraftIngredient(ing, recipe)) {
+                        intItr.remove();
+                    }
+                }
+            }
+
+            // to check is empty, meaning everything is craftable
+            if (toCheck.isEmpty())
+                return true;
         }
-        return true;
+        return false;
     }
 
     private static boolean canCraftIngredient(ResourceLocation ingredient, ResourceLocation recipe) {
-        Item item = REGISTRY.get(ingredient);
-        Item vanilla = getDataFor(recipe).getOriginalItem(item);
-        if (OVERWORLD_ITEMS.contains(vanilla)) {
-            return true;
-        } else {
-            if (!requiresNether && NETHER_ITEMS.contains(vanilla)) {
-                requiresNether = true;
-            }
-
+        if (isLoot(recipe)) {
             return ensureCompletability(ingredient);
         }
+
+        Item vanilla = getDataFor(recipe).getOriginalItem(REGISTRY.get(ingredient));
+
+        if (!requiresNether && NETHER_ITEMS.contains(vanilla)) {
+            requiresNether = true;
+        }
+
+        return ensureCompletability(ingredient);
+    }
+
+    private static boolean isLoot(ResourceLocation key) {
+        return LootRandomizer.LOOT_MAP.containsKey(key);
+    }
+
+    private static boolean checkLoot(ResourceLocation table) {
+        if (OVERWORLD_LOOT.contains(table)) {
+            return true;
+        }
+        if (NETHER_LOOT.contains(table)) {
+            requiresNether = true;
+        }
+        return false;
+    }
+
+    private static boolean checkItem(Item item) {
+        if (OVERWORLD_ITEMS.contains(item)) {
+            return true;
+        }
+        if (NETHER_ITEMS.contains(item)) {
+            requiresNether = true;
+        }
+        return false;
     }
 
     private static String printPath() {
@@ -294,8 +458,12 @@ public class CompletabilityVerifier {
         b.append("Recipe Path:\n");
         int i = 0;
         for (ResourceLocation loc : recipePath) {
-            b.append(RECIPE_MAP.get(loc));
-            b.append("{recipe=%s}".formatted(loc));
+            if (isLoot(loc)) {
+                b.append("loot={%s}".formatted(loc));
+            } else {
+                b.append(RECIPE_MAP.get(loc));
+                b.append("={recipe=%s}".formatted(loc));
+            }
             if (i++ != recipePath.size() - 1) {
                 b.append('\n').append(" -> ");
             }

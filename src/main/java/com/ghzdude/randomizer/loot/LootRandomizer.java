@@ -1,19 +1,28 @@
 package com.ghzdude.randomizer.loot;
 
-import com.ghzdude.randomizer.CompletabilityVerifier;
 import com.ghzdude.randomizer.RandomizationMapData;
 import com.ghzdude.randomizer.RandomizerConfig;
 import com.ghzdude.randomizer.RandomizerCore;
 import com.ghzdude.randomizer.api.EntryAccessor;
 import com.ghzdude.randomizer.compat.jei.BlockDropRecipe;
 import com.ghzdude.randomizer.util.RandomizerUtil;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonPrimitive;
+import com.mojang.serialization.DataResult;
+import com.mojang.serialization.JsonOps;
 import it.unimi.dsi.fastutil.objects.*;
+import net.minecraft.core.Holder;
+import net.minecraft.core.HolderSet;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.RegistryOps;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.tags.TagKey;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -32,6 +41,7 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 public class LootRandomizer {
 
@@ -41,7 +51,11 @@ public class LootRandomizer {
     public static Registry<Block> BLOCK_REGISTRY;
     private static final ObjectOpenHashSet<ResourceLocation> TABLES = new ObjectOpenHashSet<>();
     private static final Object2ObjectMap<ResourceLocation, ResourceLocation> BLOCK_MAP = new Object2ObjectOpenHashMap<>();
+    public static final Object2ObjectMap<ResourceLocation, ItemStack[]> LOOT_MAP = new Object2ObjectOpenHashMap<>();
     private static MutableLootParams HAND, PICK, SILK, SHEARS;
+    private static boolean requiresSilk = false;
+
+    private static TagKey<Block> PICKAXE_MINABLE;
 
     public static void init(MinecraftServer server) {
         INSTANCE = RandomizationMapData.get(server, "loot");
@@ -50,6 +64,7 @@ public class LootRandomizer {
         LOOT_REGISTRY = optional.get();
         ITEM_REGISTRY = server.registryAccess().registryOrThrow(Registries.ITEM);
         BLOCK_REGISTRY = server.registryAccess().registryOrThrow(Registries.BLOCK);
+        PICKAXE_MINABLE = TagKey.create(Registries.BLOCK, ResourceLocation.withDefaultNamespace("mineable/pickaxe"));
 
         HAND = createLootParams(server, Items.AIR, false);
         PICK = createLootParams(server, Items.NETHERITE_PICKAXE, false);
@@ -62,10 +77,18 @@ public class LootRandomizer {
             BLOCK_MAP.put(block.getLootTable().location(), BLOCK_REGISTRY.getKey(block));
         }
 
+        RegistryOps<JsonElement> registryOps = RegistryOps.create(JsonOps.INSTANCE, server.registryAccess());
+
         for (LootTable table : LOOT_REGISTRY) {
             Optional<ResourceKey<LootTable>> resourceKey = LOOT_REGISTRY.getResourceKey(table);
             if (resourceKey.isEmpty()) continue;
             ResourceLocation key = resourceKey.get().location();
+
+            // serialize loot table into JSON for easy lookup
+            DataResult<JsonElement> result = LootTable.DIRECT_CODEC.encodeStart(registryOps, table);
+            if (result.isSuccess()) {
+                result.result().ifPresent(LootRandomizer::handleJson);
+            }
 
             if (!isBlacklisted(key)) {
                 TABLES.add(key);
@@ -76,17 +99,102 @@ public class LootRandomizer {
                 handleBlock(table);
             }
 
-            if (isChestLoot(key)) {
-                // handle chest loot
+            if (isChestLoot(key) || isEntityDrop(key)) {
+                // handle chest and entity loot
                 // get the drops somehow
                 // we need to ignore chance
-                ItemStack[] stacks = new ItemStack[0];
+                ItemStack[] stacks;
                 if (table instanceof EntryAccessor accessor) {
                     stacks = accessor.randomizer$getStacks();
-                    CompletabilityVerifier.addLootTable(key, stacks);
+                    LOOT_MAP.put(table.getLootTableId(), stacks);
                 }
             }
         }
+    }
+
+    private static void handleJson(JsonElement element) {
+        if (!element.isJsonObject()) return;
+        JsonObject table = element.getAsJsonObject();
+        if (!table.has("random_sequence"))
+            return;
+
+        String id = table.get("random_sequence").getAsString();
+
+        if (!table.has("pools")) {
+            RandomizerCore.LOGGER.warn("table {} has no pools", id);
+            return;
+        }
+
+        if (isBlock(table.getAsJsonPrimitive("type"))) {
+            RandomizerCore.LOGGER.warn("table {} is a block drop", id);
+        } else {
+            return;
+        }
+
+        Set<String> items = new ObjectOpenHashSet<>();
+        JsonArray pools = table.getAsJsonArray("pools");
+        for (JsonElement pool : pools) {
+            JsonArray entries = pool.getAsJsonObject().getAsJsonArray("entries");
+            for (JsonElement entry : entries) {
+                if (entry.isJsonObject()) {
+                    handleEntryObject(entry.getAsJsonObject(), items);
+                }
+            }
+        }
+
+        RandomizerCore.LOGGER.warn("table '{}' has entries: {}", id == null ? "unknown" : id, items);
+    }
+
+    private static void handleEntryObject(JsonObject object, Set<String> items) {
+        if (object.has("name")) {
+            String item = object.get("name").getAsString();
+            Optional<Holder.Reference<Block>> block = BLOCK_REGISTRY.getHolder(ResourceLocation.parse(item));
+            Optional<HolderSet.Named<Block>> tag = BLOCK_REGISTRY.getTag(PICKAXE_MINABLE);
+            if (tag.isPresent() && block.isPresent() && tag.get().contains(block.get())) {
+                RandomizerCore.LOGGER.warn("the entry '{}' requires a pick!", item);
+            }
+            items.add(item);
+            requiresSilk = false;
+            if (object.has("conditions")) {
+                handleEntryArray(object.getAsJsonArray("conditions"), items);
+            }
+            if (requiresSilk) {
+                RandomizerCore.LOGGER.warn("the entry '{}' requires silk touch!", item);
+            }
+        } else if (object.has("children")) {
+            handleEntryArray(object.getAsJsonArray("children"), items);
+        } else if (object.has("condition")) {
+            if (object.get("condition").getAsString().equals("minecraft:match_tool")) {
+                handleMatchTool(object.getAsJsonObject("predicate"));
+            }
+        }
+    }
+
+    private static void handleMatchTool(JsonObject predicate) {
+        if (predicate.has("predicates")) {
+            handleMatchTool(predicate.getAsJsonObject("predicates"));
+        } else if (predicate.has("minecraft:enchantments")) {
+            for (JsonElement enchantment : predicate.getAsJsonArray("minecraft:enchantments")) {
+                if (enchantment.isJsonObject()) {
+                    String e = enchantment.getAsJsonObject().get("enchantments").getAsString();
+                    if (e.contains("silk_touch")) {
+                        requiresSilk = true;
+                    }
+                }
+            }
+        }
+    }
+
+    private static void handleEntryArray(JsonArray array, Set<String> items) {
+        for (JsonElement element : array) {
+            if (element.isJsonObject()) {
+                handleEntryObject(element.getAsJsonObject(), items);
+            }
+        }
+    }
+
+    private static boolean isBlock(JsonPrimitive type) {
+        return type.getAsString().equals("minecraft:block");
     }
 
     public static RandomizationMapData getMapData() {

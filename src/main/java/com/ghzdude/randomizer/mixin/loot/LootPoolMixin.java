@@ -18,7 +18,7 @@ public class LootPoolMixin implements EntryAccessor {
     @Shadow @Final private List<LootPoolEntryContainer> entries;
 
     @Unique
-    private static ItemStack[] randomizer$stacks = null;
+    private ItemStack[] randomizer$stacks = null;
 
     @Override
     public ItemStack[] randomizer$getStacks() {
