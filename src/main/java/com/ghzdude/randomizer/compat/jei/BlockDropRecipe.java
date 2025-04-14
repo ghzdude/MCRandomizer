@@ -1,7 +1,5 @@
 package com.ghzdude.randomizer.compat.jei;
 
-import com.ghzdude.randomizer.loot.LootRandomizer;
-import com.ghzdude.randomizer.util.RandomizerUtil;
 import com.google.common.collect.ImmutableList;
 import it.unimi.dsi.fastutil.objects.Object2ObjectMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
@@ -14,16 +12,13 @@ import net.minecraft.world.item.Items;
 
 import java.util.List;
 
-public record BlockDropRecipe(ItemStack input, ItemStack output, Type type) {
+public record BlockDropRecipe(Item input, Item output, Type type, ResourceLocation lootTable) {
 
     private static final Object2ObjectMap<ResourceLocation, BlockDropRecipe> REGISTRY = new Object2ObjectOpenHashMap<>();
 
-    public static void registerRecipe(Item in, ItemStack output, Type type) {
-        if (output.isEmpty()) return;
-        BlockDropRecipe recipe = new BlockDropRecipe(new ItemStack(in), output, type);
-        String s = LootRandomizer.ITEM_REGISTRY.getKey(in).getPath(), s1 = LootRandomizer.ITEM_REGISTRY.getKey(output.getItem()).getPath();
-        ResourceLocation loc = RandomizerUtil.location("%s_drops_%s_%s".formatted(s, s1, type.lower));
-        REGISTRY.put(loc, recipe);
+    public static void registerRecipe(Item in, Item output, Type type, ResourceLocation id) {
+        BlockDropRecipe recipe = new BlockDropRecipe(in, output, type, id);
+        REGISTRY.put(id.withSuffix("." + type.lower), recipe);
     }
 
     public static void clearRegistry() {

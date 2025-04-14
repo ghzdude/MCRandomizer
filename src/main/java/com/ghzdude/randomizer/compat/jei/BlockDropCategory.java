@@ -59,10 +59,10 @@ public class BlockDropCategory implements IRecipeCategory<BlockDropRecipe> {
     public void setRecipe(IRecipeLayoutBuilder builder, BlockDropRecipe recipe, @NotNull IFocusGroup focusGroup) {
         builder.addSlot(RecipeIngredientRole.INPUT, 1, 1)
                 .setStandardSlotBackground()
-                .addIngredient(VanillaTypes.ITEM_STACK, recipe.input());
+                .addIngredient(VanillaTypes.ITEM_STACK, recipe.input().getDefaultInstance());
         builder.addSlot(RecipeIngredientRole.OUTPUT, 37 + 6, 1)
                 .setStandardSlotBackground()
-                .addIngredient(VanillaTypes.ITEM_STACK, recipe.output());
+                .addIngredient(VanillaTypes.ITEM_STACK, recipe.output().getDefaultInstance());
         if (recipe.type() != BlockDropRecipe.Type.HAND) {
             builder.addSlot(RecipeIngredientRole.CATALYST, 19+3, 3+16)
                     .addIngredient(VanillaTypes.ITEM_STACK, recipe.type().getStack());

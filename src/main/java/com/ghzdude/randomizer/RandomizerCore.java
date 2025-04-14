@@ -106,8 +106,8 @@ public class RandomizerCore
         LootRandomizer.init(server);
         RandomizerUtil.init(server.registryAccess());
         if (RandomizerConfig.ensureCompletability) {
-            CompletabilityVerifier.init(server);
-            CompletabilityVerifier.ensureCompletability();
+//            CompletabilityVerifier.init(server);
+//            CompletabilityVerifier.ensureCompletability();
         }
         RandomizerConfig.update();
         serverStarted = true;

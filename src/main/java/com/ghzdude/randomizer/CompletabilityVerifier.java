@@ -246,9 +246,9 @@ public class CompletabilityVerifier {
             addBlockDrop(BlockDropRecipe.get(key), key);
         }
 
-        for (ResourceLocation key : LootRandomizer.LOOT_MAP.keySet()) {
-            addLootTable(key, LootRandomizer.LOOT_MAP.get(key));
-        }
+//        for (ResourceLocation key : LootRandomizer.LOOT_MAP.keySet()) {
+//            addLootTable(key, LootRandomizer.LOOT_MAP.get(key));
+//        }
     }
 
     public static void addRecipe(NonNullList<Ingredient> ingredients, ItemStack result, ResourceLocation id) {
@@ -272,9 +272,9 @@ public class CompletabilityVerifier {
 
     public static void addBlockDrop(BlockDropRecipe recipe, ResourceLocation id) {
         if (!RandomizerConfig.ensureCompletability) return;
-        addIngredient(REGISTRY.getKey(recipe.input().getItem()), -1, id);
-        addResult(REGISTRY.getKey(recipe.output().getItem()), id);
-        DATA_MAP.put(id, LootRandomizer.getMapData());
+        addIngredient(REGISTRY.getKey(recipe.input()), -1, id);
+        addResult(REGISTRY.getKey(recipe.output()), id);
+        DATA_MAP.put(id, LootRandomizer.getMapData(id));
     }
 
     public static void addLootTable(ResourceLocation key, ItemStack[] stacks) {
@@ -286,7 +286,7 @@ public class CompletabilityVerifier {
                 addResult(REGISTRY.getKey(stack.getItem()), key);
             }
         }
-        DATA_MAP.put(key, LootRandomizer.getMapData());
+        DATA_MAP.put(key, LootRandomizer.getMapData(key));
     }
 
     private static void addIngredient(ResourceLocation item, int index, ResourceLocation recipe) {
@@ -430,7 +430,8 @@ public class CompletabilityVerifier {
     }
 
     private static boolean isLoot(ResourceLocation key) {
-        return LootRandomizer.LOOT_MAP.containsKey(key);
+//        return LootRandomizer.LOOT_MAP.containsKey(key);
+        return false;
     }
 
     private static boolean checkLoot(ResourceLocation table) {
