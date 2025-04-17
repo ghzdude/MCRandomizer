@@ -23,6 +23,7 @@ public class RandomizerConfig {
     public static boolean randomizeMobAttributes;
     public static boolean randomizeVillagerTrades;
     public static boolean ensureCompletability;
+    public static boolean enableDebug;
 
     static {
         update();
@@ -46,6 +47,7 @@ public class RandomizerConfig {
         randomizeMobAttributes = Holder.randomizeMobAttributes.get();
         randomizeVillagerTrades = Holder.randomizeVillagerTrades.get();
         ensureCompletability = Holder.ensureCompletability.get();
+        enableDebug = Holder.enableDebug.get();
     }
 
     public static class Holder {
@@ -74,6 +76,7 @@ public class RandomizerConfig {
         public static ForgeConfigSpec.BooleanValue randomizeMobAttributes;
         public static ForgeConfigSpec.BooleanValue randomizeVillagerTrades;
         public static ForgeConfigSpec.BooleanValue ensureCompletability;
+        public static ForgeConfigSpec.BooleanValue enableDebug;
 
         public Holder(ForgeConfigSpec.Builder builder) {
 
@@ -139,6 +142,11 @@ public class RandomizerConfig {
 
             randomizeVillagerTrades = builder.comment("Should villager trades give random output item stacks? Defaults to true.")
                             .define("randomize_trades", true);
+            builder.pop();
+
+            builder.push("Miscellaneous");
+            enableDebug = builder.comment("Enable verbose logging")
+                    .define("enable_debug", false);
             builder.pop();
         }
 

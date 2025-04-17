@@ -5,6 +5,7 @@ import com.ghzdude.randomizer.RandomizerConfig;
 import com.ghzdude.randomizer.RandomizerCore;
 import com.ghzdude.randomizer.compat.jei.BlockDropRecipe;
 import com.ghzdude.randomizer.util.RandomizerUtil;
+import com.google.common.collect.ImmutableSet;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.mojang.serialization.DataResult;
@@ -34,6 +35,8 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.*;
 import java.util.function.Function;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class LootRandomizer {
 
@@ -103,7 +106,7 @@ public class LootRandomizer {
 
         RegistryOps<JsonElement> registryOps = RegistryOps.create(JsonOps.INSTANCE, server.registryAccess());
 
-        RandomizerCore.LOGGER.warn("Iterating through loot tables!");
+        RandomizerCore.LOGGER.info("Iterating through loot tables!");
 
         for (LootTable table : LOOT_REGISTRY) {
             // serialize loot table into JSON for easy lookup
@@ -114,7 +117,8 @@ public class LootRandomizer {
                     .ifPresent(LootRandomizer::handleJson);
         }
 
-        RandomizerCore.LOGGER.warn("loot map size: {}", LOOT_MAP.size());
+        if (RandomizerConfig.enableDebug)
+            RandomizerCore.LOGGER.info("loot map size: {}", LOOT_MAP.size());
 
         for (ResourceLocation table : LOOT_MAP.keySet()) {
             Set<LootData> lootData = LOOT_MAP.get(table);
@@ -131,6 +135,26 @@ public class LootRandomizer {
         }
     }
 
+    public static boolean hasTable(ResourceLocation table) {
+        return LOOT_MAP.containsKey(table);
+    }
+
+    public static Set<ResourceLocation> getItems(ResourceLocation table) {
+        return LOOT_MAP.get(table).stream().flatMap(data -> {
+            if (data.tag()) {
+                return ITEM_REGISTRY.getTags().filter(pair -> pair.getFirst().location().equals(data.location()))
+                        .flatMap(pair -> pair.getSecond().stream().map(holder -> ITEM_REGISTRY.getKey(holder.get())));
+            } else if (data.reference()) {
+                return LOOT_MAP.get(data.location()).stream().map(LootData::location);
+            } else {
+                return Stream.of(data.location());
+            }
+        }).collect(Collectors.toUnmodifiableSet());
+    }
+
+    public static Set<ResourceLocation> getKnownTables() {
+        return ImmutableSet.copyOf(LOOT_MAP.keySet());
+    }
     private static void collectFromTag(TagKey<Block> key, Set<ResourceLocation> collection) {
         BLOCK_REGISTRY.getTag(key).ifPresent(blocks -> blocks.stream()
                 .map(holder -> BLOCK_REGISTRY.getKey(holder.get()))
@@ -152,13 +176,14 @@ public class LootRandomizer {
         requiresPick = isBlock(id) && PICKAXE_MINABLE.contains(BLOCK_MAP.get(id));
 
         handleJsonRaw(table, items);
-
-        RandomizerCore.LOGGER.info("added {} entries for table '{}'", items.size(), id);
     }
 
     private static void handleJsonRaw(JsonObject table, Set<LootData> items) {
         if (!table.has("pools"))
             return;
+
+        if (RandomizerConfig.enableDebug)
+            RandomizerCore.LOGGER.info("Table '{}' contains entries:", activeLocation);
 
         if (!appliesToAll) {
             requiresShears = false;
@@ -166,23 +191,15 @@ public class LootRandomizer {
         }
 
         List<JsonObject> pools = table.getAsJsonArray("pools")
-                .asList().stream()
-                .filter(JsonElement::isJsonObject)
-                .map(JsonElement::getAsJsonObject)
-                .toList();
+                .asList().stream().map(JsonElement::getAsJsonObject).toList();
 
         for (JsonObject pool : pools) {
             List<JsonObject> entries = pool.getAsJsonArray("entries")
                     .asList().stream().map(JsonElement::getAsJsonObject).toList();
 
-            if (pool.has("conditions")) {
-                List<JsonObject> conditions = pool.getAsJsonArray("conditions")
-                        .asList().stream().map(JsonElement::getAsJsonObject).toList();
-
-                for (JsonObject condition : conditions) {
-                    requiresSilk = hasCondition(condition, "match_tool", LootRandomizer::handleMatchTool);
-                    requiresShears = handleShears(condition);
-                }
+            if (pool.has("conditions") && !appliesToAll) {
+                requiresSilk = hasCondition(pool, "match_tool", LootRandomizer::handleMatchTool);
+                requiresShears = hasCondition(pool, "can_tool_perform_action", LootRandomizer::handleShears);
                 appliesToAll = requiresSilk || requiresShears;
             }
 
@@ -225,14 +242,14 @@ public class LootRandomizer {
         } else if (isType(entry, "tag")) {
             ResourceLocation tag = getName(entry);
             addEntry(LootData.tag(tag), items);
-        } else {
+        } else if (RandomizerConfig.enableDebug) {
             RandomizerCore.LOGGER.debug("unhandled entry: {}", entry);
         }
     }
 
     private static void addEntry(LootData data, Set<LootData> items) {
-        if (items.add(data)) {
-            RandomizerCore.LOGGER.info("added entry '{}' to table '{}'", data, activeLocation);
+        if (items.add(data) && RandomizerConfig.enableDebug) {
+            RandomizerCore.LOGGER.info("'{}'", data);
         }
     }
 
@@ -263,18 +280,12 @@ public class LootRandomizer {
     }
 
     private static void handleItem(JsonObject entry, Set<LootData> items) {
-
         ResourceLocation item = getName(entry);
         LootData data = LootData.standard(item).pick(requiresPick);
 
-        if (appliesToAll) {
-            data.silk(requiresSilk);
-            data.shears(requiresShears);
-        } else {
-            requiresShears = false;
-            requiresSilk = false;
-            data.silk(hasCondition(entry, "match_tool", LootRandomizer::handleMatchTool));
-            data.shears(hasCondition(entry, "can_tool_perform_action", LootRandomizer::handleShears));
+        if (!appliesToAll) {
+            requiresSilk = hasCondition(entry, "match_tool", LootRandomizer::handleMatchTool);
+            requiresShears = hasCondition(entry, "can_tool_perform_action", LootRandomizer::handleShears);
 
             if (entry.has("functions")) {
                 List<JsonObject> functions = entry.getAsJsonArray("functions").asList().stream()
@@ -290,7 +301,8 @@ public class LootRandomizer {
                 }
             }
         }
-        addEntry(data, items);
+
+        addEntry(data.silk(requiresSilk).shears(requiresShears), items);
     }
 
     private static boolean hasCondition(JsonObject object, String type, Function<JsonObject, Boolean> function) {
