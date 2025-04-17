@@ -1,6 +1,6 @@
 package com.ghzdude.randomizer.compat.jei;
 
-import com.ghzdude.randomizer.RandomizerCore;
+import com.ghzdude.randomizer.util.RandomizerUtil;
 import mezz.jei.api.constants.VanillaTypes;
 import mezz.jei.api.gui.builder.IRecipeLayoutBuilder;
 import mezz.jei.api.gui.drawable.IDrawable;
@@ -19,7 +19,7 @@ import org.jetbrains.annotations.Nullable;
 
 public class BlockDropCategory implements IRecipeCategory<BlockDropRecipe> {
 
-    public static final ResourceLocation UID = ResourceLocation.fromNamespaceAndPath(RandomizerCore.MODID, "block_drop");
+    public static final ResourceLocation UID = RandomizerUtil.location("block_drop_category");
     public static final RecipeType<BlockDropRecipe> TYPE = new RecipeType<>(UID, BlockDropRecipe.class);
     private final IDrawable ICON;
     private final Component TITLE = Component.translatable("randomizer.compat.jei.block_drop_category");

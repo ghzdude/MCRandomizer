@@ -1,6 +1,6 @@
 package com.ghzdude.randomizer.compat.jei;
 
-import com.ghzdude.randomizer.RandomizerCore;
+import com.ghzdude.randomizer.util.RandomizerUtil;
 import mezz.jei.api.IModPlugin;
 import mezz.jei.api.JeiPlugin;
 import mezz.jei.api.registration.IRecipeCategoryRegistration;
@@ -12,7 +12,7 @@ import org.jetbrains.annotations.NotNull;
 public class JeiCompat implements IModPlugin {
 
     public BlockDropCategory blockDropCategory;
-    public static final ResourceLocation UID = ResourceLocation.fromNamespaceAndPath(RandomizerCore.MODID, "block_drops");
+    public static final ResourceLocation UID = RandomizerUtil.location("jei_compat");
 
     @Override
     public @NotNull ResourceLocation getPluginUid() {
