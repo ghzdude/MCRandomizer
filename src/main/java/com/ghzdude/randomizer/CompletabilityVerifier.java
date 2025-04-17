@@ -1,6 +1,5 @@
 package com.ghzdude.randomizer;
 
-import com.ghzdude.randomizer.compat.jei.BlockDropRecipe;
 import com.ghzdude.randomizer.loot.LootRandomizer;
 import it.unimi.dsi.fastutil.ints.Int2ObjectArrayMap;
 import it.unimi.dsi.fastutil.ints.IntArraySet;
@@ -242,10 +241,6 @@ public class CompletabilityVerifier {
             addRecipe(recipe.getIngredients(), result, holder.id());
         }
 
-        for (ResourceLocation key : BlockDropRecipe.getKeys()) {
-            addBlockDrop(BlockDropRecipe.get(key), key);
-        }
-
         for (ResourceLocation key : LootRandomizer.getKnownTables()) {
             addLootTable(key, LootRandomizer.getItems(key));
         }
@@ -254,37 +249,26 @@ public class CompletabilityVerifier {
     public static void addRecipe(NonNullList<Ingredient> ingredients, ItemStack result, ResourceLocation id) {
         if (!RandomizerConfig.ensureCompletability) return;
 
-        List<ItemStack[]> stackList = ingredients.stream()
+        ItemStack[][] stackList = ingredients.stream()
                 .distinct().map(Ingredient::getItems)
-                .toList();
+                .toArray(ItemStack[][]::new);
 
-        int i = 0;
-        for (ItemStack[] stacks : stackList) {
-            for (ItemStack stack : stacks) {
+
+        for (int i = 0; i < stackList.length; i++) {
+            for (ItemStack stack : stackList[i]) {
                 addIngredient(REGISTRY.getKey(stack.getItem()), i, id);
             }
-            i++;
         }
 
         addResult(REGISTRY.getKey(result.getItem()), id);
         DATA_MAP.put(id, RecipeRandomizer.getMapData());
     }
 
-    public static void addBlockDrop(BlockDropRecipe recipe, ResourceLocation id) {
-        if (!RandomizerConfig.ensureCompletability) return;
-        addIngredient(REGISTRY.getKey(recipe.input()), -1, id);
-        addResult(REGISTRY.getKey(recipe.output()), id);
-        DATA_MAP.put(id, LootRandomizer.getMapData(id));
-    }
-
     public static void addLootTable(ResourceLocation key, Set<ResourceLocation> stacks) {
         if (!RandomizerConfig.ensureCompletability) return;
-        Set<ResourceLocation> looked = new HashSet<>();
         for (ResourceLocation stack : stacks) {
-            if (looked.add(stack)) {
-                addIngredient(stack, -1, key);
-                addResult(stack, key);
-            }
+            addIngredient(stack, 0, key);
+            addResult(stack, key);
         }
         DATA_MAP.put(key, LootRandomizer.getMapData(key));
     }
@@ -318,46 +302,29 @@ public class CompletabilityVerifier {
         }
 
         if (requiresNether && RESULT_MAP.containsKey(OBSIDIAN)) {
-            // get a set of recipes that can give obsidian
-            for (ResourceLocation recipe : RESULT_MAP.get(OBSIDIAN)) {
-                // if this is a loot table...
-                if (isLoot(recipe)) {
-                    // if the table is overworld
-                    if (checkLoot(recipe))
-                        break;
-
-                    // else continue
-                    continue;
-                }
-
-                // iterate ingredients...
-                indexMap = INGREDIENT_MAP.get(recipe);
-                for (var entry : indexMap.int2ObjectEntrySet()) {
-                    for (ResourceLocation ing : entry.getValue()) {
-                        recipePath.clear();
-                        completabilityMap.put(ing, canCraftIngredient(ing, recipe));
-                        pathMap.put(ing, printPath());
-                    }
-                }
+            recipePath.clear();
+            if (ensureCompletability(OBSIDIAN)) {
+                completabilityMap.put(OBSIDIAN, true);
+                pathMap.put(OBSIDIAN, printPath());
             }
         }
 
-        if (requiresNether) RandomizerCore.LOGGER.warn("Requires nether access!");
+        if (requiresNether) RandomizerCore.LOGGER.info("Requires nether access!");
 
         int i = 0;
         for (ResourceLocation ing : pathMap.keySet()) {
             if (completabilityMap.getBoolean(ing)) {
-                RandomizerCore.LOGGER.warn("can craft \"{}\"\n{}", ing, pathMap.get(ing));
+                RandomizerCore.LOGGER.info("can craft \"{}\"\n{}", ing, pathMap.get(ing));
                 i++;
             } else {
-                RandomizerCore.LOGGER.warn("unable to craft \"{}\"\n{}", ing, pathMap.get(ing));
+                RandomizerCore.LOGGER.info("unable to craft \"{}\"\n{}", ing, pathMap.get(ing));
             }
         }
 
-        isCompletable = i == pathMap.size() - 1;
+        isCompletable = i == pathMap.size();
 
         if (!isCompletable) {
-            RandomizerCore.LOGGER.warn("Game is Incompletable!");
+            RandomizerCore.LOGGER.info("Game is Incompletable!");
         }
     }
 
@@ -368,16 +335,15 @@ public class CompletabilityVerifier {
     private static boolean ensureCompletability(ResourceLocation ingredient) {
         for (ResourceLocation recipe : RESULT_MAP.get(ingredient)) {
             if (!INGREDIENT_MAP.containsKey(recipe) || recipePath.contains(recipe)) continue;
-            recipePath.add(recipe);
 
             if (isLoot(recipe)) {
                 if (checkLoot(recipe)) {
                     return true;
-                }
-                if (requiresNether) return true;
-                recipePath.pollLast();
-                continue;
+                } else continue;
             }
+
+            // path adding is handled in check loot
+            recipePath.add(recipe);
 
             Int2ObjectArrayMap<Set<ResourceLocation>> ingredients = INGREDIENT_MAP.get(recipe);
             IntSet toCheck = new IntArraySet(ingredients.size());
@@ -417,7 +383,7 @@ public class CompletabilityVerifier {
 
     private static boolean canCraftIngredient(ResourceLocation ingredient, ResourceLocation recipe) {
         if (isLoot(recipe)) {
-            return ensureCompletability(ingredient);
+            return checkLoot(recipe);
         }
 
         Item vanilla = getDataFor(recipe).getOriginalItem(REGISTRY.get(ingredient));
@@ -434,13 +400,16 @@ public class CompletabilityVerifier {
     }
 
     private static boolean checkLoot(ResourceLocation table) {
+        recipePath.add(table);
         if (OVERWORLD_LOOT.contains(table)) {
             return true;
         }
         if (NETHER_LOOT.contains(table)) {
-            requiresNether = true;
+            return requiresNether = true;
+        } else {
+            recipePath.removeLast();
+            return false;
         }
-        return false;
     }
 
     private static boolean checkItem(Item item) {
