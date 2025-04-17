@@ -77,9 +77,14 @@ public class CompletabilityVerifier {
             Items.GRANITE,
             Items.DIORITE,
             Items.AMETHYST_BLOCK,
+            Items.LARGE_AMETHYST_BUD,
+            Items.MEDIUM_AMETHYST_BUD,
+            Items.SMALL_AMETHYST_BUD,
             Items.AMETHYST_SHARD,
             Items.OBSIDIAN,
             Items.COBBLESTONE,
+            Items.POINTED_DRIPSTONE,
+            Items.DRIPSTONE_BLOCK,
 
             // wood
             Items.ACACIA_WOOD,
@@ -104,7 +109,9 @@ public class CompletabilityVerifier {
             Items.PINK_TULIP,
             Items.RED_TULIP,
             Items.WHITE_TULIP,
-            Items.ROSE_BUSH
+            Items.ROSE_BUSH,
+            Items.SMALL_DRIPLEAF,
+            Items.BIG_DRIPLEAF
     );
 
     private static final List<ResourceLocation> OVERWORLD_LOOT = Stream.of(
@@ -396,7 +403,7 @@ public class CompletabilityVerifier {
     }
 
     private static boolean isLoot(ResourceLocation key) {
-        return LootRandomizer.hasTable(key);
+        return LootRandomizer.hasTable(key) && !LootRandomizer.isBlock(key);
     }
 
     private static boolean checkLoot(ResourceLocation table) {

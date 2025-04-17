@@ -385,15 +385,15 @@ public class LootRandomizer {
                 !RandomizerConfig.randomizeChestLoot && isChestLoot(location);
     }
 
-    private static boolean isBlock(ResourceLocation location) {
+    public static boolean isBlock(ResourceLocation location) {
         return location.getPath().contains("blocks/");
     }
 
-    private static boolean isEntityDrop(ResourceLocation location) {
+    public static boolean isEntityDrop(ResourceLocation location) {
         return location.getPath().contains("entities/");
     }
 
-    private static boolean isChestLoot(ResourceLocation location) {
+    public static boolean isChestLoot(ResourceLocation location) {
         return location.getPath().contains("chests/");
     }
 
