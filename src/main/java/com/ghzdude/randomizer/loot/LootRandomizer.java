@@ -66,6 +66,8 @@ public class LootRandomizer {
     private static MinecraftServer SERVER;
     private static boolean appliesToAll;
     private static boolean requiresPick;
+    private static boolean requiresSilk;
+    private static boolean requiresShears;
 
     public static void init(MinecraftServer server) {
         INSTANCE = RandomizationMapData.get(server, "loot");
@@ -121,8 +123,9 @@ public class LootRandomizer {
                 Block block = BLOCK_REGISTRY.get(BLOCK_MAP.get(table));
                 if (block == null) continue;
                 for (LootData entry : lootData) {
-                    Item item = ITEM_REGISTRY.get(entry.item());
-                    BlockDropRecipe.registerRecipe(block.asItem(), item, entry.getType(), table);
+                    if (entry.tag() || entry.reference()) continue;
+                    Item output = ITEM_REGISTRY.get(entry.location());
+                    BlockDropRecipe.registerRecipe(block.asItem(), output, entry.getType(), table);
                 }
             }
         }
@@ -134,25 +137,33 @@ public class LootRandomizer {
                 .forEach(collection::add));
     }
 
-    public static boolean requiresPick(ResourceLocation block) {
-        return PICKAXE_MINABLE.contains(block);
-    }
-
     private static void handleJson(JsonObject table) {
         if (!table.has("random_sequence") || !table.has("pools"))
             return;
 
         ResourceLocation id = ResourceLocation.parse(table.get("random_sequence").getAsString());
         activeLocation = id;
+        appliesToAll = false;
 
         if (!isBlacklisted(id)) TABLES.add(id);
 
         Set<LootData> items = LOOT_MAP.computeIfAbsent(id, k -> new ObjectOpenHashSet<>());
 
         requiresPick = isBlock(id) && PICKAXE_MINABLE.contains(BLOCK_MAP.get(id));
-        boolean requiresShears = false;
-        boolean requiresSilk = false;
-        appliesToAll = false;
+
+        handleJsonRaw(table, items);
+
+        RandomizerCore.LOGGER.info("added {} entries for table '{}'", items.size(), id);
+    }
+
+    private static void handleJsonRaw(JsonObject table, Set<LootData> items) {
+        if (!table.has("pools"))
+            return;
+
+        if (!appliesToAll) {
+            requiresShears = false;
+            requiresSilk = false;
+        }
 
         List<JsonObject> pools = table.getAsJsonArray("pools")
                 .asList().stream()
@@ -176,17 +187,47 @@ public class LootRandomizer {
             }
 
             for (JsonObject entry : entries) {
-                if (isType(entry, "alternatives")) {
-                    handleAlternatives(entry, items);
-                } else if (isType(entry, "item")) {
-                    handleItem(entry, items);
-                } else {
-                    RandomizerCore.LOGGER.debug("unhandled entry: {}", entry);
-                }
+                handleEntry(entry, items);
             }
         }
+    }
 
-        RandomizerCore.LOGGER.info("added {} entries for table '{}'", items.size(), id);
+    private static void handleEntry(JsonObject entry, Set<LootData> items) {
+        if (isType(entry, "alternatives")) {
+            handleAlternatives(entry, items);
+        } else if (isType(entry, "item")) {
+            handleItem(entry, items);
+        } else if (isType(entry, "empty")) {
+            // no-op
+        } else if (isType(entry, "loot_table")) {
+            JsonElement value = entry.get("value");
+            if (value.isJsonObject()) {
+                // table within table
+                handleJsonRaw(value.getAsJsonObject(), items);
+            } else {
+                // table location
+                ResourceLocation reference = ResourceLocation.parse(value.getAsString());
+                addEntry(LootData.table(reference), items);
+            }
+        } else if (isType(entry, "dynamic")) {
+            ResourceLocation name = getName(entry);
+            List<ResourceLocation> list = ITEM_REGISTRY.getTags()
+                    // this isn't really a great solution, but it should work for sherds
+                    .filter(pair -> pair.getFirst().location().getPath().contains(name.getPath()))
+                    .flatMap(pair -> pair.getSecond().stream())
+                    .map(holder -> ITEM_REGISTRY.getKey(holder.get()))
+                    .toList();
+
+            for (ResourceLocation item : list) {
+                addEntry(LootData.standard(item), items);
+            }
+
+        } else if (isType(entry, "tag")) {
+            ResourceLocation tag = getName(entry);
+            addEntry(LootData.tag(tag), items);
+        } else {
+            RandomizerCore.LOGGER.debug("unhandled entry: {}", entry);
+        }
     }
 
     private static void addEntry(LootData data, Set<LootData> items) {
@@ -207,86 +248,83 @@ public class LootRandomizer {
         return object.get("type").getAsString().contains(type);
     }
 
+    private static boolean isCondition(JsonObject object, String type) {
+        if (!object.has("condition")) return false;
+        return object.get("condition").getAsString().contains(type);
+    }
+
     private static void handleAlternatives(JsonObject entry, Set<LootData> items) {
-        entry.getAsJsonArray("children")
-                .asList().stream().map(JsonElement::getAsJsonObject)
-                .forEach(object -> handleItem(object, items));
+        List<JsonObject> children = entry.getAsJsonArray("children")
+                .asList().stream().map(JsonElement::getAsJsonObject).toList();
+
+        for (JsonObject child : children) {
+            handleEntry(child, items);
+        }
     }
 
     private static void handleItem(JsonObject entry, Set<LootData> items) {
-//        boolean requiresShears = false;
-//        boolean requiresSilk = false;
+
         ResourceLocation item = getName(entry);
         LootData data = LootData.standard(item).pick(requiresPick);
 
-//        if (appliesToAll) {
-//            data.silk(requiresSilk);
-//            data.shears(requiresShears);
-//        } else
-        {
+        if (appliesToAll) {
+            data.silk(requiresSilk);
+            data.shears(requiresShears);
+        } else {
+            requiresShears = false;
+            requiresSilk = false;
             data.silk(hasCondition(entry, "match_tool", LootRandomizer::handleMatchTool));
+            data.shears(hasCondition(entry, "can_tool_perform_action", LootRandomizer::handleShears));
+
             if (entry.has("functions")) {
-                ResourceLocation smelted = null;
                 List<JsonObject> functions = entry.getAsJsonArray("functions").asList().stream()
                         .map(JsonElement::getAsJsonObject)
                         .toList();
+
                 for (JsonObject function : functions) {
                     Optional<ResourceLocation> location = canSmelt(function, item);
                     if (location.isPresent()) {
-                        smelted = location.get();
+                        addEntry(LootData.standard(location.get()).smelt(true), items);
                         break;
                     }
                 }
-                addEntry(LootData.standard(smelted).smelt(true), items);
             }
-            data.shears(handleShears(entry));
         }
         addEntry(data, items);
     }
 
-    private static boolean hasCondition(JsonObject object, String condition, Function<JsonObject, Boolean> function) {
-        if (object.has("condition") && object.get("condition").getAsString().contains(condition)) {
-            return function.apply(object.getAsJsonObject("predicate"));
+    private static boolean hasCondition(JsonObject object, String type, Function<JsonObject, Boolean> function) {
+        if (!object.has("conditions")) return false;
+        List<JsonObject> conditions = object.getAsJsonArray("conditions")
+                .asList().stream().map(JsonElement::getAsJsonObject).toList();
+
+        for (JsonObject condition : conditions) {
+            if (isCondition(condition, type) && function.apply(condition)) {
+                    return true;
+            } else if (isCondition(condition, "any_of")) {
+                List<JsonObject> terms = condition.getAsJsonArray("terms")
+                        .asList().stream().map(JsonElement::getAsJsonObject).toList();
+
+                for (JsonObject term : terms) {
+                    if (isCondition(term, type) && function.apply(term)) {
+                        return true;
+                    }
+                }
+            }
         }
         return false;
     }
 
-//    private static void handleEntryObject(JsonObject object, Set<LootData> items) {
-//        if (object.has("name")) {
-//            ResourceLocation item = ResourceLocation.parse(object.get("name").getAsString());
-//
-//            if (object.has("conditions")) {
-//                handleEntryArray(object.getAsJsonArray("conditions"), items);
-//            }
-//            if (object.has("functions")) {
-//                handleFunctions(object.getAsJsonArray("functions"), items, item);
-//            }
-//            requiresShears = handleShears(object);
-//
-//            if (requiresPick(item)) {
-//                requiresPick = true;
-//            }
-//            items.add(LootData.standard(item)
-//                    .silk(requiresSilk)
-//                    .pick(requiresPick)
-//                    .shears(requiresShears));
-//        } else if (object.has("children")) {
-//            handleEntryArray(object.getAsJsonArray("children"), items);
-//        } else if (object.has("condition")) {
-//            if (object.get("condition").getAsString().equals("minecraft:match_tool")) {
-//                handleMatchTool(object.getAsJsonObject("predicate"));
-//            }
-//        }
-//    }
+    private static boolean handleMatchTool(JsonObject object) {
+        if (!object.has("predicate")) return false;
 
-    private static boolean handleMatchTool(JsonObject predicates) {
-        if (predicates.has("predicates")) {
-            JsonObject predicate = predicates.getAsJsonObject("predicates");
-            if (predicate.has("minecraft:enchantments")) {
-                return hasEnchantment(predicate, "silk_touch");
-            }
-        }
-        return false;
+        JsonObject predicate = object.getAsJsonObject("predicate");
+        if (!predicate.has("predicates")) return false;
+
+        JsonObject predicates = predicate.getAsJsonObject("predicates");
+        if (!predicates.has("minecraft:enchantments")) return false;
+
+        return hasEnchantment(predicates, "silk_touch");
     }
 
     private static boolean hasEnchantment(JsonObject predicate, String enchantment) {
@@ -298,34 +336,9 @@ public class LootRandomizer {
     }
 
     private static boolean handleShears(JsonObject object) {
-        if (!object.has("terms")) return false;
-
-        return object.getAsJsonArray("terms")
-                .asList().stream()
-                .map(JsonElement::getAsJsonObject)
-                .filter(o -> o.has("action"))
-                .map(o -> o.get("action").getAsString())
-                .anyMatch(s -> s.contains("shears"));
+        if (!object.has("action")) return false;
+        return object.get("action").getAsString().contains("shears");
     }
-
-//    private static void handleFunctions(JsonArray predicate, Set<LootData> items, ResourceLocation currentItem) {
-//        List<JsonObject> functions = predicate.asList().stream()
-//                .map(JsonElement::getAsJsonObject)
-//                .toList();
-//
-//        for (JsonObject object : functions) {
-//            if (object.has("function") && object.getAsJsonPrimitive("function").getAsString().equals("minecraft:furnace_smelt")) {
-//                Optional<Holder.Reference<Item>> item = ITEM_REGISTRY.getHolder(currentItem);
-//                if (item.isEmpty()) continue;
-//                ItemStack stack = new ItemStack(item.get());
-//                Optional<ItemStack> smelted = RECIPE_MANAGER.getRecipeFor(RecipeType.SMELTING, new SingleRecipeInput(stack), SERVER.overworld())
-//                        .map(RecipeHolder::value)
-//                        .map(r -> r.getResultItem(SERVER.registryAccess()));
-//                if (smelted.isEmpty()) continue;
-//                items.add(LootData.standard(ITEM_REGISTRY.getKey(smelted.get().getItem())).smelt(true));
-//            }
-//        }
-//    }
 
     private static Optional<ResourceLocation> canSmelt(JsonObject function, ResourceLocation currentItem) {
         if (function.has("function") && function.get("function").getAsString().contains("furnace_smelt")) {
@@ -340,25 +353,6 @@ public class LootRandomizer {
         }
         return Optional.empty();
     }
-
-//    private static void handleEntryArray(JsonArray array, Set<LootData> items) {
-//        array.asList().stream()
-//                .filter(JsonElement::isJsonObject)
-//                .map(JsonElement::getAsJsonObject)
-//                .forEach(object -> handleEntryObject(object, items));
-//    }
-
-//    private static boolean isBlock(JsonPrimitive type) {
-//        return type.getAsString().endsWith("block");
-//    }
-//
-//    private static boolean isEntity(JsonPrimitive type) {
-//        return type.getAsString().endsWith("entity");
-//    }
-//
-//    private static boolean isChest(JsonPrimitive type) {
-//        return type.getAsString().endsWith("chest");
-//    }
 
     public static RandomizationMapData getMapData(ResourceLocation location) {
         if (RandomizerConfig.randomizeLoot && TABLES.contains(location))
@@ -412,17 +406,26 @@ public class LootRandomizer {
         public static final int REQUIRES_SHEARS = 1;
         public static final int REQUIRES_SMELT = 2;
         public static final int REQUIRES_PICK = 3;
+        public static final int TABLE_REFERENCE = 4;
+        public static final int TAG_REFERENCE = 5;
 
-        private final ResourceLocation item;
-        private final BitSet data;
+        public static LootData standard(ResourceLocation item) {
+            return new LootData(item);
+        }
 
-        /**
-         * @param item loot entry
-         * @param data BitSet storing the properties of the given loot entry
-         */
-        public LootData(ResourceLocation item, BitSet data) {
-            this.item = Objects.requireNonNull(item);
-            this.data = data;
+        public static LootData tag(ResourceLocation item) {
+            return new LootData(item).tag(true);
+        }
+
+        public static LootData table(ResourceLocation item) {
+            return new LootData(item).reference(true);
+        }
+
+        private final ResourceLocation location;
+        private final BitSet data = new BitSet();
+
+        public LootData(@NotNull ResourceLocation location) {
+            this.location = Objects.requireNonNull(location);
         }
 
         public boolean silk() {
@@ -441,12 +444,12 @@ public class LootRandomizer {
             return data.get(REQUIRES_PICK);
         }
 
-        public BlockDropRecipe.Type getType() {
-            if (silk() && shears()) return BlockDropRecipe.Type.SHEARS_OR_SILK;
-            if (shears()) return BlockDropRecipe.Type.SHEARS;
-            if (!pick()) return BlockDropRecipe.Type.HAND;
-            if (silk()) return BlockDropRecipe.Type.SILK_PICK;
-            return BlockDropRecipe.Type.PICK;
+        public boolean reference() {
+            return data.get(TABLE_REFERENCE);
+        }
+
+        public boolean tag() {
+            return data.get(TAG_REFERENCE);
         }
 
         public LootData silk(boolean b) {
@@ -469,12 +472,26 @@ public class LootRandomizer {
             return this;
         }
 
-        public static LootData standard(ResourceLocation item) {
-            return new LootData(item, new BitSet());
+        public LootData reference(boolean b) {
+            data.set(TABLE_REFERENCE, b);
+            return this;
         }
 
-        public ResourceLocation item() {
-            return item;
+        public LootData tag(boolean b) {
+            data.set(TAG_REFERENCE, b);
+            return this;
+        }
+
+        public BlockDropRecipe.Type getType() {
+            if (silk() && shears()) return BlockDropRecipe.Type.SHEARS_OR_SILK;
+            if (shears()) return BlockDropRecipe.Type.SHEARS;
+            if (!pick()) return BlockDropRecipe.Type.HAND;
+            if (silk()) return BlockDropRecipe.Type.SILK_PICK;
+            return BlockDropRecipe.Type.PICK;
+        }
+
+        public ResourceLocation location() {
+            return location;
         }
 
         @Override
@@ -482,23 +499,25 @@ public class LootRandomizer {
             if (obj == this) return true;
             if (obj == null || obj.getClass() != this.getClass()) return false;
             var that = (LootData) obj;
-            return Objects.equals(this.item, that.item) &&
+            return Objects.equals(this.location, that.location) &&
                     Objects.equals(this.data, that.data);
         }
 
         @Override
         public int hashCode() {
-            return Objects.hash(item, data);
+            return Objects.hash(location, data);
         }
 
         @Override
         public String toString() {
             return "LootData[" +
-                    "item=" + item +
+                    "location=" + location +
                     ", silk=" + silk() +
                     ", shears=" + shears() +
                     ", pick=" + pick() +
                     ", smelt=" + smelt() +
+                    ", table=" + reference() +
+                    ", tag=" + tag() +
                     ']';
         }
     }
