@@ -2,11 +2,8 @@ package com.ghzdude.randomizer;
 
 import com.ghzdude.randomizer.loot.LootRandomizer;
 import it.unimi.dsi.fastutil.ints.Int2ObjectArrayMap;
-import it.unimi.dsi.fastutil.ints.IntArraySet;
-import it.unimi.dsi.fastutil.ints.IntIterator;
-import it.unimi.dsi.fastutil.ints.IntSet;
-import it.unimi.dsi.fastutil.objects.Object2BooleanArrayMap;
 import it.unimi.dsi.fastutil.objects.Object2BooleanMap;
+import it.unimi.dsi.fastutil.objects.Object2BooleanOpenHashMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import net.minecraft.core.NonNullList;
@@ -22,9 +19,11 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.item.crafting.Recipe;
 import net.minecraft.world.item.crafting.RecipeHolder;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.storage.loot.BuiltInLootTables;
 
 import java.util.*;
+import java.util.function.Predicate;
 import java.util.stream.Stream;
 
 /* Description
@@ -36,7 +35,7 @@ import java.util.stream.Stream;
 public class CompletabilityVerifier {
 
     /**
-     * Maps an item (result) to a set of recipes that the item can make
+     * Maps an item (result) to a set of recipes that make this item
      */
     private static final Object2ObjectMap<ResourceLocation, Set<ResourceLocation>> RESULT_MAP = new Object2ObjectOpenHashMap<>();
 
@@ -54,6 +53,8 @@ public class CompletabilityVerifier {
      * maps a recipe to its result item.
      */
     private static final Object2ObjectMap<ResourceLocation, ResourceLocation> RECIPE_MAP = new Object2ObjectOpenHashMap<>();
+
+    private static final Object2BooleanMap<ResourceLocation> COMPLETABILITY_CACHE = new Object2BooleanOpenHashMap<>();
 
     public static ResourceLocation ENDER_EYE;
     public static ResourceLocation OBSIDIAN;
@@ -203,6 +204,58 @@ public class CompletabilityVerifier {
             EntityType.ARMADILLO.getDefaultLootTable()
     ).map(ResourceKey::location).toList();
 
+    private static final List<ResourceLocation> OVERWORLD_BLOCKS = Stream.of(
+            // surface
+            Blocks.GRASS_BLOCK,
+            Blocks.DIRT,
+
+            // underground
+            Blocks.STONE,
+            Blocks.ANDESITE,
+            Blocks.GRANITE,
+            Blocks.DIORITE,
+            Blocks.AMETHYST_BLOCK,
+            Blocks.LARGE_AMETHYST_BUD,
+            Blocks.MEDIUM_AMETHYST_BUD,
+            Blocks.SMALL_AMETHYST_BUD,
+            Blocks.OBSIDIAN,
+            Blocks.COBBLESTONE,
+            Blocks.POINTED_DRIPSTONE,
+            Blocks.DRIPSTONE_BLOCK,
+
+            // wood
+            Blocks.ACACIA_WOOD,
+            Blocks.BIRCH_WOOD,
+            Blocks.CHERRY_WOOD,
+            Blocks.OAK_WOOD,
+            Blocks.DARK_OAK_WOOD,
+            Blocks.SPRUCE_WOOD,
+
+            // raw ores
+            Blocks.IRON_ORE,
+            Blocks.GOLD_ORE,
+            Blocks.COPPER_ORE,
+            Blocks.COAL_ORE,
+            Blocks.DIAMOND_ORE,
+            Blocks.DEEPSLATE_IRON_ORE,
+            Blocks.DEEPSLATE_GOLD_ORE,
+            Blocks.DEEPSLATE_COPPER_ORE,
+            Blocks.DEEPSLATE_COAL_ORE,
+            Blocks.DEEPSLATE_DIAMOND_ORE,
+
+            // flowers
+            Blocks.CORNFLOWER,
+            Blocks.SUNFLOWER,
+            Blocks.DANDELION,
+            Blocks.ORANGE_TULIP,
+            Blocks.PINK_TULIP,
+            Blocks.RED_TULIP,
+            Blocks.WHITE_TULIP,
+            Blocks.ROSE_BUSH,
+            Blocks.SMALL_DRIPLEAF,
+            Blocks.BIG_DRIPLEAF
+    ).map(block -> block.getLootTable().location()).toList();
+
     // nether
     private static final List<Item> NETHER_ITEMS = List.of(
             Items.NETHERRACK,
@@ -213,6 +266,21 @@ public class CompletabilityVerifier {
             Items.QUARTZ,
             Items.GLOWSTONE_DUST
     );
+
+    private static final List<ResourceLocation> NETHER_BLOCKS = Stream.of(
+            Blocks.NETHERRACK,
+            Blocks.SOUL_SAND,
+            Blocks.SOUL_SOIL,
+            Blocks.BLACKSTONE,
+            Blocks.BASALT,
+            Blocks.NETHER_QUARTZ_ORE,
+            Blocks.GLOWSTONE,
+            Blocks.BONE_BLOCK,
+            Blocks.POLISHED_BLACKSTONE_BRICKS,
+            Blocks.CRACKED_POLISHED_BLACKSTONE_BRICKS,
+            Blocks.NETHER_BRICKS,
+            Blocks.NETHER_WART
+    ).map(block -> block.getLootTable().location()).toList();
 
     private static final List<ResourceLocation> NETHER_LOOT = Stream.of(
             // chests
@@ -296,25 +364,26 @@ public class CompletabilityVerifier {
     }
 
     public static void ensureCompletability() {
-        Object2BooleanMap<ResourceLocation> completabilityMap = new Object2BooleanArrayMap<>();
+        COMPLETABILITY_CACHE.clear();
+        Object2BooleanMap<ResourceLocation> completabilityMap = COMPLETABILITY_CACHE;
         Object2ObjectMap<ResourceLocation, String> pathMap = new Object2ObjectOpenHashMap<>();
         Int2ObjectArrayMap<Set<ResourceLocation>> indexMap = INGREDIENT_MAP.get(ENDER_EYE);
 
         for (var entry : indexMap.int2ObjectEntrySet()) {
             for (ResourceLocation ing : entry.getValue()) {
                 recipePath.clear();
-                completabilityMap.put(ing, canCraftIngredient(ing, ENDER_EYE));
+                completabilityMap.put(ing, canObtainIngredient(ing, ENDER_EYE));
                 pathMap.put(ing, printPath());
             }
         }
 
-        if (requiresNether && RESULT_MAP.containsKey(OBSIDIAN)) {
-            recipePath.clear();
-            if (ensureCompletability(OBSIDIAN)) {
-                completabilityMap.put(OBSIDIAN, true);
-                pathMap.put(OBSIDIAN, printPath());
-            }
-        }
+//        if (requiresNether && RESULT_MAP.containsKey(OBSIDIAN)) {
+//            recipePath.clear();
+//            if (ensureCompletability(OBSIDIAN)) {
+//                completabilityMap.put(OBSIDIAN, true);
+//                pathMap.put(OBSIDIAN, printPath());
+//            }
+//        }
 
         if (requiresNether) RandomizerCore.LOGGER.info("Requires nether access!");
 
@@ -353,66 +422,49 @@ public class CompletabilityVerifier {
             recipePath.add(recipe);
 
             Int2ObjectArrayMap<Set<ResourceLocation>> ingredients = INGREDIENT_MAP.get(recipe);
-            IntSet toCheck = new IntArraySet(ingredients.size());
 
             // for each index
+            int success = 0;
             for (int index : ingredients.keySet()) {
                 // for each ingredient
                 for (ResourceLocation ing : ingredients.get(index)) {
-                    // is this ingredient obtainable from the overworld
-                    // if it is not, add the index to a set to check later
-                    Item vanilla = getDataFor(recipe).getOriginalItem(REGISTRY.get(ing));
-                    if (!checkItem(vanilla))
-                        toCheck.add(index);
-                }
-            }
-
-            // if to check is empty, then everything is obtainable
-
-            // for each index to check
-            IntIterator intItr = toCheck.iterator();
-            while (intItr.hasNext()) {
-                // for each ingredient in that index
-                for (ResourceLocation ing : ingredients.get(intItr.nextInt())) {
-                    // get the recipes for this ingredient
-                    if (canCraftIngredient(ing, recipe)) {
-                        intItr.remove();
+                    // if any ingredient is obtainable, break
+                    if (canObtainIngredient(ing, recipe)) {
+                        success++;
+                        break;
                     }
                 }
             }
 
-            // to check is empty, meaning everything is craftable
-            if (toCheck.isEmpty())
+            // every ingredient slot is obtainable
+            if (success == ingredients.size()) {
                 return true;
+            }
         }
         return false;
     }
 
-    private static boolean canCraftIngredient(ResourceLocation ingredient, ResourceLocation recipe) {
+    private static boolean canObtainIngredient(ResourceLocation ingredient, ResourceLocation recipe) {
         if (isLoot(recipe)) {
-            return checkLoot(recipe);
+            // loot tends to be the end point
+            return computeCompletion(recipe, CompletabilityVerifier::checkLoot);
         }
 
-        Item vanilla = getDataFor(recipe).getOriginalItem(REGISTRY.get(ingredient));
-
-        if (!requiresNether && NETHER_ITEMS.contains(vanilla)) {
-            requiresNether = true;
-        }
-
-        return ensureCompletability(ingredient);
+        return computeCompletion(ingredient, CompletabilityVerifier::ensureCompletability);
     }
 
     private static boolean isLoot(ResourceLocation key) {
-        return LootRandomizer.hasTable(key) && !LootRandomizer.isBlock(key);
+        return LootRandomizer.hasTable(key);
     }
 
     private static boolean checkLoot(ResourceLocation table) {
         recipePath.add(table);
-        if (OVERWORLD_LOOT.contains(table)) {
-            return true;
+        if (OVERWORLD_LOOT.contains(table) || OVERWORLD_BLOCKS.contains(table)) {
+            return computeCompletion(table);
         }
-        if (NETHER_LOOT.contains(table)) {
-            return requiresNether = true;
+        if (NETHER_LOOT.contains(table) || NETHER_BLOCKS.contains(table)) {
+            requiresNether = true;
+            return computeCompletion(OBSIDIAN, CompletabilityVerifier::ensureCompletability);
         } else {
             recipePath.removeLast();
             return false;
@@ -425,8 +477,20 @@ public class CompletabilityVerifier {
         }
         if (NETHER_ITEMS.contains(item)) {
             requiresNether = true;
+            return computeCompletion(OBSIDIAN, CompletabilityVerifier::ensureCompletability);
         }
         return false;
+    }
+
+    private static boolean computeCompletion(ResourceLocation location) {
+        return computeCompletion(location, k -> true);
+    }
+
+    private static boolean computeCompletion(ResourceLocation location, Predicate<ResourceLocation> predicate) {
+        if (!COMPLETABILITY_CACHE.containsKey(location)) {
+            COMPLETABILITY_CACHE.put(location, predicate.test(location));
+        }
+        return COMPLETABILITY_CACHE.getBoolean(location);
     }
 
     private static String printPath() {
