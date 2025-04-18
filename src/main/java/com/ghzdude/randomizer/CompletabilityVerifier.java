@@ -67,54 +67,6 @@ public class CompletabilityVerifier {
     private static Registry<Item> REGISTRY;
 
     // overworld
-    private static final List<Item> OVERWORLD_ITEMS = List.of(
-            // surface
-            Items.GRASS_BLOCK,
-            Items.DIRT,
-
-            // underground
-            Items.STONE,
-            Items.ANDESITE,
-            Items.GRANITE,
-            Items.DIORITE,
-            Items.AMETHYST_BLOCK,
-            Items.LARGE_AMETHYST_BUD,
-            Items.MEDIUM_AMETHYST_BUD,
-            Items.SMALL_AMETHYST_BUD,
-            Items.AMETHYST_SHARD,
-            Items.OBSIDIAN,
-            Items.COBBLESTONE,
-            Items.POINTED_DRIPSTONE,
-            Items.DRIPSTONE_BLOCK,
-
-            // wood
-            Items.ACACIA_WOOD,
-            Items.BIRCH_WOOD,
-            Items.CHERRY_WOOD,
-            Items.OAK_WOOD,
-            Items.DARK_OAK_WOOD,
-            Items.SPRUCE_WOOD,
-
-            // raw ores
-            Items.RAW_IRON,
-            Items.RAW_GOLD,
-            Items.RAW_COPPER,
-            Items.COAL,
-            Items.DIAMOND,
-
-            // flowers
-            Items.CORNFLOWER,
-            Items.SUNFLOWER,
-            Items.DANDELION,
-            Items.ORANGE_TULIP,
-            Items.PINK_TULIP,
-            Items.RED_TULIP,
-            Items.WHITE_TULIP,
-            Items.ROSE_BUSH,
-            Items.SMALL_DRIPLEAF,
-            Items.BIG_DRIPLEAF
-    );
-
     private static final List<ResourceLocation> OVERWORLD_LOOT = Stream.of(
             // chests
             BuiltInLootTables.BURIED_TREASURE,
@@ -257,16 +209,6 @@ public class CompletabilityVerifier {
     ).map(block -> block.getLootTable().location()).toList();
 
     // nether
-    private static final List<Item> NETHER_ITEMS = List.of(
-            Items.NETHERRACK,
-            Items.SOUL_SAND,
-            Items.SOUL_SOIL,
-            Items.BLACKSTONE,
-            Items.BASALT,
-            Items.QUARTZ,
-            Items.GLOWSTONE_DUST
-    );
-
     private static final List<ResourceLocation> NETHER_BLOCKS = Stream.of(
             Blocks.NETHERRACK,
             Blocks.SOUL_SAND,
@@ -359,37 +301,24 @@ public class CompletabilityVerifier {
         RECIPE_MAP.put(recipe, item);
     }
 
-    private static RandomizationMapData getDataFor(ResourceLocation recipe) {
-        return DATA_MAP.getOrDefault(recipe, RandomizationMapData.VANILLA);
-    }
-
     public static void ensureCompletability() {
         COMPLETABILITY_CACHE.clear();
-        Object2BooleanMap<ResourceLocation> completabilityMap = COMPLETABILITY_CACHE;
+        recipePath.clear();
         Object2ObjectMap<ResourceLocation, String> pathMap = new Object2ObjectOpenHashMap<>();
         Int2ObjectArrayMap<Set<ResourceLocation>> indexMap = INGREDIENT_MAP.get(ENDER_EYE);
 
         for (var entry : indexMap.int2ObjectEntrySet()) {
             for (ResourceLocation ing : entry.getValue()) {
-                recipePath.clear();
-                completabilityMap.put(ing, canObtainIngredient(ing, ENDER_EYE));
+                canObtainIngredient(ing, ENDER_EYE);
                 pathMap.put(ing, printPath());
             }
         }
-
-//        if (requiresNether && RESULT_MAP.containsKey(OBSIDIAN)) {
-//            recipePath.clear();
-//            if (ensureCompletability(OBSIDIAN)) {
-//                completabilityMap.put(OBSIDIAN, true);
-//                pathMap.put(OBSIDIAN, printPath());
-//            }
-//        }
 
         if (requiresNether) RandomizerCore.LOGGER.info("Requires nether access!");
 
         int i = 0;
         for (ResourceLocation ing : pathMap.keySet()) {
-            if (completabilityMap.getBoolean(ing)) {
+            if (COMPLETABILITY_CACHE.getBoolean(ing)) {
                 RandomizerCore.LOGGER.info("can craft \"{}\"\n{}", ing, pathMap.get(ing));
                 i++;
             } else {
@@ -471,17 +400,6 @@ public class CompletabilityVerifier {
         }
     }
 
-    private static boolean checkItem(Item item) {
-        if (OVERWORLD_ITEMS.contains(item)) {
-            return true;
-        }
-        if (NETHER_ITEMS.contains(item)) {
-            requiresNether = true;
-            return computeCompletion(OBSIDIAN, CompletabilityVerifier::ensureCompletability);
-        }
-        return false;
-    }
-
     private static boolean computeCompletion(ResourceLocation location) {
         return computeCompletion(location, k -> true);
     }
@@ -501,13 +419,14 @@ public class CompletabilityVerifier {
             if (isLoot(loc)) {
                 b.append("loot={%s}".formatted(loc));
             } else {
-                b.append(RECIPE_MAP.get(loc));
-                b.append("={recipe=%s}".formatted(loc));
+                // ingredient in recipe
+                b.append("recipe={%s in %s}".formatted(RECIPE_MAP.get(loc), loc));
             }
             if (i++ != recipePath.size() - 1) {
                 b.append('\n').append(" -> ");
             }
         }
+        recipePath.clear();
         return b.toString();
     }
 }
