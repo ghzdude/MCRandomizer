@@ -59,6 +59,13 @@ public class LootRandomizer {
      * Maps a loot table to its drops
      */
     private static final Object2ObjectMap<ResourceLocation, Set<LootData>> LOOT_MAP = new Object2ObjectOpenHashMap<>();
+
+    /**
+     * Maps a loot table with a map of the loot table drops to a different item required for completion
+     */
+    private static final Map<ResourceLocation, Map<ResourceLocation, ResourceLocation>> SPECIAL_MAP = new Object2ObjectOpenHashMap<>();
+
+
     public static ResourceLocation activeLocation;
 
     private static final ObjectOpenHashSet<ResourceLocation> PICKAXE_MINABLE = new ObjectOpenHashSet<>();
@@ -117,8 +124,9 @@ public class LootRandomizer {
                     .ifPresent(LootRandomizer::handleJson);
         }
 
-        if (RandomizerConfig.enableDebug)
-            RandomizerCore.LOGGER.info("loot map size: {}", LOOT_MAP.size());
+        if (RandomizerConfig.enableDebug) {
+            RandomizerCore.LOGGER.debug("loot map size: {}", LOOT_MAP.size());
+        }
 
         for (ResourceLocation table : LOOT_MAP.keySet()) {
             Set<LootData> lootData = LOOT_MAP.get(table);
@@ -152,9 +160,23 @@ public class LootRandomizer {
         }).collect(Collectors.toUnmodifiableSet());
     }
 
+    public static Set<ResourceLocation> getIngredients(ResourceLocation table) {
+        return LOOT_MAP.get(table).stream().map(LootData::location).collect(Collectors.toUnmodifiableSet());
+    }
+
     public static Set<ResourceLocation> getKnownTables() {
         return ImmutableSet.copyOf(LOOT_MAP.keySet());
     }
+
+    public static void registerSpecialDrop(ResourceLocation table, ResourceLocation drop, ResourceLocation replace) {
+        SPECIAL_MAP.computeIfAbsent(table, k -> new Object2ObjectOpenHashMap<>())
+                .put(drop, replace);
+
+        if (RandomizerConfig.enableDebug) {
+            RandomizerCore.LOGGER.debug("Table '{}' has been modified to give '{}' instead of '{}'", table, replace, drop);
+        }
+    }
+
     private static void collectFromTag(TagKey<Block> key, Set<ResourceLocation> collection) {
         BLOCK_REGISTRY.getTag(key).ifPresent(blocks -> blocks.stream()
                 .map(holder -> BLOCK_REGISTRY.getKey(holder.get()))
@@ -183,7 +205,7 @@ public class LootRandomizer {
             return;
 
         if (RandomizerConfig.enableDebug)
-            RandomizerCore.LOGGER.info("Table '{}' contains entries:", activeLocation);
+            RandomizerCore.LOGGER.debug("Table '{}' contains entries:", activeLocation);
 
         if (!appliesToAll) {
             requiresShears = false;
@@ -249,7 +271,7 @@ public class LootRandomizer {
 
     private static void addEntry(LootData data, Set<LootData> items) {
         if (items.add(data) && RandomizerConfig.enableDebug) {
-            RandomizerCore.LOGGER.info("'{}'", data);
+            RandomizerCore.LOGGER.debug("'{}'", data);
         }
     }
 
@@ -398,12 +420,24 @@ public class LootRandomizer {
     }
 
     public static @NotNull ObjectArrayList<ItemStack> randomizeLoot(ObjectArrayList<ItemStack> generatedLoot, LootContext context) {
-        if (!TABLES.contains(context.getQueriedLootTableId())) return generatedLoot;
+        ResourceLocation queriedLootTableId = context.getQueriedLootTableId();
+        if (!TABLES.contains(queriedLootTableId)) return generatedLoot;
+
+        RandomizationMapData mapData = getMapData(queriedLootTableId);
+
+        if (RandomizerConfig.enableDebug) {
+            RandomizerCore.LOGGER.debug("Table '{}' is being queried, randomizing", queriedLootTableId);
+        }
 
         ObjectArrayList<ItemStack> ret = new ObjectArrayList<>();
         for (ItemStack stack : generatedLoot) {
             if (!stack.isEmpty()) {
-                var random = getMapData(context.getQueriedLootTableId()).getItemFor(stack.getItem());
+                var random = mapData.getItemFor(stack.getItem());
+                if (SPECIAL_MAP.containsKey(queriedLootTableId)) {
+                    ResourceLocation vanilla = ITEM_REGISTRY.getKey(mapData.getOriginalItem(random));
+                    ResourceLocation replacement = SPECIAL_MAP.get(queriedLootTableId).getOrDefault(vanilla, ITEM_REGISTRY.getKey(random));
+                    random = Objects.requireNonNull(ITEM_REGISTRY.get(replacement));
+                }
                 ret.add(RandomizerUtil.itemToStack(random, stack.getCount()));
             } else {
                 ret.add(ItemStack.EMPTY);
