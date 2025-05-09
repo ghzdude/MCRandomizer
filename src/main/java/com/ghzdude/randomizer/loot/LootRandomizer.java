@@ -168,6 +168,11 @@ public class LootRandomizer {
         return ImmutableSet.copyOf(LOOT_MAP.keySet());
     }
 
+    public static ResourceLocation getBlockFor(ResourceLocation table) {
+        if (BLOCK_MAP.containsKey(table)) return BLOCK_MAP.get(table);
+        throw new IllegalArgumentException("Table '%s' is not a block table!".formatted(table));
+    }
+
     public static void registerSpecialDrop(ResourceLocation table, ResourceLocation drop, ResourceLocation replace) {
         SPECIAL_MAP.computeIfAbsent(table, k -> new Object2ObjectOpenHashMap<>())
                 .put(drop, replace);
@@ -258,12 +263,13 @@ public class LootRandomizer {
                     .toList();
 
             for (ResourceLocation item : list) {
-                addEntry(LootData.standard(item), items);
+                addEntry(LootData.standard(getRandomized(item)), items);
             }
 
         } else if (isType(entry, "tag")) {
-            ResourceLocation tag = getName(entry);
-            addEntry(LootData.tag(tag), items);
+            ResourceLocation vanilla = getName(entry);
+            ResourceLocation randomized = getRandomized(vanilla);
+            addEntry(LootData.tag(randomized), items);
         } else if (RandomizerConfig.enableDebug) {
             RandomizerCore.LOGGER.debug("unhandled entry: {}", entry);
         }
@@ -302,8 +308,9 @@ public class LootRandomizer {
     }
 
     private static void handleItem(JsonObject entry, Set<LootData> items) {
-        ResourceLocation item = getName(entry);
-        LootData data = LootData.standard(item).pick(requiresPick);
+        ResourceLocation vanilla = getName(entry);
+        ResourceLocation random = getRandomized(vanilla);
+        LootData data = LootData.standard(random).pick(requiresPick);
 
         if (!appliesToAll) {
             requiresSilk = hasCondition(entry, "match_tool", LootRandomizer::handleMatchTool);
@@ -315,9 +322,9 @@ public class LootRandomizer {
                         .toList();
 
                 for (JsonObject function : functions) {
-                    Optional<ResourceLocation> location = canSmelt(function, item);
+                    Optional<ResourceLocation> location = canSmelt(function, vanilla);
                     if (location.isPresent()) {
-                        addEntry(LootData.standard(location.get()).smelt(true), items);
+                        addEntry(LootData.standard(getRandomized(location.get())).smelt(true), items);
                         break;
                     }
                 }
@@ -325,6 +332,14 @@ public class LootRandomizer {
         }
 
         addEntry(data.silk(requiresSilk).shears(requiresShears), items);
+    }
+
+    private static ResourceLocation getRandomized(ResourceLocation vanilla) {
+        if (ITEM_REGISTRY.containsKey(vanilla))
+            return ITEM_REGISTRY.getKey(getMapData(activeLocation).getItemFor(ITEM_REGISTRY.get(vanilla)));
+        if (ITEM_REGISTRY.getTagNames().anyMatch(tagKey -> tagKey.location().equals(vanilla)))
+            return getMapData(activeLocation).getTagKeyFor(TagKey.create(Registries.ITEM, vanilla)).location();
+        throw new IllegalArgumentException("'%s' must be an item or tag!".formatted(vanilla));
     }
 
     private static boolean hasCondition(JsonObject object, String type, Function<JsonObject, Boolean> function) {
@@ -429,14 +444,15 @@ public class LootRandomizer {
             RandomizerCore.LOGGER.debug("Table '{}' is being queried, randomizing", queriedLootTableId);
         }
 
+        Map<ResourceLocation, ResourceLocation> replacementMap = SPECIAL_MAP.getOrDefault(queriedLootTableId, Collections.emptyMap());
+
         ObjectArrayList<ItemStack> ret = new ObjectArrayList<>();
         for (ItemStack stack : generatedLoot) {
             if (!stack.isEmpty()) {
                 var random = mapData.getItemFor(stack.getItem());
-                if (SPECIAL_MAP.containsKey(queriedLootTableId)) {
-                    ResourceLocation vanilla = ITEM_REGISTRY.getKey(mapData.getOriginalItem(random));
-                    ResourceLocation replacement = SPECIAL_MAP.get(queriedLootTableId).getOrDefault(vanilla, ITEM_REGISTRY.getKey(random));
-                    random = Objects.requireNonNull(ITEM_REGISTRY.get(replacement));
+                ResourceLocation key = ITEM_REGISTRY.getKey(random);
+                if (replacementMap.containsKey(key)) {
+                    random = Objects.requireNonNull(ITEM_REGISTRY.get(replacementMap.get(key)));
                 }
                 ret.add(RandomizerUtil.itemToStack(random, stack.getCount()));
             } else {

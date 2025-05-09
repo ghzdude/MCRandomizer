@@ -21,6 +21,7 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.SpawnEggItem;
 import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.item.crafting.Recipe;
 import net.minecraft.world.item.crafting.RecipeHolder;
@@ -78,7 +79,7 @@ public class CompletabilityVerifier {
     private static boolean requiresNether = false;
     private static boolean isCompletable = false;
 
-    private static Registry<Item> REGISTRY;
+    private static Registry<Item> ITEM_REGISTRY;
 
     // overworld
     private static final List<ResourceLocation> OVERWORLD_LOOT = Stream.of(
@@ -95,7 +96,7 @@ public class CompletabilityVerifier {
             BuiltInLootTables.SHIPWRECK_TREASURE,
             BuiltInLootTables.SHIPWRECK_MAP,
             BuiltInLootTables.SHIPWRECK_SUPPLY,
-            BuiltInLootTables.SPAWN_BONUS_CHEST,
+//            BuiltInLootTables.SPAWN_BONUS_CHEST,
             BuiltInLootTables.VILLAGE_WEAPONSMITH,
             BuiltInLootTables.VILLAGE_TOOLSMITH,
             BuiltInLootTables.VILLAGE_ARMORER,
@@ -259,11 +260,11 @@ public class CompletabilityVerifier {
     ).map(ResourceKey::location).toList();
 
     public static void init(MinecraftServer server) {
-        REGISTRY = server.registryAccess().registryOrThrow(Registries.ITEM);
+        ITEM_REGISTRY = server.registryAccess().registryOrThrow(Registries.ITEM);
         RESULT_MAP.defaultReturnValue(Collections.emptySet());
 
-        ENDER_EYE = REGISTRY.getKey(Items.ENDER_EYE);
-        OBSIDIAN = REGISTRY.getKey(Items.OBSIDIAN);
+        ENDER_EYE = ITEM_REGISTRY.getKey(Items.ENDER_EYE);
+        OBSIDIAN = ITEM_REGISTRY.getKey(Items.OBSIDIAN);
 
         for (RecipeHolder<?> holder : server.getRecipeManager().getRecipes()) {
             Recipe<?> recipe = holder.value();
@@ -276,6 +277,20 @@ public class CompletabilityVerifier {
         for (ResourceLocation key : LootRandomizer.getKnownTables()) {
             addLootTable(key, LootRandomizer.getIngredients(key));
         }
+
+        ITEM_REGISTRY.stream()
+                .filter(item -> item instanceof SpawnEggItem)
+                .map(item -> ((SpawnEggItem) item))
+                .forEach(spawnEggItem -> {
+                    ResourceLocation itemKey = ITEM_REGISTRY.getKey(spawnEggItem);
+                    EntityType<?> type = spawnEggItem.getType(spawnEggItem.getDefaultInstance());
+                    ResourceLocation lootTable = type.getDefaultLootTable().location();
+                    addIngredient(itemKey, 0, lootTable);
+                    addResult(lootTable, itemKey);
+                    if (RandomizerConfig.enableDebug) {
+                        RandomizerCore.LOGGER.debug("Mapped '{}' to loot table '{}'", itemKey, lootTable);
+                    }
+                });
     }
 
     public static void addRecipe(NonNullList<Ingredient> ingredients, ItemStack output, ResourceLocation recipe) {
@@ -306,16 +321,16 @@ public class CompletabilityVerifier {
             i++;
         }
 
-        addResult(REGISTRY.getKey(output.getItem()), recipe);
+        addResult(ITEM_REGISTRY.getKey(output.getItem()), recipe);
     }
 
     private static void parseJson(JsonObject object, Set<ResourceLocation> items) {
         if (object.has("tag")) {
             ResourceLocation tag = ResourceLocation.parse(object.get("tag").getAsString());
-            TAG_MAP.computeIfAbsent(tag, (ResourceLocation k) -> REGISTRY.getTag(TagKey.create(Registries.ITEM, k))
+            TAG_MAP.computeIfAbsent(tag, (ResourceLocation k) -> ITEM_REGISTRY.getTag(TagKey.create(Registries.ITEM, k))
                     .map(holders -> holders.stream()
                             .map(Holder::value)
-                            .map(REGISTRY::getKey)
+                            .map(ITEM_REGISTRY::getKey)
                             .filter(Objects::nonNull)
                             .collect(Collectors.toUnmodifiableSet()))
                     .orElse(Collections.emptySet()));
@@ -351,10 +366,6 @@ public class CompletabilityVerifier {
     private static void modifyRecipe(ResourceLocation table, ResourceLocation ingredient) {
         // we will modify this recipe to give this ingredient
         MODIFY_RECIPES.put(table, ingredient);
-
-        if (RandomizerConfig.enableDebug) {
-            RandomizerCore.LOGGER.debug("Table '{}' will be modified to give '{}'", table, ingredient);
-        }
     }
 
     private static void commitModifiedRecipes() {
@@ -606,7 +617,20 @@ public class CompletabilityVerifier {
             return true;
         }
 
-        return false;
+        // we can't make anything give chest loot
+        if (LootRandomizer.isChestLoot(table))
+            return false;
+
+        // we need to modify this so that something drops the block that drops this table
+        // or mob egg
+        ResourceLocation random = RandomizerUtil.getRandom(OVERWORLD_LOOT, RandomizerCore.seededRNG);
+        if (LootRandomizer.isBlock(table))
+            modifyRecipe(random, LootRandomizer.getBlockFor(table));
+        else if (LootRandomizer.isEntityDrop(table)) {
+            // get the entity that drops this
+            modifyRecipe(random, RESULT_MAP.get(table).stream().findAny().orElseThrow());
+        }
+        return true;
     }
 
     private static boolean computeCompletion(ResourceLocation location) {
