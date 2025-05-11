@@ -3,7 +3,7 @@ package com.ghzdude.randomizer.io;
 import com.ghzdude.randomizer.RandomizerCore;
 import com.google.gson.*;
 import com.google.gson.stream.JsonReader;
-import com.google.gson.stream.JsonToken;
+import com.mojang.logging.LogUtils;
 import it.unimi.dsi.fastutil.objects.Object2IntArrayMap;
 import it.unimi.dsi.fastutil.objects.Object2IntMap;
 import net.minecraft.core.Registry;
@@ -11,6 +11,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.fml.loading.FMLPaths;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.slf4j.Logger;
 
 import java.io.File;
 import java.io.IOException;
@@ -27,6 +28,7 @@ public class ConfigIO {
     private static final Path BLACKLIST_DIR = CONFIG_DIR.resolve("blacklists");
     private static final Path VALUE_DIR = CONFIG_DIR.resolve("values");
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
+    private static final Logger LOGGER = LogUtils.getLogger();
     private static final String JSON_FILE = "%s.json";
 
     public static void writeListToFile(File file, List<ResourceLocation> list) {
@@ -45,13 +47,14 @@ public class ConfigIO {
 
     private static void tryWriteJson(JsonElement toWrite, File file) {
         try {
-            if (!file.createNewFile()) return;
-            Writer writer = Files.newBufferedWriter(file.toPath());
-            GSON.toJson(toWrite, writer);
-            writer.close();
+            if (file.canWrite() || file.createNewFile()) {
+                Writer writer = Files.newBufferedWriter(file.toPath());
+                GSON.toJson(toWrite, writer);
+                writer.close();
+            }
 
         } catch (IOException | NullPointerException e) {
-            RandomizerCore.LOGGER.warn("Failure to write JSON at {}", file);
+            LOGGER.warn("Failure to write JSON at {}", file);
         }
     }
 
@@ -65,20 +68,17 @@ public class ConfigIO {
         }
         try {
             var reader = GSON.newJsonReader(Files.newBufferedReader(valueFile.toPath()));
-            reader.beginObject();
-            while (reader.peek() != JsonToken.END_OBJECT) {
-                var loc = ResourceLocation.parse(reader.nextName());
-                int i = reader.nextInt();
+            JsonObject object = JsonParser.parseReader(reader).getAsJsonObject();
+            for (String vanilla : object.keySet()) {
+                var loc = ResourceLocation.parse(vanilla);
+                int i = object.get(vanilla).getAsInt();
                 if (registry.containsKey(loc)) {
                     map.put(loc, i);
                     continue;
                 }
 
-                RandomizerCore.LOGGER.warn("Value \"{}\" does not exist in {} or is invalid!", loc, registry.key());
+                LOGGER.warn("Value \"{}\" does not exist in {} or is invalid!", loc, registry.key());
             }
-            reader.endObject();
-            reader.close();
-
         } catch (IOException e) {
             readFail(valueFile);
         }
@@ -92,26 +92,26 @@ public class ConfigIO {
         File blacklistFile = createFileName(file);
         try {
             if (blacklistFile.createNewFile()) {
+                // first time, write defaults
                 writeListToFile(blacklistFile, defaults);
                 return defaults;
             }
 
             JsonReader reader = GSON.newJsonReader(Files.newBufferedReader(blacklistFile.toPath()));
-            reader.beginArray();
+            JsonArray elements = JsonParser.parseReader(reader).getAsJsonArray();
 
-            while (reader.peek() == JsonToken.STRING) {
-                ResourceLocation location = ResourceLocation.parse(reader.nextString());
+            for (JsonElement vanilla : elements) {
+                ResourceLocation location = ResourceLocation.parse(vanilla.getAsString());
                 if (registry == null || registry.containsKey(location)) {
                     blacklist.add(location);
                 } else {
-                    RandomizerCore.LOGGER.warn("Location {} is not valid!", location);
+                    LOGGER.warn("Location {} is not valid!", location);
                 }
             }
-
-            reader.endArray();
-            reader.close();
         } catch (IOException | NullPointerException e) {
             readFail(blacklistFile);
+            writeListToFile(blacklistFile, defaults);
+            return defaults;
         }
         return blacklist;
     }
@@ -125,6 +125,6 @@ public class ConfigIO {
     }
 
     private static void readFail(File file) {
-        RandomizerCore.LOGGER.warn("Failure to read JSON at {}", file.getAbsolutePath());
+        LOGGER.warn("Failure to read JSON at '{}'! Overwriting with defaults!", file.getAbsolutePath());
     }
 }

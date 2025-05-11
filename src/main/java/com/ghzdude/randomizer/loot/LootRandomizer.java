@@ -2,12 +2,12 @@ package com.ghzdude.randomizer.loot;
 
 import com.ghzdude.randomizer.RandomizationMapData;
 import com.ghzdude.randomizer.RandomizerConfig;
-import com.ghzdude.randomizer.RandomizerCore;
 import com.ghzdude.randomizer.compat.jei.BlockDropRecipe;
 import com.ghzdude.randomizer.util.RandomizerUtil;
 import com.google.common.collect.ImmutableSet;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.mojang.logging.LogUtils;
 import com.mojang.serialization.DataResult;
 import com.mojang.serialization.JsonOps;
 import it.unimi.dsi.fastutil.objects.Object2ObjectMap;
@@ -32,6 +32,7 @@ import net.minecraft.world.level.block.*;
 import net.minecraft.world.level.storage.loot.LootContext;
 import net.minecraft.world.level.storage.loot.LootTable;
 import org.jetbrains.annotations.NotNull;
+import org.slf4j.Logger;
 
 import java.util.*;
 import java.util.function.Function;
@@ -40,6 +41,7 @@ import java.util.stream.Stream;
 
 public class LootRandomizer {
 
+    private static final Logger LOGGER = LogUtils.getLogger();
     private static RandomizationMapData INSTANCE = null;
     public static Registry<LootTable> LOOT_REGISTRY;
     public static Registry<Item> ITEM_REGISTRY;
@@ -113,7 +115,7 @@ public class LootRandomizer {
 
         RegistryOps<JsonElement> registryOps = RegistryOps.create(JsonOps.INSTANCE, server.registryAccess());
 
-        RandomizerCore.LOGGER.info("Iterating through loot tables!");
+        LOGGER.info("Iterating through loot tables!");
 
         for (LootTable table : LOOT_REGISTRY) {
             // serialize loot table into JSON for easy lookup
@@ -127,7 +129,7 @@ public class LootRandomizer {
         activeLocation = null;
 
         if (RandomizerConfig.enableDebug) {
-            RandomizerCore.LOGGER.debug("loot map size: {}", LOOT_MAP.size());
+            LOGGER.debug("loot map size: {}", LOOT_MAP.size());
         }
 
         for (ResourceLocation table : LOOT_MAP.keySet()) {
@@ -140,7 +142,7 @@ public class LootRandomizer {
                     if (entry.tag() || entry.reference()) continue;
                     Item output = ITEM_REGISTRY.get(entry.location());
                     if (output == Items.AIR) {
-                        RandomizerCore.LOGGER.warn("Table '{}' as an air output! this shouldn't be happening!", table);
+                        LOGGER.warn("Table '{}' as an air output! this shouldn't be happening!", table);
                         continue;
                     }
                     Item input = switch (block) {
@@ -213,7 +215,7 @@ public class LootRandomizer {
                 .put(drop, replace);
 
         if (RandomizerConfig.enableDebug) {
-            RandomizerCore.LOGGER.debug("Table '{}' has been modified to give '{}' instead of '{}'", table, replace, drop);
+            LOGGER.debug("Table '{}' has been modified to give '{}' instead of '{}'", table, replace, drop);
         }
     }
 
@@ -243,9 +245,6 @@ public class LootRandomizer {
     private static void handleJsonRaw(JsonObject table, Set<LootData> items) {
         if (!table.has("pools"))
             return;
-
-        if (RandomizerConfig.enableDebug)
-            RandomizerCore.LOGGER.debug("Table '{}' contains entries:", activeLocation);
 
         if (!appliesToAll) {
             requiresShears = false;
@@ -306,14 +305,12 @@ public class LootRandomizer {
             ResourceLocation randomized = getRandomized(vanilla);
             addEntry(LootData.tag(randomized), items);
         } else if (RandomizerConfig.enableDebug) {
-            RandomizerCore.LOGGER.debug("unhandled entry: {}", entry);
+            LOGGER.debug("unhandled entry: {}", entry);
         }
     }
 
     private static void addEntry(LootData data, Set<LootData> items) {
-        if (items.add(data) && RandomizerConfig.enableDebug) {
-            RandomizerCore.LOGGER.debug("'{}'", data);
-        }
+        items.add(data);
     }
 
     private static ResourceLocation getName(JsonObject entry) {
@@ -476,7 +473,7 @@ public class LootRandomizer {
         RandomizationMapData mapData = getMapData(queriedLootTableId);
 
         if (RandomizerConfig.enableDebug) {
-            RandomizerCore.LOGGER.debug("Table '{}' is being queried, randomizing", queriedLootTableId);
+            LOGGER.debug("Table '{}' is being queried, randomizing", queriedLootTableId);
         }
 
         Map<ResourceLocation, ResourceLocation> replacementMap = SPECIAL_MAP.getOrDefault(queriedLootTableId, Collections.emptyMap());

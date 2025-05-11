@@ -37,7 +37,7 @@ public class RandomizerCore
     // Define mod id in a common place for everything to reference
     public static final String MODID = "randomizer";
     // Directly reference a slf4j logger
-    public static final Logger LOGGER = LogUtils.getLogger();
+    private static final Logger LOGGER = LogUtils.getLogger();
     private static final String POINT_KEY = "points";
     private static final String POINT_MAX_KEY = "point_max";
     private static final String CYCLE_KEY = "cycle";
@@ -101,6 +101,7 @@ public class RandomizerCore
         final var server = event.getServer();
         seededRNG = new Random(server.getWorldData().worldGenOptions().seed());
         unseededRNG = new Random();
+        RandomizationMapData.init(server.registryAccess());
         ItemRandomizer.init(server);
         RecipeRandomizer.init(server);
         LootRandomizer.init(server);

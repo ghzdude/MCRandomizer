@@ -31,21 +31,23 @@ public class ItemRandomizer {
     private static final Object2IntMap<ResourceLocation> VALID_ITEMS = new Object2IntOpenHashMap<>();
     private static final List<ResourceLocation> ITEM_LIST = new ArrayList<>();
     private static final Object2IntMap<ResourceLocation> SIMPLE_ITEMS = new Object2IntOpenHashMap<>();
-    public static final List<ResourceLocation> BLACKLISTED_ITEMS = new ArrayList<>();
+    private static final List<ResourceLocation> BLACKLISTED_ITEMS = new ArrayList<>();
 
     private static RandomizationMapData INSTANCE;
     private static Registry<Item> REGISTRY;
     private static FeatureFlagSet ENABLED;
 
     public static void init(MinecraftServer server) {
+        ITEM_LIST.clear();
+        BLACKLISTED_ITEMS.clear();
+        VALID_ITEMS.clear();
+
         REGISTRY = server.registryAccess().registryOrThrow(Registries.ITEM);
-        INSTANCE = RandomizationMapData.get(server, "item");
         ENABLED = server.getWorldData().enabledFeatures();
         SpecialItems.init(REGISTRY::getKey);
 
         if (BLACKLISTED_ITEMS.isEmpty()) {
             BLACKLISTED_ITEMS.addAll(ConfigIO.read("blacklisted_items", Stream.of(
-                            Items.AIR,
                             Items.COMMAND_BLOCK,
                             Items.COMMAND_BLOCK_MINECART,
                             Items.CHAIN_COMMAND_BLOCK,
@@ -60,6 +62,8 @@ public class ItemRandomizer {
                     .map(REGISTRY::getKey)
                     .filter(Objects::nonNull)
                     .toList(), REGISTRY));
+
+            BLACKLISTED_ITEMS.add(REGISTRY.getKey(Items.AIR));
         }
 
         ConfigIO.readValues("items", SpecialItems.CONFIGURED_ITEMS, REGISTRY)
@@ -76,6 +80,8 @@ public class ItemRandomizer {
             }
         }
         ITEM_LIST.addAll(VALID_ITEMS.keySet());
+
+        INSTANCE = RandomizationMapData.get(server, "item");
     }
 
     private static void putValidItem(Map.Entry<ResourceLocation, Integer> entry) {
@@ -123,12 +129,20 @@ public class ItemRandomizer {
         return RandomizerUtil.itemToStack(INSTANCE.getItemFor(REGISTRY.get(item)));
     }
 
-    public static List<Item> getValidItems() {
-        return ITEM_LIST.stream().map(REGISTRY::get).toList();
+    public static Stream<Item> getValidItems() {
+        return getKeys().map(REGISTRY::get);
     }
 
-    private static boolean isBlacklisted(Item item) {
-        return BLACKLISTED_ITEMS.contains(REGISTRY.getKey(item));
+    public static Stream<ResourceLocation> getKeys() {
+        return ITEM_LIST.stream();
+    }
+
+    public static boolean isBlacklisted(Item item) {
+        return isBlacklisted(REGISTRY.getKey(item));
+    }
+
+    public static boolean isBlacklisted(ResourceLocation item) {
+        return BLACKLISTED_ITEMS.contains(item);
     }
 
     public static Registry<Item> getRegistry() {

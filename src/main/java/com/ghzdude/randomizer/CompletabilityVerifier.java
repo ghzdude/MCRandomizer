@@ -4,6 +4,7 @@ import com.ghzdude.randomizer.loot.LootRandomizer;
 import com.ghzdude.randomizer.util.RandomizerUtil;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.mojang.logging.LogUtils;
 import com.mojang.serialization.DataResult;
 import com.mojang.serialization.JsonOps;
 import it.unimi.dsi.fastutil.ints.Int2ObjectArrayMap;
@@ -29,6 +30,7 @@ import net.minecraft.world.item.crafting.RecipeHolder;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.storage.loot.BuiltInLootTables;
 import org.jetbrains.annotations.NotNull;
+import org.slf4j.Logger;
 
 import java.util.*;
 import java.util.function.Predicate;
@@ -80,6 +82,7 @@ public class CompletabilityVerifier {
 
     private static final Deque<ResourceLocation> recipePath = new ArrayDeque<>();
     private static final Deque<ResourceLocation> COMPLETION_QUEUE = new ArrayDeque<>();
+    private static final Logger LOGGER = LogUtils.getLogger();
 
     private static boolean requiresNether = false;
     private static boolean isCompletable = false;
@@ -421,7 +424,7 @@ public class CompletabilityVerifier {
 
             if (result.isError()) {
                 if (RandomizerConfig.enableDebug)
-                    RandomizerCore.LOGGER.debug("Failed to read ingredient '{}' in recipe '{}}'!", ing, recipe);
+                    LOGGER.debug("Failed to read ingredient '{}' in recipe '{}}'!", ing, recipe);
                 continue;
             }
 
@@ -527,7 +530,7 @@ public class CompletabilityVerifier {
         if (requiresNether) {
             validRecipe = ensureCompletability(OBSIDIAN);
             if (!validRecipe) {
-                RandomizerCore.LOGGER.warn("Obsidian is not craftable!");
+                LOGGER.warn("Obsidian is not craftable!");
             }
             for (ResourceLocation location : COMPLETION_QUEUE) {
                 COMPLETABILITY_CACHE.put(location, validRecipe);
@@ -541,7 +544,7 @@ public class CompletabilityVerifier {
         }
 
         if (!isCompletable) {
-            RandomizerCore.LOGGER.info("Game is Incompletable!");
+            LOGGER.info("Game is Incompletable!");
         }
     }
 
@@ -554,15 +557,15 @@ public class CompletabilityVerifier {
 
         if (recipes.isEmpty()) {
             if (RandomizerConfig.enableDebug) {
-                RandomizerCore.LOGGER.debug("No recipes found for ingredient: {}!", ingredient);
+                LOGGER.debug("No recipes found for ingredient: {}!", ingredient);
             }
             // we should walk back later
             return false;
         }
 
         if (RandomizerConfig.enableDebug) {
-            RandomizerCore.LOGGER.debug("Iterating recipes for ingredient {}", ingredient);
-            RandomizerCore.LOGGER.debug("{} recipes found: {}", recipes.size(), recipes);
+            LOGGER.debug("Iterating recipes for ingredient {}", ingredient);
+            LOGGER.debug("{} recipes found: {}", recipes.size(), recipes);
         }
 
         int craftableRecipes = recipes.size();
@@ -623,7 +626,7 @@ public class CompletabilityVerifier {
 
                     if (compactIngredients.isEmpty()) {
                         if (RandomizerConfig.enableDebug) {
-                            RandomizerCore.LOGGER.debug("Recipe '{}' has a set of ingredients that is empty!", recipe);
+                            LOGGER.debug("Recipe '{}' has a set of ingredients that is empty!", recipe);
                         }
                         continue;
                     }
@@ -748,7 +751,7 @@ public class CompletabilityVerifier {
     private static void walkBack() {
         ResourceLocation last = recipePath.removeLast();
         if (RandomizerConfig.enableDebug) {
-            RandomizerCore.LOGGER.debug("Walked back from recipe '{}' to recipe '{}'", last, recipePath.peekLast());
+            LOGGER.debug("Walked back from recipe '{}' to recipe '{}'", last, recipePath.peekLast());
         }
     }
 
@@ -756,7 +759,7 @@ public class CompletabilityVerifier {
         if (recipePath.contains(recipe)) return false;
         recipePath.add(recipe);
         if (RandomizerConfig.enableDebug) {
-            RandomizerCore.LOGGER.debug("Currently iterating recipe '{}'", recipe);
+            LOGGER.debug("Currently iterating recipe '{}'", recipe);
         }
         return true;
     }

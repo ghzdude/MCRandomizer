@@ -1,9 +1,9 @@
 package com.ghzdude.randomizer.compat.jei;
 
-import com.ghzdude.randomizer.RandomizerCore;
 import com.ghzdude.randomizer.loot.LootRandomizer;
 import com.ghzdude.randomizer.util.RandomizerUtil;
 import com.google.common.collect.ImmutableList;
+import com.mojang.logging.LogUtils;
 import it.unimi.dsi.fastutil.objects.Object2ObjectMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import net.minecraft.core.component.DataComponents;
@@ -13,12 +13,14 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import org.jetbrains.annotations.NotNull;
+import org.slf4j.Logger;
 
 import java.util.List;
 import java.util.Objects;
 
 public record BlockDropRecipe(Item input, Item output, Type type, ResourceLocation lootTable) {
 
+    private static final Logger LOGGER = LogUtils.getLogger();
     private static final Object2ObjectMap<ResourceLocation, BlockDropRecipe> REGISTRY = new Object2ObjectOpenHashMap<>();
 
     public static void registerRecipe(Item input, Item output, @NotNull Type type, @NotNull ResourceLocation id) {
@@ -27,10 +29,10 @@ public record BlockDropRecipe(Item input, Item output, Type type, ResourceLocati
         ResourceLocation recipeId = RandomizerUtil.location("%s_drops_%s".formatted(inKey.getPath(), outKey.getPath()));
 
         if (input == Items.AIR) {
-            RandomizerCore.LOGGER.warn("Input cannot be air for '{}'", recipeId);
+            LOGGER.warn("Input cannot be air for '{}'", recipeId);
             return;
         } else if (output == Items.AIR) {
-            RandomizerCore.LOGGER.warn("Output cannot be air for '{}'", recipeId);
+            LOGGER.warn("Output cannot be air for '{}'", recipeId);
             return;
         }
         

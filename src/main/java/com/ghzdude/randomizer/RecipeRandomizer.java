@@ -5,6 +5,7 @@ import com.ghzdude.randomizer.api.IngredientRandomizable;
 import com.ghzdude.randomizer.api.OutputSetter;
 import com.ghzdude.randomizer.util.RandomizerUtil;
 import com.google.common.collect.ImmutableMap;
+import com.mojang.logging.LogUtils;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import net.minecraft.advancements.Advancement;
 import net.minecraft.advancements.AdvancementHolder;
@@ -26,6 +27,7 @@ import net.minecraft.world.item.crafting.Recipe;
 import net.minecraft.world.item.crafting.RecipeHolder;
 import net.minecraft.world.item.crafting.RecipeManager;
 import org.jetbrains.annotations.NotNull;
+import org.slf4j.Logger;
 
 import java.util.*;
 
@@ -53,6 +55,7 @@ public class RecipeRandomizer {
 
     // item output -> recipe
     public static final Map<ResourceLocation, List<ResourceLocation>> OUTPUT_MAP = new Object2ObjectOpenHashMap<>();
+    private static final Logger LOGGER = LogUtils.getLogger();
 
     private static RandomizationMapData INSTANCE = null;
     private static Registry<Item> ITEM_REGISTRY;
@@ -63,7 +66,7 @@ public class RecipeRandomizer {
             ITEM_REGISTRY = server.registryAccess().registryOrThrow(Registries.ITEM);
             INSTANCE = RandomizationMapData.get(server, "recipes");
 
-            RandomizerCore.LOGGER.warn("Recipe Randomizer Running!");
+            LOGGER.warn("Recipe Randomizer Running!");
             randomizeRecipes(server.getRecipeManager(), server.registryAccess());
 
             setAdvancements(server.getAdvancements());
@@ -116,6 +119,11 @@ public class RecipeRandomizer {
             if (recipe.isSpecial()) continue;
             ItemStack result = recipe.getResultItem(access);
             ItemStack newResult = INSTANCE.getStackFor(result);
+
+            if (result.isEmpty() || newResult.isEmpty()) {
+                LOGGER.warn("Recipe '{}' result is empty!", holder.id());
+                continue;
+            }
 
             // set the new result back to the ender eye
             if (RandomizerConfig.ensureCompletability && result.is(Items.ENDER_EYE)) {
@@ -185,7 +193,7 @@ public class RecipeRandomizer {
                 changedItems = ITEM_REGISTRY.getTag(tag.get()).orElseThrow()
                         .stream().map(Holder::get).toArray(Item[]::new);
             } else {
-                RandomizerCore.LOGGER.warn("{} is not a valid item or tag!", ing);
+                LOGGER.warn("{} is not a valid item or tag!", ing);
                 continue;
             }
 

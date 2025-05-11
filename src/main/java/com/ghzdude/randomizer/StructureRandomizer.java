@@ -4,6 +4,7 @@ import com.ghzdude.randomizer.io.ConfigIO;
 import com.ghzdude.randomizer.special.SpecialFeatures;
 import com.ghzdude.randomizer.special.structure.SpecialStructures;
 import com.ghzdude.randomizer.util.RandomizerUtil;
+import com.mojang.logging.LogUtils;
 import it.unimi.dsi.fastutil.objects.Object2IntMap;
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 import net.minecraft.core.BlockPos;
@@ -21,6 +22,7 @@ import net.minecraft.world.level.levelgen.feature.configurations.OreConfiguratio
 import net.minecraft.world.level.levelgen.structure.BoundingBox;
 import net.minecraft.world.level.levelgen.structure.Structure;
 import net.minecraft.world.level.levelgen.structure.StructureStart;
+import org.slf4j.Logger;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -38,6 +40,7 @@ public class StructureRandomizer {
     private static List<ResourceLocation> BLACKLISTED_FEATURES = null;
     private static final Object2IntMap<ResourceLocation> VALID_FEATURES = new Object2IntOpenHashMap<>();
     private static final List<ResourceLocation> FEATURES = new ArrayList<>();
+    private static final Logger LOGGER = LogUtils.getLogger();
 
     private static Registry<Structure> STRUCTURE_REGISTRY;
     private static Registry<ConfiguredFeature<?, ?>> FEATURE_REGISTRY;
@@ -119,17 +122,17 @@ public class StructureRandomizer {
 
         BlockPos target = getPos(player, level, 128);
 
-        RandomizerCore.LOGGER.warn("Attempting to generate structure \"{}\"", structure);
+        LOGGER.warn("Attempting to generate structure \"{}\"", structure);
 
         if (!tryPlaceStructure(level, structure, target)) {
-            RandomizerCore.LOGGER.warn("Failed to place structure \"{}\"", structure);
+            LOGGER.warn("Failed to place structure \"{}\"", structure);
             if (RandomizerConfig.giveRandomItems) {
                 pointsToUse -= ItemRandomizer.giveRandomItem(pointsToUse, player.getInventory());
             }
             return pointsToUse;
         }
 
-        RandomizerCore.LOGGER.warn("Placed \"{}\" at [{}X, {}Y, {}Z]", structure, target.getX(), target.getY(), target.getZ());
+        LOGGER.warn("Placed \"{}\" at [{}X, {}Y, {}Z]", structure, target.getX(), target.getY(), target.getZ());
         return pointsToUse - VALID_STRUCTURES.getInt(structure);
     }
 
@@ -140,7 +143,7 @@ public class StructureRandomizer {
         } while (VALID_FEATURES.getInt(feature) > pointsToUse);
 
         if (!tryPlaceFeature(level, feature, getPos(player, level, 48))) {
-            RandomizerCore.LOGGER.warn("Failed to place feature \"{}\"", feature);
+            LOGGER.warn("Failed to place feature \"{}\"", feature);
             if (RandomizerConfig.giveRandomItems) {
                 pointsToUse -= ItemRandomizer.giveRandomItem(pointsToUse, player.getInventory());
             }
@@ -211,7 +214,7 @@ public class StructureRandomizer {
     private static boolean tryPlaceFeature(ServerLevel serverLevel, ResourceLocation location, BlockPos blockPos) {
         var feature = RandomizerUtil.getOrThrow(FEATURE_REGISTRY, location);
 
-        RandomizerCore.LOGGER.warn("Placing feature \"{}\"", location);
+        LOGGER.warn("Placing feature \"{}\"", location);
         if (feature.config() instanceof OreConfiguration oreConfiguration) {
             // todo special handling of ore features?
         }
@@ -219,7 +222,7 @@ public class StructureRandomizer {
         if (optional.isEmpty()) return false;
 
         var pos = optional.get();
-        RandomizerCore.LOGGER.warn("Feature \"{}\" placed at [{}X, {}Y, {}Z]", location, pos.getX(), pos.getY(), pos.getZ());
+        LOGGER.warn("Feature \"{}\" placed at [{}X, {}Y, {}Z]", location, pos.getX(), pos.getY(), pos.getZ());
         return true;
     }
     private static Predicate<BlockPos> featurePredicate(ServerLevel level, ConfiguredFeature<?, ?> feature) {
