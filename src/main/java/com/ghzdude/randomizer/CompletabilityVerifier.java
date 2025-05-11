@@ -350,6 +350,9 @@ public class CompletabilityVerifier {
             Blocks.BIG_DRIPLEAF
     ).distinct().map(block -> block.getLootTable().location()).toList();
 
+    // store all overworld obtainable things in here
+    private static final List<ResourceLocation> ALL_OVERWORLD = new ArrayList<>();
+
     // nether
     private static final List<ResourceLocation> NETHER_BLOCKS = Stream.of(
             Blocks.NETHERRACK,
@@ -413,6 +416,10 @@ public class CompletabilityVerifier {
                     EntityType<?> type = item.getType(item.getDefaultInstance());
                     addIngredient(type.getDefaultLootTable().location(), ITEM_REGISTRY.getKey(item));
                 });
+
+        ALL_OVERWORLD.clear();
+        ALL_OVERWORLD.addAll(OVERWORLD_BLOCKS);
+        ALL_OVERWORLD.addAll(OVERWORLD_LOOT);
     }
 
     public static void addRecipe(NonNullList<Ingredient> ingredients, ItemStack output, ResourceLocation recipe) {
@@ -528,6 +535,7 @@ public class CompletabilityVerifier {
         boolean validRecipe = ensureCompletability(ENDER_EYE);
 
         if (requiresNether) {
+            LOGGER.debug("Nether access is required!");
             validRecipe = ensureCompletability(OBSIDIAN);
             if (!validRecipe) {
                 LOGGER.warn("Obsidian is not craftable!");
@@ -559,12 +567,15 @@ public class CompletabilityVerifier {
             if (RandomizerConfig.enableDebug) {
                 LOGGER.debug("No recipes found for ingredient: {}!", ingredient);
             }
+            // should i create a recipe here?
+            ResourceLocation random = RandomizerUtil.getRandom(ALL_OVERWORLD, RandomizerCore.seededRNG);
+            return modifyRecipe(random, ingredient);
             // we should walk back later
-            return false;
+//            return false;
         }
 
         if (RandomizerConfig.enableDebug) {
-            LOGGER.debug("Iterating recipes for ingredient {}", ingredient);
+            LOGGER.debug("Iterating recipes that make '{}'", ingredient);
             LOGGER.debug("{} recipes found: {}", recipes.size(), recipes);
         }
 
@@ -667,8 +678,7 @@ public class CompletabilityVerifier {
 
         // select a recipe to modify
         if (craftableRecipes == 0) {
-            List<ResourceLocation> overworld = RandomizerCore.seededRNG.nextBoolean() ? OVERWORLD_LOOT : OVERWORLD_BLOCKS;
-            ResourceLocation random = RandomizerUtil.getRandom(overworld, RandomizerCore.seededRNG);
+            ResourceLocation random = RandomizerUtil.getRandom(ALL_OVERWORLD, RandomizerCore.seededRNG);
             return modifyRecipe(random, ingredient);
         }
 
@@ -684,8 +694,11 @@ public class CompletabilityVerifier {
     private static boolean quickIterate(Set<ResourceLocation> ingredients, Set<ResourceLocation> iterated, Set<ResourceLocation> failed) {
         boolean quickSearch = false;
         for (ResourceLocation ingredient : ingredients) {
-            if (RESULT_MAP.get(ingredient).isEmpty()) continue;
             if (!iterated.add(ingredient)) continue;
+            if (RESULT_MAP.get(ingredient).isEmpty()) {
+                failed.add(ingredient);
+                continue;
+            }
 
             if (COMPLETABILITY_CACHE.containsKey(ingredient)) {
                 if (COMPLETABILITY_CACHE.getBoolean(ingredient)) continue;
