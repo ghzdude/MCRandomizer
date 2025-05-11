@@ -1,5 +1,6 @@
 package com.ghzdude.randomizer.compat.jei;
 
+import com.ghzdude.randomizer.RandomizerCore;
 import com.ghzdude.randomizer.loot.LootRandomizer;
 import com.ghzdude.randomizer.util.RandomizerUtil;
 import com.google.common.collect.ImmutableList;
@@ -11,6 +12,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.List;
 import java.util.Objects;
@@ -19,11 +21,20 @@ public record BlockDropRecipe(Item input, Item output, Type type, ResourceLocati
 
     private static final Object2ObjectMap<ResourceLocation, BlockDropRecipe> REGISTRY = new Object2ObjectOpenHashMap<>();
 
-    public static void registerRecipe(Item in, Item output, Type type, ResourceLocation id) {
-        BlockDropRecipe recipe = new BlockDropRecipe(in, output, type, id);
-        ResourceLocation inKey = Objects.requireNonNull(LootRandomizer.ITEM_REGISTRY.getKey(in));
+    public static void registerRecipe(Item input, Item output, @NotNull Type type, @NotNull ResourceLocation id) {
+        ResourceLocation inKey = Objects.requireNonNull(LootRandomizer.ITEM_REGISTRY.getKey(input));
         ResourceLocation outKey = Objects.requireNonNull(LootRandomizer.ITEM_REGISTRY.getKey(output));
-        REGISTRY.put(RandomizerUtil.location("%s_drops_%s".formatted(inKey.getPath(), outKey.getPath())), recipe);
+        ResourceLocation recipeId = RandomizerUtil.location("%s_drops_%s".formatted(inKey.getPath(), outKey.getPath()));
+
+        if (input == Items.AIR) {
+            RandomizerCore.LOGGER.warn("Input cannot be air for '{}'", recipeId);
+            return;
+        } else if (output == Items.AIR) {
+            RandomizerCore.LOGGER.warn("Output cannot be air for '{}'", recipeId);
+            return;
+        }
+        
+        REGISTRY.put(recipeId, new BlockDropRecipe(input, output, type, Objects.requireNonNull(id)));
     }
 
     public static void clearRegistry() {

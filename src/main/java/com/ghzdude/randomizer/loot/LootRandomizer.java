@@ -23,12 +23,12 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.item.crafting.RecipeHolder;
 import net.minecraft.world.item.crafting.RecipeManager;
 import net.minecraft.world.item.crafting.RecipeType;
 import net.minecraft.world.item.crafting.SmeltingRecipe;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.*;
 import net.minecraft.world.level.storage.loot.LootContext;
 import net.minecraft.world.level.storage.loot.LootTable;
 import org.jetbrains.annotations.NotNull;
@@ -124,6 +124,8 @@ public class LootRandomizer {
                     .ifPresent(LootRandomizer::handleJson);
         }
 
+        activeLocation = null;
+
         if (RandomizerConfig.enableDebug) {
             RandomizerCore.LOGGER.debug("loot map size: {}", LOOT_MAP.size());
         }
@@ -137,7 +139,40 @@ public class LootRandomizer {
                 for (LootData entry : lootData) {
                     if (entry.tag() || entry.reference()) continue;
                     Item output = ITEM_REGISTRY.get(entry.location());
-                    BlockDropRecipe.registerRecipe(block.asItem(), output, entry.getType(), table);
+                    if (output == Items.AIR) {
+                        RandomizerCore.LOGGER.warn("Table '{}' as an air output! this shouldn't be happening!", table);
+                        continue;
+                    }
+                    Item input = switch (block) {
+                        case CandleCakeBlock candleCakeBlock -> {
+                            DataResult<JsonElement> result = CandleCakeBlock.CODEC.encoder().encodeStart(JsonOps.INSTANCE, candleCakeBlock);
+                            if (result.isError()) yield null;
+                            yield result.result()
+                                    .map(JsonElement::getAsJsonObject)
+                                    .map(object -> object.get("candle").getAsString())
+                                    .map(ResourceLocation::parse).map(ITEM_REGISTRY::get)
+                                    .orElse(null);
+                        }
+                        case AttachedStemBlock stemBlock -> {
+                            DataResult<JsonElement> result = AttachedStemBlock.CODEC.encoder().encodeStart(JsonOps.INSTANCE, stemBlock);
+                            if (result.isError()) yield null;
+                            yield result.result()
+                                    .map(JsonElement::getAsJsonObject)
+                                    .map(object -> object.get("seed").getAsString())
+                                    .map(ResourceLocation::parse).map(ITEM_REGISTRY::get)
+                                    .orElse(null);
+                        }
+                        case WeepingVinesPlantBlock ignored -> Blocks.WEEPING_VINES.asItem();
+                        case KelpPlantBlock ignored -> Blocks.KELP.asItem();
+                        case TwistingVinesPlantBlock ignored -> Blocks.TWISTING_VINES.asItem();
+                        case CaveVinesPlantBlock ignored -> Blocks.CAVE_VINES.asItem();
+                        case FlowerPotBlock flowerPotBlock -> flowerPotBlock.getEmptyPot().asItem();
+                        case BambooSaplingBlock ignored -> Blocks.BAMBOO.asItem();
+                        case TallSeagrassBlock ignored -> Blocks.SEAGRASS.asItem();
+                        default -> block.asItem();
+                    };
+                    if (input == null) continue;
+                    BlockDropRecipe.registerRecipe(input, output, entry.getType(), table);
                 }
             }
         }
@@ -160,7 +195,7 @@ public class LootRandomizer {
         }).collect(Collectors.toUnmodifiableSet());
     }
 
-    public static Set<ResourceLocation> getIngredients(ResourceLocation table) {
+    public static Set<ResourceLocation> getDrops(ResourceLocation table) {
         return LOOT_MAP.get(table).stream().map(LootData::location).collect(Collectors.toUnmodifiableSet());
     }
 

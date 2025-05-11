@@ -8,6 +8,7 @@ import com.mojang.serialization.DataResult;
 import com.mojang.serialization.JsonOps;
 import it.unimi.dsi.fastutil.ints.Int2ObjectArrayMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
+import it.unimi.dsi.fastutil.ints.Int2ObjectMaps;
 import it.unimi.dsi.fastutil.objects.*;
 import net.minecraft.core.Holder;
 import net.minecraft.core.NonNullList;
@@ -27,6 +28,7 @@ import net.minecraft.world.item.crafting.Recipe;
 import net.minecraft.world.item.crafting.RecipeHolder;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.storage.loot.BuiltInLootTables;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.*;
 import java.util.function.Predicate;
@@ -39,11 +41,14 @@ import java.util.stream.Stream;
  * if an item from the nether is selected, then make sure that obsidian is obtainable
  */
 
+@SuppressWarnings("SameReturnValue")
 public class CompletabilityVerifier {
 
     /**
      * Maps an item (result) to a set of recipes that make this item
      */
+    // use this to iterate over recipes whose result is the item key
+    // keys may also be tags
     private static final Object2ObjectMap<ResourceLocation, Set<ResourceLocation>> RESULT_MAP = new Object2ObjectOpenHashMap<>();
 
     /**
@@ -53,7 +58,7 @@ public class CompletabilityVerifier {
     private static final Object2ObjectMap<ResourceLocation, Int2ObjectMap<Set<ResourceLocation>>> INGREDIENT_MAP = new Object2ObjectOpenHashMap<>();
 
     /**
-     * maps a recipe to its result item.
+     * maps a recipe to its result item. loot table are not in this map. this is only used for the printing the recipe path
      */
     private static final Object2ObjectMap<ResourceLocation, ResourceLocation> RECIPE_MAP = new Object2ObjectOpenHashMap<>();
 
@@ -133,6 +138,12 @@ public class CompletabilityVerifier {
 //            BuiltInLootTables.EQUIPMENT_TRIAL_CHAMBER,
 //            BuiltInLootTables.EQUIPMENT_TRIAL_CHAMBER_RANGED,
 //            BuiltInLootTables.EQUIPMENT_TRIAL_CHAMBER_MELEE,
+            BuiltInLootTables.TRAIL_RUINS_ARCHAEOLOGY_COMMON,
+            BuiltInLootTables.TRAIL_RUINS_ARCHAEOLOGY_RARE,
+            BuiltInLootTables.DESERT_PYRAMID_ARCHAEOLOGY,
+            BuiltInLootTables.DESERT_WELL_ARCHAEOLOGY,
+            BuiltInLootTables.OCEAN_RUIN_COLD_ARCHAEOLOGY,
+            BuiltInLootTables.OCEAN_RUIN_WARM_ARCHAEOLOGY,
 
             // sheep
             BuiltInLootTables.SHEEP_BLACK,
@@ -175,6 +186,9 @@ public class CompletabilityVerifier {
             // surface
             Blocks.GRASS_BLOCK,
             Blocks.DIRT,
+            Blocks.COARSE_DIRT,
+            Blocks.PODZOL,
+            Blocks.MUD,
 
             // underground
             Blocks.STONE,
@@ -189,14 +203,124 @@ public class CompletabilityVerifier {
             Blocks.COBBLESTONE,
             Blocks.POINTED_DRIPSTONE,
             Blocks.DRIPSTONE_BLOCK,
+            Blocks.DEEPSLATE,
+            Blocks.CHEST,
+
+            // ancient city
+            Blocks.CHISELED_DEEPSLATE,
+            Blocks.COBBLED_DEEPSLATE,
+            Blocks.DEEPSLATE_BRICK_STAIRS,
+            Blocks.DEEPSLATE_BRICK_SLAB,
+            Blocks.DEEPSLATE_BRICKS,
+            Blocks.DEEPSLATE_TILES,
+            Blocks.DEEPSLATE_TILE_STAIRS,
+            Blocks.POLISHED_BASALT,
+            Blocks.POLISHED_DEEPSLATE,
+            Blocks.POLISHED_DEEPSLATE_WALL,
+            Blocks.SMOOTH_BASALT,
+            Blocks.CANDLE,
+            Blocks.WHITE_CANDLE,
+            Blocks.GRAY_CARPET,
+            Blocks.GRAY_WOOL,
+            Blocks.BLUE_WOOL,
+            Blocks.LIGHT_BLUE_WOOL,
+            Blocks.CYAN_WOOL,
+            Blocks.PACKED_ICE,
+            Blocks.REDSTONE_WIRE,
+
+            // villages
+            Blocks.BRICKS,
+            Blocks.COBBLESTONE_SLAB,
+            Blocks.COBBLESTONE_STAIRS,
+            Blocks.COBBLESTONE_WALL,
+            Blocks.DIRT_PATH,
+            Blocks.FARMLAND,
+            Blocks.OAK_PLANKS,
+            Blocks.OAK_SLAB,
+            Blocks.OAK_STAIRS,
+            Blocks.ACACIA_PLANKS,
+            Blocks.ACACIA_SLAB,
+            Blocks.ACACIA_STAIRS,
+            Blocks.SPRUCE_PLANKS,
+            Blocks.SPRUCE_SLAB,
+            Blocks.SPRUCE_STAIRS,
+            Blocks.SMOOTH_SANDSTONE,
+            Blocks.SMOOTH_SANDSTONE_SLAB,
+            Blocks.SMOOTH_SANDSTONE_STAIRS,
+            Blocks.SANDSTONE,
+            Blocks.SANDSTONE_SLAB,
+            Blocks.SANDSTONE_STAIRS,
+            Blocks.WHEAT,
+            Blocks.POTATOES,
+            Blocks.CARROTS,
+            Blocks.BEETROOTS,
+
+            // stronghold
+            Blocks.STONE_BRICKS,
+            Blocks.MOSSY_STONE_BRICKS,
+            Blocks.CRACKED_STONE_BRICKS,
+            Blocks.STONE_BRICK_STAIRS,
+            Blocks.STONE_BRICK_SLAB,
+            Blocks.SMOOTH_STONE_SLAB,
+            Blocks.IRON_BARS,
+            Blocks.IRON_DOOR,
+            Blocks.STONE_BUTTON,
+            Blocks.OAK_DOOR,
+            Blocks.BOOKSHELF,
+
+            // mineshaft
+            Blocks.OAK_FENCE,
+            Blocks.DARK_OAK_PLANKS,
+            Blocks.DARK_OAK_FENCE,
+            Blocks.RAIL,
+            Blocks.COBWEB,
+
+            // trial ruins
+            Blocks.MUD_BRICKS,
+            Blocks.MUD_BRICK_STAIRS,
+            Blocks.BLUE_TERRACOTTA,
+            Blocks.YELLOW_TERRACOTTA,
+            Blocks.RED_TERRACOTTA,
+            Blocks.CYAN_TERRACOTTA,
+            Blocks.BRICK_SLAB,
+
+            // shipwreck
+            Blocks.BIRCH_FENCE,
+            Blocks.BIRCH_PLANKS,
+            Blocks.BIRCH_SLAB,
+            Blocks.BIRCH_STAIRS,
+            Blocks.DARK_OAK_DOOR,
+            Blocks.DARK_OAK_FENCE,
+            Blocks.DARK_OAK_LOG,
+            Blocks.DARK_OAK_PLANKS,
+            Blocks.DARK_OAK_SLAB,
+            Blocks.DARK_OAK_STAIRS,
+            Blocks.JUNGLE_DOOR,
+            Blocks.JUNGLE_FENCE,
+            Blocks.JUNGLE_LOG,
+            Blocks.JUNGLE_PLANKS,
+            Blocks.JUNGLE_SLAB,
+            Blocks.JUNGLE_STAIRS,
+            Blocks.OAK_DOOR,
+            Blocks.OAK_FENCE,
+            Blocks.OAK_LOG,
+            Blocks.OAK_PLANKS,
+            Blocks.OAK_SLAB,
+            Blocks.OAK_STAIRS,
+            Blocks.SPRUCE_DOOR,
+            Blocks.SPRUCE_FENCE,
+            Blocks.SPRUCE_LOG,
+            Blocks.SPRUCE_PLANKS,
+            Blocks.SPRUCE_SLAB,
+            Blocks.SPRUCE_STAIRS,
 
             // wood
-            Blocks.ACACIA_WOOD,
-            Blocks.BIRCH_WOOD,
-            Blocks.CHERRY_WOOD,
-            Blocks.OAK_WOOD,
-            Blocks.DARK_OAK_WOOD,
-            Blocks.SPRUCE_WOOD,
+            Blocks.ACACIA_LOG,
+            Blocks.BIRCH_LOG,
+            Blocks.CHERRY_LOG,
+            Blocks.OAK_LOG,
+            Blocks.DARK_OAK_LOG,
+            Blocks.SPRUCE_LOG,
 
             // raw ores
             Blocks.IRON_ORE,
@@ -221,7 +345,7 @@ public class CompletabilityVerifier {
             Blocks.ROSE_BUSH,
             Blocks.SMALL_DRIPLEAF,
             Blocks.BIG_DRIPLEAF
-    ).map(block -> block.getLootTable().location()).toList();
+    ).distinct().map(block -> block.getLootTable().location()).toList();
 
     // nether
     private static final List<ResourceLocation> NETHER_BLOCKS = Stream.of(
@@ -262,6 +386,7 @@ public class CompletabilityVerifier {
     public static void init(MinecraftServer server) {
         ITEM_REGISTRY = server.registryAccess().registryOrThrow(Registries.ITEM);
         RESULT_MAP.defaultReturnValue(Collections.emptySet());
+        INGREDIENT_MAP.defaultReturnValue(Int2ObjectMaps.emptyMap());
 
         ENDER_EYE = ITEM_REGISTRY.getKey(Items.ENDER_EYE);
         OBSIDIAN = ITEM_REGISTRY.getKey(Items.OBSIDIAN);
@@ -274,22 +399,16 @@ public class CompletabilityVerifier {
             addRecipe(recipe.getIngredients(), result, holder.id());
         }
 
-        for (ResourceLocation key : LootRandomizer.getKnownTables()) {
-            addLootTable(key, LootRandomizer.getIngredients(key));
+        for (ResourceLocation table : LootRandomizer.getKnownTables()) {
+            addLootTable(table, LootRandomizer.getDrops(table));
         }
 
         ITEM_REGISTRY.stream()
-                .filter(item -> item instanceof SpawnEggItem)
-                .map(item -> ((SpawnEggItem) item))
-                .forEach(spawnEggItem -> {
-                    ResourceLocation itemKey = ITEM_REGISTRY.getKey(spawnEggItem);
-                    EntityType<?> type = spawnEggItem.getType(spawnEggItem.getDefaultInstance());
-                    ResourceLocation lootTable = type.getDefaultLootTable().location();
-                    addIngredient(itemKey, 0, lootTable);
-                    addResult(lootTable, itemKey);
-                    if (RandomizerConfig.enableDebug) {
-                        RandomizerCore.LOGGER.debug("Mapped '{}' to loot table '{}'", itemKey, lootTable);
-                    }
+                .map(item -> item instanceof SpawnEggItem egg ? egg : null)
+                .filter(Objects::nonNull)
+                .forEach(item -> {
+                    EntityType<?> type = item.getType(item.getDefaultInstance());
+                    addIngredient(type.getDefaultLootTable().location(), ITEM_REGISTRY.getKey(item));
                 });
     }
 
@@ -299,7 +418,13 @@ public class CompletabilityVerifier {
         int i = 0;
         for (Ingredient ing : ingredients.stream().distinct().toList()) {
             DataResult<JsonElement> result = Ingredient.CODEC.encodeStart(JsonOps.INSTANCE, ing);
-            if (result.isError()) continue;
+
+            if (result.isError()) {
+                if (RandomizerConfig.enableDebug)
+                    RandomizerCore.LOGGER.debug("Failed to read ingredient '{}' in recipe '{}}'!", ing, recipe);
+                continue;
+            }
+
             Optional<JsonElement> optional = result.result();
             if (optional.isEmpty()) continue;
 
@@ -314,11 +439,7 @@ public class CompletabilityVerifier {
                 parseJson(element.getAsJsonObject(), items);
             }
 
-            for (ResourceLocation item : items) {
-                addIngredient(recipe, i, item);
-            }
-            
-            i++;
+            addIngredients(recipe, i++, items);
         }
 
         addResult(ITEM_REGISTRY.getKey(output.getItem()), recipe);
@@ -343,15 +464,26 @@ public class CompletabilityVerifier {
     public static void addLootTable(ResourceLocation table, Set<ResourceLocation> stacks) {
         if (!RandomizerConfig.ensureCompletability) return;
         for (ResourceLocation stack : stacks) {
-            addIngredient(table, 0, stack);
             addResult(stack, table);
+        }
+        if (LootRandomizer.isBlock(table)) {
+            addIngredient(table, LootRandomizer.getBlockFor(table));
         }
     }
 
-    private static void addIngredient(ResourceLocation recipe, int index, ResourceLocation item) {
+    private static void addIngredient(@NotNull ResourceLocation recipe, @NotNull ResourceLocation item) {
+        addIngredients(recipe, 0, Set.of(item));
+    }
+
+    private static void addIngredients(@NotNull ResourceLocation recipe, @NotNull Set<ResourceLocation> items) {
+        addIngredients(recipe, 0, items);
+    }
+
+    private static void addIngredients(@NotNull ResourceLocation recipe, int index, @NotNull Set<ResourceLocation> items) {
+        if (items.isEmpty()) return;
         INGREDIENT_MAP.computeIfAbsent(recipe, k -> new Int2ObjectArrayMap<>())
                 .computeIfAbsent(index, i -> new ObjectOpenHashSet<>())
-                .add(item);
+                .addAll(items.stream().filter(Objects::nonNull).collect(Collectors.toUnmodifiableSet()));
     }
 
     private static boolean isTag(ResourceLocation location) {
@@ -360,12 +492,17 @@ public class CompletabilityVerifier {
 
     private static void addResult(ResourceLocation item, ResourceLocation recipe) {
         RESULT_MAP.computeIfAbsent(item, k -> new ObjectOpenHashSet<>()).add(recipe);
-        RECIPE_MAP.put(recipe, item);
+        if (!isLoot(recipe))
+            RECIPE_MAP.put(recipe, item);
     }
 
-    private static void modifyRecipe(ResourceLocation table, ResourceLocation ingredient) {
+    private static boolean modifyRecipe(ResourceLocation table, ResourceLocation ingredient) {
+        // certain loot tables do not have drops, so are not able to be modified
+        if (!isLoot(table)) return false;
+
         // we will modify this recipe to give this ingredient
         MODIFY_RECIPES.put(table, ingredient);
+        return true;
     }
 
     private static void commitModifiedRecipes() {
@@ -384,118 +521,23 @@ public class CompletabilityVerifier {
         COMPLETABILITY_CACHE.clear();
         COMPLETION_QUEUE.clear();
         recipePath.clear();
-        Object2ObjectMap<ResourceLocation, String> pathMap = new Object2ObjectOpenHashMap<>();
 
-        Set<ResourceLocation> recipes = RESULT_MAP.get(ENDER_EYE);
-
-        if (recipes.isEmpty()) {
-            RandomizerCore.LOGGER.error("No recipes that give an ender eye, something is seriously wrong!");
-            return;
-        }
-
-        boolean validRecipe = false;
-        for (ResourceLocation recipe : recipes) {
-            Int2ObjectMap<Set<ResourceLocation>> ingredientSet = INGREDIENT_MAP.get(recipe);
-
-            if (isLoot(recipe)) {
-                validRecipe = computeCompletion(recipe, CompletabilityVerifier::checkLoot);
-                if (validRecipe) break;
-            }
-
-            int obtainableSlots = 0;
-            for (int index : ingredientSet.keySet()) {
-                Set<ResourceLocation> ingredients = ingredientSet.get(index).stream()
-                        .flatMap(location -> isTag(location) ? TAG_MAP.get(location).stream() : Stream.of(location))
-                        .collect(Collectors.toUnmodifiableSet());
-
-                boolean obtainable;
-                for (ResourceLocation ingredient : ingredients) {
-                    obtainable = computeCompletion(ingredient, CompletabilityVerifier::ensureCompletability);
-                    pathMap.put(ingredient, printPath());
-                    if (obtainable) {
-                        obtainableSlots++;
-                        break;
-                    }
-                }
-            }
-
-            if (obtainableSlots != ingredientSet.size()) {
-                pathMap.clear();
-                continue;
-            }
-
-            validRecipe = true;
-            break;
-        }
+        boolean validRecipe = ensureCompletability(ENDER_EYE);
 
         if (requiresNether) {
-            recipes = RESULT_MAP.get(OBSIDIAN);
-
-            if (recipes.isEmpty()) {
-                RandomizerCore.LOGGER.error("No recipes that give obsidian, something is seriously wrong!");
-                return;
+            validRecipe = ensureCompletability(OBSIDIAN);
+            if (!validRecipe) {
+                RandomizerCore.LOGGER.warn("Obsidian is not craftable!");
             }
-
-            validRecipe = false;
-            for (ResourceLocation recipe : recipes) {
-
-                // loot tables need to be checked more carefully
-                if (NETHER_LOOT.contains(recipe) || NETHER_BLOCKS.contains(recipe)) {
-                    // we can't get this, skip
-                    continue;
-                } else if (OVERWORLD_LOOT.contains(recipe) || OVERWORLD_BLOCKS.contains(recipe)) {
-                    // this is obtainable
-                    validRecipe = true;
-                    break;
-                }
-
-                // otherwise treat as recipe
-
-                Int2ObjectMap<Set<ResourceLocation>> ingredientSet = INGREDIENT_MAP.get(recipe);
-
-                int obtainableSlots = 0;
-                for (int index : ingredientSet.keySet()) {
-                    Set<ResourceLocation> ingredients = ingredientSet.get(index).stream()
-                            .flatMap(location -> isTag(location) ? TAG_MAP.get(location).stream() : Stream.of(location))
-                            .collect(Collectors.toUnmodifiableSet());
-
-                    boolean obtainable = false;
-                    for (ResourceLocation ingredient : ingredients) {
-                        if (canObtainIngredient(ingredient, recipe)) {
-                            obtainable = true;
-                        }
-                        pathMap.put(ingredient, printPath());
-                        if (obtainable) break;
-                    }
-                    if (obtainable) obtainableSlots++;
-                }
-
-                if (obtainableSlots == ingredientSet.size()) {
-                    validRecipe = true;
-                    break;
-                } else {
-                    pathMap.clear();
-                }
+            for (ResourceLocation location : COMPLETION_QUEUE) {
+                COMPLETABILITY_CACHE.put(location, validRecipe);
             }
         }
 
         commitModifiedRecipes();
 
         if (validRecipe) {
-            for (ResourceLocation location : COMPLETION_QUEUE) {
-                COMPLETABILITY_CACHE.put(location, true);
-            }
-            int i = 0;
-            for (ResourceLocation ing : pathMap.keySet()) {
-                if (COMPLETABILITY_CACHE.getBoolean(ing)) {
-                    RandomizerCore.LOGGER.info("can craft \"{}\"\n{}", ing, pathMap.get(ing));
-                    i++;
-                } else {
-                    RandomizerCore.LOGGER.info("unable to craft \"{}\"\n{}", ing, pathMap.get(ing));
-                }
-            }
-
-            isCompletable = i == pathMap.size();
+            isCompletable = true;
         }
 
         if (!isCompletable) {
@@ -514,86 +556,160 @@ public class CompletabilityVerifier {
             if (RandomizerConfig.enableDebug) {
                 RandomizerCore.LOGGER.debug("No recipes found for ingredient: {}!", ingredient);
             }
+            // we should walk back later
             return false;
         }
 
         if (RandomizerConfig.enableDebug) {
-            RandomizerCore.LOGGER.debug("Iterating {} recipes for ingredient {}", recipes.size(), ingredient);
-            RandomizerCore.LOGGER.debug("Recipes found: {}", recipes);
+            RandomizerCore.LOGGER.debug("Iterating recipes for ingredient {}", ingredient);
+            RandomizerCore.LOGGER.debug("{} recipes found: {}", recipes.size(), recipes);
         }
 
+        int craftableRecipes = recipes.size();
+
+        // iterate the recipes that make this ingredient
         for (ResourceLocation recipe : recipes) {
+
             // we are already walking this recipe, skip
-            if (recipePath.contains(recipe)) continue;
+            if (!addToPath(recipe)) continue;
+
+            // this recipe does not exist in map, OR
+            // this recipe has no ingredients to check, SKIP
+            if (INGREDIENT_MAP.get(recipe).isEmpty()) {
+                craftableRecipes--;
+                walkBack();
+                continue;
+            }
+
+            Int2ObjectMap<Set<ResourceLocation>> compactedIngredients = INGREDIENT_MAP.get(recipe);
 
             // handle loot first, then treat as recipe
             if (isLoot(recipe)) {
                 if (checkLoot(recipe)) {
                     return true;
-                } else continue;
-            }
-
-            // this recipe does not exist in map, skip
-            if (!INGREDIENT_MAP.containsKey(recipe)) continue;
-
-            Int2ObjectMap<Set<ResourceLocation>> ingredientSet = INGREDIENT_MAP.get(recipe);
-
-            // this recipe has no ingredients to check, skip
-            if (ingredientSet.isEmpty()) continue;
-
-            // path adding is handled in check loot
-            recipePath.add(recipe);
-
-
-            // for each index
-            Int2ObjectMap<ResourceLocation> failed = new Int2ObjectArrayMap<>(ingredientSet.size());
-            for (int index : ingredientSet.keySet()) {
-                Set<ResourceLocation> ingredients = ingredientSet.get(index).stream()
-                        .flatMap(location -> isTag(location) ? TAG_MAP.get(location).stream() : Stream.of(location))
-                        .collect(Collectors.toUnmodifiableSet());
-
-                if (RandomizerConfig.enableDebug) {
-                    RandomizerCore.LOGGER.debug("index '{}' for recipe '{}' has these ingredients: \n{}", index, recipe, ingredients);
                 }
 
-                boolean obtainable = false;
-                for (ResourceLocation ing : ingredients) {
-                    // for each ingredient
-                    // if any ingredient is obtainable, break
-                    if (canObtainIngredient(ing, recipe)) {
-                        obtainable = true;
-                        break;
+                // we can't make anything give chest loot
+                if (!LootRandomizer.isChestLoot(recipe)) {
+                    for (Set<ResourceLocation> compactIngredients : compactedIngredients.values()) {
+
+                        Set<ResourceLocation> iterated = new ObjectOpenHashSet<>();
+                        Set<ResourceLocation> failed = new ObjectOpenHashSet<>();
+
+                        // quickly search compact ingredients if any are immediately obtainable
+                        if (quickIterate(compactIngredients, iterated, failed)) continue;
+
+                        // iterate expanded ingredients
+                        if (quickIterate(expandIngredients(compactIngredients), iterated, failed)) continue;
+
+                        boolean obtainable = false;
+                        for (ResourceLocation expandedIngredient : failed) {
+                            // for each ingredient
+                            // if any ingredient is obtainable, break
+                            if (canObtainIngredient(expandedIngredient, recipe)) {
+                                obtainable = true;
+                                break;
+                            }
+                        }
+                        if (obtainable) return true;
+                    }
+                }
+            }
+            else {
+
+                // for each "index"
+                int craftableSlots = compactedIngredients.size();
+                for (Set<ResourceLocation> compactIngredients : compactedIngredients.values()) {
+
+                    if (compactIngredients.isEmpty()) {
+                        if (RandomizerConfig.enableDebug) {
+                            RandomizerCore.LOGGER.debug("Recipe '{}' has a set of ingredients that is empty!", recipe);
+                        }
+                        continue;
+                    }
+
+                    Set<ResourceLocation> iterated = new ObjectOpenHashSet<>();
+                    Set<ResourceLocation> failed = new ObjectOpenHashSet<>();
+
+                    // quickly search compact ingredients if any are immediately obtainable
+                    if (quickIterate(compactIngredients, iterated, failed)) continue;
+
+                    // iterate expanded ingredients
+                    if (quickIterate(expandIngredients(compactIngredients), iterated, failed)) continue;
+
+                    boolean obtainable = false;
+                    for (ResourceLocation expandedIngredient : failed) {
+                        // for each ingredient
+                        // if any ingredient is obtainable, break
+                        if (canObtainIngredient(expandedIngredient, recipe)) {
+                            obtainable = true;
+                            break;
+                        }
+                    }
+
+                    if (!obtainable) {
+                        craftableSlots--;
                     }
                 }
 
-                if (!obtainable) {
-                    // put a random ingredient for this index
-                    failed.put(index, ingredients.stream().findAny().orElseThrow());
+                // all ingredients for this recipe are obtainable
+                if (craftableSlots == compactedIngredients.size()) {
+                    return true;
                 }
             }
 
-            // every ingredient slot is obtainable
-            if (failed.isEmpty()) return true;
+            craftableRecipes--;
+            walkBack();
+        }
 
-            for (int i : failed.keySet()) {
-                // some slots were not craftable, change them
-                // get a random, known recipe that can be obtained
-                // cab be block drops, chest loot, mob drops,
-                // this will need to be cached to a file somewhere
-                ResourceLocation random = RandomizerUtil.getRandom(OVERWORLD_LOOT, RandomizerCore.seededRNG);
+        // select a recipe to modify
+        if (craftableRecipes == 0) {
+            List<ResourceLocation> overworld = RandomizerCore.seededRNG.nextBoolean() ? OVERWORLD_LOOT : OVERWORLD_BLOCKS;
+            ResourceLocation random = RandomizerUtil.getRandom(overworld, RandomizerCore.seededRNG);
+            return modifyRecipe(random, ingredient);
+        }
 
-                // this recipe must craft the needed item
-                // store the recipe
-                // recipes will always be loot tables
-                modifyRecipe(random, failed.get(i));
+        return true;
+    }
+
+    private static Set<ResourceLocation> expandIngredients(Set<ResourceLocation> compactIngredients) {
+        return compactIngredients.stream()
+                .flatMap(location -> isTag(location) ? TAG_MAP.get(location).stream() : Stream.of(location))
+                .collect(Collectors.toUnmodifiableSet());
+    }
+
+    private static boolean quickIterate(Set<ResourceLocation> ingredients, Set<ResourceLocation> iterated, Set<ResourceLocation> failed) {
+        boolean quickSearch = false;
+        for (ResourceLocation ingredient : ingredients) {
+            if (RESULT_MAP.get(ingredient).isEmpty()) continue;
+            if (!iterated.add(ingredient)) continue;
+
+            if (COMPLETABILITY_CACHE.containsKey(ingredient)) {
+                if (COMPLETABILITY_CACHE.getBoolean(ingredient)) continue;
+            }
+
+            // iterate recipes that give this ingredient
+            for (ResourceLocation r : RESULT_MAP.get(ingredient)) {
+                if (isLoot(r) && checkLoot(r)) {
+                    quickSearch = true;
+                    break;
+                }
+            }
+
+            if (quickSearch) {
+                COMPLETABILITY_CACHE.put(ingredient, true);
+                break;
+            } else if (!isTag(ingredient)) {
+                // sometimes compact ingredients can be normal items
+                failed.add(ingredient);
             }
         }
-        return false;
+        return quickSearch;
     }
 
     private static boolean canObtainIngredient(ResourceLocation ingredient, ResourceLocation recipe) {
-        if (isLoot(recipe)) {
-            // loot tends to be the end point
+        if (LootRandomizer.isChestLoot(recipe)) {
+            // chest loot tends to be the end point
             return computeCompletion(recipe, CompletabilityVerifier::checkLoot);
         }
 
@@ -606,31 +722,16 @@ public class CompletabilityVerifier {
 
     private static boolean checkLoot(ResourceLocation table) {
         if (OVERWORLD_LOOT.contains(table) || OVERWORLD_BLOCKS.contains(table)) {
-            recipePath.add(table);
             return computeCompletion(table);
 
         } else if (NETHER_LOOT.contains(table) || NETHER_BLOCKS.contains(table)) {
-            recipePath.add(table);
             requiresNether = true;
             // defer completion for later
-            COMPLETION_QUEUE.add(table);
+            if (!COMPLETION_QUEUE.contains(table))
+                COMPLETION_QUEUE.add(table);
             return true;
         }
-
-        // we can't make anything give chest loot
-        if (LootRandomizer.isChestLoot(table))
-            return false;
-
-        // we need to modify this so that something drops the block that drops this table
-        // or mob egg
-        ResourceLocation random = RandomizerUtil.getRandom(OVERWORLD_LOOT, RandomizerCore.seededRNG);
-        if (LootRandomizer.isBlock(table))
-            modifyRecipe(random, LootRandomizer.getBlockFor(table));
-        else if (LootRandomizer.isEntityDrop(table)) {
-            // get the entity that drops this
-            modifyRecipe(random, RESULT_MAP.get(table).stream().findAny().orElseThrow());
-        }
-        return true;
+        return false;
     }
 
     private static boolean computeCompletion(ResourceLocation location) {
@@ -642,6 +743,22 @@ public class CompletabilityVerifier {
             COMPLETABILITY_CACHE.put(location, predicate.test(location));
         }
         return COMPLETABILITY_CACHE.getBoolean(location);
+    }
+
+    private static void walkBack() {
+        ResourceLocation last = recipePath.removeLast();
+        if (RandomizerConfig.enableDebug) {
+            RandomizerCore.LOGGER.debug("Walked back from recipe '{}' to recipe '{}'", last, recipePath.peekLast());
+        }
+    }
+
+    private static boolean addToPath(ResourceLocation recipe) {
+        if (recipePath.contains(recipe)) return false;
+        recipePath.add(recipe);
+        if (RandomizerConfig.enableDebug) {
+            RandomizerCore.LOGGER.debug("Currently iterating recipe '{}'", recipe);
+        }
+        return true;
     }
 
     private static String printPath() {
