@@ -213,10 +213,6 @@ public class LootRandomizer {
     public static void registerSpecialDrop(ResourceLocation table, ResourceLocation drop, ResourceLocation replace) {
         SPECIAL_MAP.computeIfAbsent(table, k -> new Object2ObjectOpenHashMap<>())
                 .put(drop, replace);
-
-        if (RandomizerConfig.enableDebug) {
-            LOGGER.debug("Table '{}' has been modified to give '{}' instead of '{}'", table, replace, drop);
-        }
     }
 
     private static void collectFromTag(TagKey<Block> key, Set<ResourceLocation> collection) {

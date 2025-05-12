@@ -53,6 +53,9 @@ public class RecipeRandomizer {
     // recipe id -> recipe
     private static final Map<ResourceLocation, RecipeHolder<?>> CACHED_RECIPES = new Object2ObjectOpenHashMap<>();
 
+    // recipe id -> result item
+    private static final Map<ResourceLocation, ResourceLocation> RESULT_MAP = new Object2ObjectOpenHashMap<>();
+
     // item output -> recipe
     public static final Map<ResourceLocation, List<ResourceLocation>> OUTPUT_MAP = new Object2ObjectOpenHashMap<>();
     private static final Logger LOGGER = LogUtils.getLogger();
@@ -131,6 +134,7 @@ public class RecipeRandomizer {
             }
 
             modifyRecipeOutputs(recipe, newResult);
+            RESULT_MAP.put(holder.id(), ITEM_REGISTRY.getKey(newResult.getItem()));
             OUTPUT_MAP.computeIfAbsent(ITEM_REGISTRY.getKey(newResult.getItem()), k -> new ArrayList<>())
                     .add(holder.id());
 
@@ -206,5 +210,13 @@ public class RecipeRandomizer {
             AdvancementHolder toAdd = builder.build(RandomizerUtil.location(path));
             map.put(toAdd.id(), toAdd);
         }
+    }
+
+    public static Set<ResourceLocation> getKnownRecipes() {
+        return CACHED_RECIPES.keySet();
+    }
+
+    public static ResourceLocation getResultFor(ResourceLocation recipe) {
+        return RESULT_MAP.get(recipe);
     }
 }
