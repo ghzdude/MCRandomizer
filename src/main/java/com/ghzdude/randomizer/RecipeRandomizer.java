@@ -80,6 +80,7 @@ public class RecipeRandomizer {
         MODIFIED.clear();
         CACHED_RECIPES.clear();
         OUTPUT_MAP.clear();
+        RESULT_MAP.clear();
     }
 
     public static RandomizationMapData getMapData() {

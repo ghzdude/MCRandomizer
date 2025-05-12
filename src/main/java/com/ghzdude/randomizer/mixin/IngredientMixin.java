@@ -19,9 +19,4 @@ public abstract class IngredientMixin implements IngredientRandomizable {
     public void randomizer$randomizeInputs(Function<Ingredient.Value, Ingredient.Value> randomize) {
         ArrayUtils.setAll(this.values, i -> randomize.apply(this.values[i]));
     }
-
-    @Override
-    public Ingredient.Value[] randomizer$getValues() {
-        return values;
-    }
 }
