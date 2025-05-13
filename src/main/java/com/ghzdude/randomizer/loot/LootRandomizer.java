@@ -2,7 +2,8 @@ package com.ghzdude.randomizer.loot;
 
 import com.ghzdude.randomizer.RandomizationMapData;
 import com.ghzdude.randomizer.RandomizerConfig;
-import com.ghzdude.randomizer.compat.jei.BlockDropRecipe;
+import com.ghzdude.randomizer.compat.jei.ParsedLootTable;
+import com.ghzdude.randomizer.special.item.SpecialItems;
 import com.ghzdude.randomizer.util.RandomizerUtil;
 import com.google.common.collect.ImmutableSet;
 import com.google.gson.JsonElement;
@@ -14,9 +15,12 @@ import it.unimi.dsi.fastutil.objects.Object2ObjectMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
+import net.minecraft.ChatFormatting;
 import net.minecraft.core.Holder;
 import net.minecraft.core.Registry;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.RegistryOps;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
@@ -24,6 +28,7 @@ import net.minecraft.tags.TagKey;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.component.ItemLore;
 import net.minecraft.world.item.crafting.RecipeHolder;
 import net.minecraft.world.item.crafting.RecipeManager;
 import net.minecraft.world.item.crafting.RecipeType;
@@ -32,10 +37,11 @@ import net.minecraft.world.level.block.*;
 import net.minecraft.world.level.storage.loot.LootContext;
 import net.minecraft.world.level.storage.loot.LootTable;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 
 import java.util.*;
-import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -135,49 +141,114 @@ public class LootRandomizer {
         for (ResourceLocation table : LOOT_MAP.keySet()) {
             Set<LootData> lootData = LOOT_MAP.get(table);
 
-            if (isBlock(table)) {
-                Block block = BLOCK_REGISTRY.get(BLOCK_MAP.get(table));
-                if (block == null) continue;
-                for (LootData entry : lootData) {
-                    if (entry.tag() || entry.reference()) continue;
-                    Item output = ITEM_REGISTRY.get(entry.location());
-                    if (output == Items.AIR) {
-                        LOGGER.warn("Table '{}' as an air output! this shouldn't be happening!", table);
-                        continue;
-                    }
-                    Item input = switch (block) {
-                        case CandleCakeBlock candleCakeBlock -> {
-                            DataResult<JsonElement> result = CandleCakeBlock.CODEC.encoder().encodeStart(JsonOps.INSTANCE, candleCakeBlock);
-                            if (result.isError()) yield null;
-                            yield result.result()
-                                    .map(JsonElement::getAsJsonObject)
-                                    .map(object -> object.get("candle").getAsString())
-                                    .map(ResourceLocation::parse).map(ITEM_REGISTRY::get)
-                                    .orElse(null);
-                        }
-                        case AttachedStemBlock stemBlock -> {
-                            DataResult<JsonElement> result = AttachedStemBlock.CODEC.encoder().encodeStart(JsonOps.INSTANCE, stemBlock);
-                            if (result.isError()) yield null;
-                            yield result.result()
-                                    .map(JsonElement::getAsJsonObject)
-                                    .map(object -> object.get("seed").getAsString())
-                                    .map(ResourceLocation::parse).map(ITEM_REGISTRY::get)
-                                    .orElse(null);
-                        }
-                        case WeepingVinesPlantBlock ignored -> Blocks.WEEPING_VINES.asItem();
-                        case KelpPlantBlock ignored -> Blocks.KELP.asItem();
-                        case TwistingVinesPlantBlock ignored -> Blocks.TWISTING_VINES.asItem();
-                        case CaveVinesPlantBlock ignored -> Blocks.CAVE_VINES.asItem();
-                        case FlowerPotBlock flowerPotBlock -> flowerPotBlock.getEmptyPot().asItem();
-                        case BambooSaplingBlock ignored -> Blocks.BAMBOO.asItem();
-                        case TallSeagrassBlock ignored -> Blocks.SEAGRASS.asItem();
-                        default -> block.asItem();
-                    };
-                    if (input == null) continue;
-                    BlockDropRecipe.registerRecipe(input, output, entry.getType(), table);
-                }
+            ItemStack inputStack;
+            if (isChestLoot(table)) {
+                inputStack = new ItemStack(Items.CHEST);
+            } else if (isEntityDrop(table)) {
+                // todo mob egg
+                inputStack = new ItemStack(Items.EGG);
+            } else if (table.getPath().startsWith("gameplay/fishing")) {
+                inputStack = new ItemStack(Items.FISHING_ROD);
+            } else if (table.getPath().startsWith("spawners")) {
+                inputStack = new ItemStack(Items.SPAWNER);
+            } else if (table.getPath().startsWith("gameplay/hero")) {
+                inputStack = new ItemStack(Items.EMERALD);
+            } else if (isBlock(table)) {
+                Item blockItem = getItemFromBlock(getBlockFor(table));
+                if (blockItem == null) continue;
+                inputStack = new ItemStack(blockItem);
+            } else if (table.getPath().startsWith("dispensers/")) {
+                inputStack = new ItemStack(Items.DISPENSER);
+            } else if (table.getPath().startsWith("pots/")) {
+                inputStack = new ItemStack(Items.DECORATED_POT);
+            } else if (table.getPath().startsWith("archaeology/")) {
+                inputStack = new ItemStack(Items.BRUSH);
+            } else {
+                if (RandomizerConfig.enableDebug)
+                    LOGGER.debug("Unhandled Table: '{}'", table);
+                continue;
             }
+
+            if (inputStack.isEmpty()) {
+                LOGGER.warn("Input cannot be air for table '{}'!", table);
+                return;
+            }
+
+            List<Component> lines = getOrCreateLines(inputStack);
+
+            // todo lang
+            lines.add(Component.literal("Table ID: '%s'".formatted(table)).withStyle(ChatFormatting.DARK_GRAY));
+            inputStack.set(DataComponents.LORE, new ItemLore(lines));
+
+            List<ItemStack> drops = new ArrayList<>();
+            for (LootData data : lootData) {
+                ParsedLootTable.Type type = data.getType();
+                expandData(data).map(ITEM_REGISTRY::get)
+                        .filter(Objects::nonNull)
+                        .map(Item::getDefaultInstance)
+                        .filter(stack -> !stack.isEmpty())
+                        .forEach(stack -> {
+                            List<Component> additional = new ArrayList<>();
+                            if (isBlock(table)) {
+                                additional.add(type.getName());
+                            }
+                            if (SpecialItems.EFFECT_ITEMS.contains(stack.getItem())) {
+                                additional.add(Component.literal("May have random effects!"));
+                            }
+                            if (SpecialItems.ENCHANTABLE.contains(stack.getItem())) {
+                                additional.add(Component.literal("May have random enchantments!"));
+                            }
+                            if (!additional.isEmpty()) {
+                                List<Component> existing = getOrCreateLines(inputStack);
+                                existing.addAll(additional);
+                                stack.set(DataComponents.LORE, new ItemLore(existing));
+                            }
+                            drops.add(stack);
+                        });
+            }
+
+            if (!drops.isEmpty())
+                ParsedLootTable.registerRecipe(inputStack, drops, table);
         }
+    }
+
+    private static @NotNull List<Component> getOrCreateLines(ItemStack inputStack) {
+        return Optional.ofNullable(inputStack.get(DataComponents.LORE))
+                .map(itemLore -> new ArrayList<>(itemLore.lines())).orElse(new ArrayList<>());
+    }
+
+    private static @Nullable Item getItemFromBlock(ResourceLocation block) {
+        return switch (BLOCK_REGISTRY.get(block)) {
+            case CandleCakeBlock candleCakeBlock -> {
+                DataResult<JsonElement> result = CandleCakeBlock.CODEC.encoder().encodeStart(JsonOps.INSTANCE, candleCakeBlock);
+                if (result.isError()) yield null;
+                yield result.result()
+                        .map(JsonElement::getAsJsonObject)
+                        .map(object -> object.get("candle").getAsString())
+                        .map(ResourceLocation::parse)
+                        .map(ITEM_REGISTRY::get)
+                        .orElse(null);
+            }
+            case AttachedStemBlock stemBlock -> {
+                DataResult<JsonElement> result = AttachedStemBlock.CODEC.encoder().encodeStart(JsonOps.INSTANCE, stemBlock);
+                if (result.isError()) yield null;
+                yield result.result()
+                        .map(JsonElement::getAsJsonObject)
+                        .map(object -> object.get("seed").getAsString())
+                        .map(ResourceLocation::parse)
+                        .map(ITEM_REGISTRY::get)
+                        .orElse(null);
+            }
+            case WeepingVinesPlantBlock ignored -> Blocks.WEEPING_VINES.asItem();
+            case KelpPlantBlock ignored -> Blocks.KELP.asItem();
+            case TwistingVinesPlantBlock ignored -> Blocks.TWISTING_VINES.asItem();
+            case CaveVinesPlantBlock ignored -> Blocks.CAVE_VINES.asItem();
+            case FlowerPotBlock flowerPotBlock -> flowerPotBlock.getEmptyPot().asItem();
+            case BambooSaplingBlock ignored -> Blocks.BAMBOO.asItem();
+            case TallSeagrassBlock ignored -> Blocks.SEAGRASS.asItem();
+            case null -> null;
+            default -> Optional.ofNullable(BLOCK_REGISTRY.get(block)).map(Block::asItem).orElse(null);
+        };
     }
 
     public static boolean hasTable(ResourceLocation table) {
@@ -185,16 +256,19 @@ public class LootRandomizer {
     }
 
     public static Set<ResourceLocation> getItems(ResourceLocation table) {
-        return LOOT_MAP.get(table).stream().flatMap(data -> {
-            if (data.tag()) {
-                return ITEM_REGISTRY.getTags().filter(pair -> pair.getFirst().location().equals(data.location()))
-                        .flatMap(pair -> pair.getSecond().stream().map(holder -> ITEM_REGISTRY.getKey(holder.get())));
-            } else if (data.reference()) {
-                return LOOT_MAP.get(data.location()).stream().map(LootData::location);
-            } else {
-                return Stream.of(data.location());
-            }
-        }).collect(Collectors.toUnmodifiableSet());
+        return LOOT_MAP.get(table).stream().flatMap(LootRandomizer::expandData).collect(Collectors.toUnmodifiableSet());
+    }
+
+    private static Stream<ResourceLocation> expandData(LootData data) {
+        if (data.tag()) {
+            return ITEM_REGISTRY.getTags()
+                    .filter(pair -> pair.getFirst().location().equals(data.location()))
+                    .flatMap(pair -> pair.getSecond().stream().map(holder -> ITEM_REGISTRY.getKey(holder.get())));
+        } else if (data.reference()) {
+            return getItems(data.location()).stream();
+        } else {
+            return Stream.of(data.location());
+        }
     }
 
     public static Set<ResourceLocation> getDrops(ResourceLocation table) {
@@ -205,9 +279,11 @@ public class LootRandomizer {
         return ImmutableSet.copyOf(LOOT_MAP.keySet());
     }
 
+    @Nullable
     public static ResourceLocation getBlockFor(ResourceLocation table) {
         if (BLOCK_MAP.containsKey(table)) return BLOCK_MAP.get(table);
-        throw new IllegalArgumentException("Table '%s' is not a block table!".formatted(table));
+        LOGGER.warn("Table '{}' is not a block table!", table);
+        return null;
     }
 
     public static void registerSpecialDrop(ResourceLocation table, ResourceLocation drop, ResourceLocation replace) {
@@ -225,8 +301,7 @@ public class LootRandomizer {
         if (!table.has("random_sequence") || !table.has("pools"))
             return;
 
-        ResourceLocation id = ResourceLocation.parse(table.get("random_sequence").getAsString());
-        activeLocation = id;
+        ResourceLocation id = activeLocation = ResourceLocation.parse(table.get("random_sequence").getAsString());
         appliesToAll = false;
 
         if (!isBlacklisted(id)) TABLES.add(id);
@@ -363,27 +438,28 @@ public class LootRandomizer {
     }
 
     private static ResourceLocation getRandomized(ResourceLocation vanilla) {
-        if (ITEM_REGISTRY.containsKey(vanilla))
-            return ITEM_REGISTRY.getKey(getMapData(activeLocation).getItemFor(ITEM_REGISTRY.get(vanilla)));
-        if (ITEM_REGISTRY.getTagNames().anyMatch(tagKey -> tagKey.location().equals(vanilla)))
-            return getMapData(activeLocation).getTagKeyFor(TagKey.create(Registries.ITEM, vanilla)).location();
+        RandomizationMapData mapData = getMapData(activeLocation);
+        if (mapData.getItems().contains(vanilla))
+            return mapData.getItemFor(vanilla);
+        if (mapData.getTags().contains(vanilla))
+            return mapData.getTagKeyFor(vanilla);
         throw new IllegalArgumentException("'%s' must be an item or tag!".formatted(vanilla));
     }
 
-    private static boolean hasCondition(JsonObject object, String type, Function<JsonObject, Boolean> function) {
+    private static boolean hasCondition(JsonObject object, String type, Predicate<JsonObject> predicate) {
         if (!object.has("conditions")) return false;
         List<JsonObject> conditions = object.getAsJsonArray("conditions")
                 .asList().stream().map(JsonElement::getAsJsonObject).toList();
 
         for (JsonObject condition : conditions) {
-            if (isCondition(condition, type) && function.apply(condition)) {
+            if (isCondition(condition, type) && predicate.test(condition)) {
                     return true;
             } else if (isCondition(condition, "any_of")) {
                 List<JsonObject> terms = condition.getAsJsonArray("terms")
                         .asList().stream().map(JsonElement::getAsJsonObject).toList();
 
                 for (JsonObject term : terms) {
-                    if (isCondition(term, type) && function.apply(term)) {
+                    if (isCondition(term, type) && predicate.test(term)) {
                         return true;
                     }
                 }
@@ -431,14 +507,14 @@ public class LootRandomizer {
         return Optional.empty();
     }
 
-    public static RandomizationMapData getMapData(ResourceLocation location) {
-        if (RandomizerConfig.randomizeLoot && TABLES.contains(location))
+    public static RandomizationMapData getMapData(ResourceLocation table) {
+        if (RandomizerConfig.randomizeLoot && TABLES.contains(table))
             return INSTANCE;
         return RandomizationMapData.VANILLA;
     }
 
     public static void dispose() {
-        BlockDropRecipe.clearRegistry();
+        ParsedLootTable.clearRegistry();
         TABLES.clear();
         BLOCK_MAP.clear();
         LOOT_MAP.clear();
@@ -451,15 +527,15 @@ public class LootRandomizer {
     }
 
     public static boolean isBlock(ResourceLocation location) {
-        return location.getPath().contains("blocks/");
+        return location.getPath().startsWith("blocks/");
     }
 
     public static boolean isEntityDrop(ResourceLocation location) {
-        return location.getPath().contains("entities/");
+        return location.getPath().startsWith("entities/");
     }
 
     public static boolean isChestLoot(ResourceLocation location) {
-        return location.getPath().contains("chests/");
+        return location.getPath().startsWith("chests/");
     }
 
     public static @NotNull ObjectArrayList<ItemStack> randomizeLoot(ObjectArrayList<ItemStack> generatedLoot, LootContext context) {
@@ -572,12 +648,12 @@ public class LootRandomizer {
             return this;
         }
 
-        public BlockDropRecipe.Type getType() {
-            if (silk() && shears()) return BlockDropRecipe.Type.SHEARS_OR_SILK;
-            if (shears()) return BlockDropRecipe.Type.SHEARS;
-            if (!pick()) return BlockDropRecipe.Type.HAND;
-            if (silk()) return BlockDropRecipe.Type.SILK_PICK;
-            return BlockDropRecipe.Type.PICK;
+        public ParsedLootTable.Type getType() {
+            if (silk() && shears()) return ParsedLootTable.Type.SHEARS_OR_SILK;
+            if (shears()) return ParsedLootTable.Type.SHEARS;
+            if (!pick()) return ParsedLootTable.Type.HAND;
+            if (silk()) return ParsedLootTable.Type.SILK_PICK;
+            return ParsedLootTable.Type.PICK;
         }
 
         public ResourceLocation location() {

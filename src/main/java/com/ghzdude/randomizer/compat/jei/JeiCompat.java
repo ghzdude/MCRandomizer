@@ -11,7 +11,7 @@ import org.jetbrains.annotations.NotNull;
 @JeiPlugin
 public class JeiCompat implements IModPlugin {
 
-    public BlockDropCategory blockDropCategory;
+    public LootTableCategory lootTableCategory;
     public static final ResourceLocation UID = RandomizerUtil.location("jei_compat");
 
     @Override
@@ -21,12 +21,12 @@ public class JeiCompat implements IModPlugin {
 
     @Override
     public void registerCategories(IRecipeCategoryRegistration registration) {
-        blockDropCategory = new BlockDropCategory(registration.getJeiHelpers().getGuiHelper());
-        registration.addRecipeCategories(blockDropCategory);
+        lootTableCategory = new LootTableCategory(registration.getJeiHelpers().getGuiHelper());
+        registration.addRecipeCategories(lootTableCategory);
     }
 
     @Override
     public void registerRecipes(IRecipeRegistration registration) {
-        registration.addRecipes(blockDropCategory.getRecipeType(), BlockDropRecipe.getRecipes());
+        registration.addRecipes(lootTableCategory.getRecipeType(), ParsedLootTable.getRecipes());
     }
 }

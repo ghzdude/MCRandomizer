@@ -1,6 +1,6 @@
 {
   "randomizer.player.point_max.increased": "Points per cycle increased to %d!",
-  "randomizer.compat.jei.block_drop_category": "Block Drops",
+  "randomizer.compat.jei.block_drop_category": "Loot Tables",
   "randomizer.compat.jei.block_drop.type.hand": "Requires Hand",
   "randomizer.compat.jei.block_drop.type.pick": "Requires Pick",
   "randomizer.compat.jei.block_drop.type.silk_touch": "Requires Silk Touch",
