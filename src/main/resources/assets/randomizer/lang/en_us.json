@@ -3,6 +3,8 @@
   "randomizer.compat.jei.block_drop_category": "Loot Tables",
   "randomizer.compat.jei.block_drop.type.hand": "Requires Hand",
   "randomizer.compat.jei.block_drop.type.pick": "Requires Pick",
+  "randomizer.compat.jei.block_drop.type.shovel": "Requires Shovel",
+  "randomizer.compat.jei.block_drop.type.axe": "Requires Axe",
   "randomizer.compat.jei.block_drop.type.silk_touch": "Requires Silk Touch",
   "randomizer.compat.jei.block_drop.type.shears": "Requires Shears",
   "randomizer.compat.jei.block_drop.type.silk_or_shears": "Requires Silk or Shears",

@@ -21,7 +21,6 @@ import net.minecraft.tags.TagKey;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;
-import net.minecraft.world.item.SpawnEggItem;
 import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.storage.loot.BuiltInLootTables;
@@ -101,6 +100,7 @@ public class CompletabilityVerifier {
             BuiltInLootTables.SHIPWRECK_MAP,
             BuiltInLootTables.SHIPWRECK_SUPPLY,
 //            BuiltInLootTables.SPAWN_BONUS_CHEST,
+            BuiltInLootTables.CAT_MORNING_GIFT,
             BuiltInLootTables.VILLAGE_WEAPONSMITH,
             BuiltInLootTables.VILLAGE_TOOLSMITH,
             BuiltInLootTables.VILLAGE_ARMORER,
@@ -117,26 +117,26 @@ public class CompletabilityVerifier {
             BuiltInLootTables.VILLAGE_TAIGA_HOUSE,
             BuiltInLootTables.VILLAGE_SNOWY_HOUSE,
             BuiltInLootTables.RUINED_PORTAL,
-//            BuiltInLootTables.TRIAL_CHAMBERS_REWARD,
-//            BuiltInLootTables.TRIAL_CHAMBERS_REWARD_COMMON,
-//            BuiltInLootTables.TRIAL_CHAMBERS_REWARD_RARE,
-//            BuiltInLootTables.TRIAL_CHAMBERS_REWARD_UNIQUE,
-//            BuiltInLootTables.TRIAL_CHAMBERS_REWARD_OMINOUS,
-//            BuiltInLootTables.TRIAL_CHAMBERS_REWARD_OMINOUS_COMMON,
-//            BuiltInLootTables.TRIAL_CHAMBERS_REWARD_OMINOUS_RARE,
-//            BuiltInLootTables.TRIAL_CHAMBERS_REWARD_OMINOUS_UNIQUE,
-//            BuiltInLootTables.TRIAL_CHAMBERS_SUPPLY,
-//            BuiltInLootTables.TRIAL_CHAMBERS_CORRIDOR,
-//            BuiltInLootTables.TRIAL_CHAMBERS_INTERSECTION,
-//            BuiltInLootTables.TRIAL_CHAMBERS_INTERSECTION_BARREL,
-//            BuiltInLootTables.TRIAL_CHAMBERS_ENTRANCE,
-//            BuiltInLootTables.TRIAL_CHAMBERS_CORRIDOR_DISPENSER,
-//            BuiltInLootTables.TRIAL_CHAMBERS_CHAMBER_DISPENSER,
-//            BuiltInLootTables.TRIAL_CHAMBERS_WATER_DISPENSER,
-//            BuiltInLootTables.TRIAL_CHAMBERS_CORRIDOR_POT,
-//            BuiltInLootTables.EQUIPMENT_TRIAL_CHAMBER,
-//            BuiltInLootTables.EQUIPMENT_TRIAL_CHAMBER_RANGED,
-//            BuiltInLootTables.EQUIPMENT_TRIAL_CHAMBER_MELEE,
+            BuiltInLootTables.TRIAL_CHAMBERS_REWARD,
+            BuiltInLootTables.TRIAL_CHAMBERS_REWARD_COMMON,
+            BuiltInLootTables.TRIAL_CHAMBERS_REWARD_RARE,
+            BuiltInLootTables.TRIAL_CHAMBERS_REWARD_UNIQUE,
+            BuiltInLootTables.TRIAL_CHAMBERS_REWARD_OMINOUS,
+            BuiltInLootTables.TRIAL_CHAMBERS_REWARD_OMINOUS_COMMON,
+            BuiltInLootTables.TRIAL_CHAMBERS_REWARD_OMINOUS_RARE,
+            BuiltInLootTables.TRIAL_CHAMBERS_REWARD_OMINOUS_UNIQUE,
+            BuiltInLootTables.TRIAL_CHAMBERS_SUPPLY,
+            BuiltInLootTables.TRIAL_CHAMBERS_CORRIDOR,
+            BuiltInLootTables.TRIAL_CHAMBERS_INTERSECTION,
+            BuiltInLootTables.TRIAL_CHAMBERS_INTERSECTION_BARREL,
+            BuiltInLootTables.TRIAL_CHAMBERS_ENTRANCE,
+            BuiltInLootTables.TRIAL_CHAMBERS_CORRIDOR_DISPENSER,
+            BuiltInLootTables.TRIAL_CHAMBERS_CHAMBER_DISPENSER,
+            BuiltInLootTables.TRIAL_CHAMBERS_WATER_DISPENSER,
+            BuiltInLootTables.TRIAL_CHAMBERS_CORRIDOR_POT,
+            BuiltInLootTables.EQUIPMENT_TRIAL_CHAMBER,
+            BuiltInLootTables.EQUIPMENT_TRIAL_CHAMBER_RANGED,
+            BuiltInLootTables.EQUIPMENT_TRIAL_CHAMBER_MELEE,
             BuiltInLootTables.TRAIL_RUINS_ARCHAEOLOGY_COMMON,
             BuiltInLootTables.TRAIL_RUINS_ARCHAEOLOGY_RARE,
             BuiltInLootTables.DESERT_PYRAMID_ARCHAEOLOGY,
@@ -165,6 +165,7 @@ public class CompletabilityVerifier {
             // mobs
             EntityType.COW.getDefaultLootTable(),
             EntityType.COD.getDefaultLootTable(),
+            EntityType.RABBIT.getDefaultLootTable(),
             EntityType.TROPICAL_FISH.getDefaultLootTable(),
             EntityType.PUFFERFISH.getDefaultLootTable(),
             EntityType.SILVERFISH.getDefaultLootTable(),
@@ -351,19 +352,57 @@ public class CompletabilityVerifier {
 
     // nether
     private static final List<ResourceLocation> NETHER_BLOCKS = Stream.of(
+            // nether wastes
             Blocks.NETHERRACK,
             Blocks.SOUL_SAND,
-            Blocks.SOUL_SOIL,
-            Blocks.BLACKSTONE,
-            Blocks.BASALT,
-            Blocks.NETHER_QUARTZ_ORE,
             Blocks.GLOWSTONE,
+            Blocks.MAGMA_BLOCK,
+            Blocks.GRAVEL,
+
+            // soul sand valley
+            Blocks.SOUL_SAND,
+            Blocks.BASALT,
+            Blocks.SOUL_SOIL,
             Blocks.BONE_BLOCK,
+
+            // ores
+            Blocks.NETHER_QUARTZ_ORE,
+            Blocks.NETHER_GOLD_ORE,
+            Blocks.ANCIENT_DEBRIS,
+
+            // bastion
+            Blocks.BASALT,
+            Blocks.POLISHED_BASALT,
+            Blocks.BLACKSTONE,
+            Blocks.GILDED_BLACKSTONE,
             Blocks.POLISHED_BLACKSTONE_BRICKS,
             Blocks.CRACKED_POLISHED_BLACKSTONE_BRICKS,
+            Blocks.CHISELED_POLISHED_BLACKSTONE,
+            Blocks.GOLD_BLOCK,
+            Blocks.MAGMA_BLOCK,
+            Blocks.QUARTZ_BLOCK,
+            Blocks.SMOOTH_QUARTZ,
+
+            // nether fortress
             Blocks.NETHER_BRICKS,
-            Blocks.NETHER_WART
-    ).map(block -> block.getLootTable().location()).toList();
+            Blocks.NETHER_BRICK_FENCE,
+            Blocks.NETHER_BRICK_STAIRS,
+            Blocks.NETHER_WART,
+
+            // crimson fungus
+            Blocks.CRIMSON_STEM,
+            Blocks.NETHER_WART_BLOCK,
+            Blocks.SHROOMLIGHT,
+            Blocks.WEEPING_VINES,
+
+            // warped fungus
+            Blocks.WARPED_STEM,
+            Blocks.WARPED_WART_BLOCK,
+            Blocks.SHROOMLIGHT
+    ).distinct().map(block -> block.getLootTable().location()).toList();
+
+    // store all nether obtainable things in here
+    private static final List<ResourceLocation> ALL_NETHER = new ArrayList<>();
 
     private static final List<ResourceLocation> NETHER_LOOT = Stream.of(
             // chests
@@ -393,6 +432,8 @@ public class CompletabilityVerifier {
         ENDER_EYE = ITEM_REGISTRY.getKey(Items.ENDER_EYE);
         OBSIDIAN = ITEM_REGISTRY.getKey(Items.OBSIDIAN);
 
+        dispose();
+
         for (ResourceLocation recipe : RecipeRandomizer.getKnownRecipes()) {
             ResourceLocation result = RecipeRandomizer.getResultFor(recipe);
 
@@ -403,17 +444,25 @@ public class CompletabilityVerifier {
             addLootTable(table, LootRandomizer.getDrops(table));
         }
 
-        ITEM_REGISTRY.stream()
-                .map(item -> item instanceof SpawnEggItem egg ? egg : null)
-                .filter(Objects::nonNull)
-                .forEach(item -> {
-                    EntityType<?> type = item.getType(item.getDefaultInstance());
-                    addIngredient(type.getDefaultLootTable().location(), Objects.requireNonNull(ITEM_REGISTRY.getKey(item)));
-                });
+        // todo add villager trades
+        // todo ensure emerald is craftable
 
         ALL_OVERWORLD.clear();
         ALL_OVERWORLD.addAll(OVERWORLD_BLOCKS);
         ALL_OVERWORLD.addAll(OVERWORLD_LOOT);
+
+        ALL_NETHER.clear();
+        ALL_NETHER.addAll(NETHER_BLOCKS);
+        ALL_NETHER.addAll(NETHER_LOOT);
+        ALL_NETHER.removeIf(ALL_OVERWORLD::contains);
+    }
+
+    private static void dispose() {
+        RESULT_MAP.clear();
+        INGREDIENT_MAP.clear();
+        RECIPE_MAP.clear();
+        COMPLETION_QUEUE.clear();
+        recipePath.clear();
     }
 
     public static void addRecipe(List<Ingredient> ingredients, ResourceLocation output, ResourceLocation recipe) {
@@ -455,7 +504,12 @@ public class CompletabilityVerifier {
             addResult(stack, table);
         }
         if (LootRandomizer.isBlock(table)) {
-            addIngredient(table, LootRandomizer.getBlockFor(table));
+            ResourceLocation block = LootRandomizer.getBlockFor(table);
+            if (block == null) return;
+            addIngredient(table, block);
+        }
+        if (LootRandomizer.isEntityDrop(table)) {
+            addIngredient(table, LootRandomizer.getEggForEntityTable(table));
         }
     }
 
@@ -528,13 +582,10 @@ public class CompletabilityVerifier {
     }
 
     public static void ensureCompletability() {
-        COMPLETABILITY_CACHE.clear();
-        COMPLETION_QUEUE.clear();
-        recipePath.clear();
-
         boolean validRecipe = ensureCompletability(ENDER_EYE);
 
         if (requiresNether) {
+            recipePath.clear();
             LOGGER.info("Nether access is required!");
             validRecipe = ensureCompletability(OBSIDIAN);
             if (!validRecipe) {
@@ -582,7 +633,10 @@ public class CompletabilityVerifier {
         for (ResourceLocation recipe : recipes) {
 
             // we are already walking this recipe, skip
-            if (!addToPath(recipe)) continue;
+            if (!addToPath(recipe)) {
+                craftableRecipes--;
+                continue;
+            }
 
             Int2ObjectMap<Set<ResourceLocation>> indexedIngredients = INGREDIENT_MAP.get(recipe);
 
@@ -634,14 +688,24 @@ public class CompletabilityVerifier {
         boolean quickSearch = false;
         for (ResourceLocation ingredient : ingredients) {
             if (!iterated.add(ingredient)) continue;
+
+            // we've already computed this ingredient
+            if (COMPLETABILITY_CACHE.containsKey(ingredient)) {
+                if (COMPLETABILITY_CACHE.getBoolean(ingredient)) {
+                    quickSearch = true;
+                } else {
+                    if (!isTag(ingredient)) {
+                        failed.add(ingredient);
+                    }
+                    continue;
+                }
+            }
+
+            // if no recipes make this item, SKIP
             if (RESULT_MAP.get(ingredient).isEmpty()) {
                 if (!isTag(ingredient))
                     failed.add(ingredient);
                 continue;
-            }
-
-            if (COMPLETABILITY_CACHE.containsKey(ingredient)) {
-                if (COMPLETABILITY_CACHE.getBoolean(ingredient)) continue;
             }
 
             // iterate recipes that give this ingredient
@@ -680,8 +744,12 @@ public class CompletabilityVerifier {
     private static boolean iterateIngredients(Int2ObjectMap<Set<ResourceLocation>> ingredientMap, ResourceLocation recipe) {
         // for each "index"
         int craftableSlots = ingredientMap.size();
-        for (Set<ResourceLocation> compactIngredients : ingredientMap.values()) {
 
+        if (RandomizerConfig.enableDebug) {
+            LOGGER.debug("Currently iterating recipe '{}' for their ingredients", recipe);
+        }
+
+        for (Set<ResourceLocation> compactIngredients : ingredientMap.values()) {
             if (compactIngredients.isEmpty()) {
                 logEmptyIngredients(recipe);
                 continue;
@@ -689,10 +757,6 @@ public class CompletabilityVerifier {
 
             Set<ResourceLocation> iterated = new ObjectOpenHashSet<>();
             Set<ResourceLocation> failed = new ObjectOpenHashSet<>();
-
-            if (RandomizerConfig.enableDebug) {
-                LOGGER.debug("Currently iterating recipe '{}' for their ingredients", recipe);
-            }
 
             // quickly search compact ingredients if any are immediately obtainable
             if (quickIterate(compactIngredients, iterated, failed)) continue;
@@ -733,7 +797,7 @@ public class CompletabilityVerifier {
         if (ALL_OVERWORLD.contains(table)) {
             return computeCompletion(table);
 
-        } else if (NETHER_LOOT.contains(table) || NETHER_BLOCKS.contains(table)) {
+        } else if (ALL_NETHER.contains(table)) {
             requiresNether = true;
             // defer completion for later
             if (!COMPLETION_QUEUE.contains(table))
@@ -764,7 +828,7 @@ public class CompletabilityVerifier {
 
         ResourceLocation last = recipePath.removeLast();
         if (!RandomizerConfig.enableDebug) return;
-        if (success) LOGGER.debug("Recipe '{}' is obtainable, back to recipe '{}'", last, recipePath.peekLast());
+        if (success) LOGGER.debug("Back to recipe '{}'", recipePath.peekLast());
         else LOGGER.debug("Recipe '{}' is not obtainable, back to recipe '{}'", last, recipePath.peekLast());
     }
 

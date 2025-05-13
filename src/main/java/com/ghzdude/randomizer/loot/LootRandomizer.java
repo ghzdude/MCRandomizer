@@ -25,9 +25,11 @@ import net.minecraft.resources.RegistryOps;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.tags.TagKey;
+import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.SpawnEggItem;
 import net.minecraft.world.item.component.ItemLore;
 import net.minecraft.world.item.crafting.RecipeHolder;
 import net.minecraft.world.item.crafting.RecipeManager;
@@ -36,6 +38,7 @@ import net.minecraft.world.item.crafting.SmeltingRecipe;
 import net.minecraft.world.level.block.*;
 import net.minecraft.world.level.storage.loot.LootContext;
 import net.minecraft.world.level.storage.loot.LootTable;
+import net.minecraftforge.common.ForgeSpawnEggItem;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
@@ -73,17 +76,21 @@ public class LootRandomizer {
      */
     private static final Map<ResourceLocation, Map<ResourceLocation, ResourceLocation>> SPECIAL_MAP = new Object2ObjectOpenHashMap<>();
 
+    private static final Map<ResourceLocation, ResourceLocation> ENTITY_EGG_MAP = new Object2ObjectOpenHashMap<>();
+
 
     public static ResourceLocation activeLocation;
 
-    private static final ObjectOpenHashSet<ResourceLocation> PICKAXE_MINABLE = new ObjectOpenHashSet<>();
-    private static final ObjectOpenHashSet<ResourceLocation> REQUIRES_STONE = new ObjectOpenHashSet<>();
-    private static final ObjectOpenHashSet<ResourceLocation> REQUIRES_IRON = new ObjectOpenHashSet<>();
-    private static final ObjectOpenHashSet<ResourceLocation> REQUIRES_DIAMOND = new ObjectOpenHashSet<>();
+    private static final Set<ResourceLocation> PICKAXE_MINABLE = new ObjectOpenHashSet<>();
+    private static final Set<ResourceLocation> SHOVEL_MINABLE = new ObjectOpenHashSet<>();
+    private static final Set<ResourceLocation> REQUIRES_STONE = new ObjectOpenHashSet<>();
+    private static final Set<ResourceLocation> REQUIRES_IRON = new ObjectOpenHashSet<>();
+    private static final Set<ResourceLocation> REQUIRES_DIAMOND = new ObjectOpenHashSet<>();
     private static RecipeManager RECIPE_MANAGER;
     private static MinecraftServer SERVER;
     private static boolean appliesToAll;
     private static boolean requiresPick;
+    private static boolean requiresShovel;
     private static boolean requiresSilk;
     private static boolean requiresShears;
 
@@ -96,6 +103,7 @@ public class LootRandomizer {
         RECIPE_MANAGER = server.getRecipeManager();
 
         TagKey<Block> pickaxeMineable = TagKey.create(Registries.BLOCK, ResourceLocation.withDefaultNamespace("mineable/pickaxe"));
+        TagKey<Block> shovelMineable = TagKey.create(Registries.BLOCK, ResourceLocation.withDefaultNamespace("mineable/shovel"));
 
         TagKey<Block> needsStone = TagKey.create(Registries.BLOCK, ResourceLocation.withDefaultNamespace("needs_stone_tool"));
         TagKey<Block> needsIron = TagKey.create(Registries.BLOCK, ResourceLocation.withDefaultNamespace("needs_iron_tool"));
@@ -109,6 +117,7 @@ public class LootRandomizer {
 //        TagKey<Block> notNetherite = TagKey.create(Registries.BLOCK, ResourceLocation.withDefaultNamespace("incorrect_for_netherite_tool"));
 
         collectFromTag(pickaxeMineable, PICKAXE_MINABLE);
+        collectFromTag(shovelMineable, SHOVEL_MINABLE);
         collectFromTag(needsStone, REQUIRES_STONE);
         collectFromTag(needsIron, REQUIRES_IRON);
         collectFromTag(needsDiamond, REQUIRES_DIAMOND);
@@ -117,6 +126,12 @@ public class LootRandomizer {
             if (block == Blocks.AIR) continue;
 
             BLOCK_MAP.put(block.getLootTable().location(), BLOCK_REGISTRY.getKey(block));
+        }
+
+        for (EntityType<?> type : server.registryAccess().registryOrThrow(Registries.ENTITY_TYPE)) {
+            SpawnEggItem egg = ForgeSpawnEggItem.fromEntityType(type);
+            if (egg == null) continue;
+            ENTITY_EGG_MAP.put(type.getDefaultLootTable().location(), ITEM_REGISTRY.getKey(egg));
         }
 
         RegistryOps<JsonElement> registryOps = RegistryOps.create(JsonOps.INSTANCE, server.registryAccess());
@@ -145,8 +160,8 @@ public class LootRandomizer {
             if (isChestLoot(table)) {
                 inputStack = new ItemStack(Items.CHEST);
             } else if (isEntityDrop(table)) {
-                // todo mob egg
-                inputStack = new ItemStack(Items.EGG);
+                Item egg = ITEM_REGISTRY.get(getEggForEntityTable(table));
+                inputStack = new ItemStack(Objects.requireNonNull(egg));
             } else if (table.getPath().startsWith("gameplay/fishing")) {
                 inputStack = new ItemStack(Items.FISHING_ROD);
             } else if (table.getPath().startsWith("spawners")) {
@@ -191,6 +206,13 @@ public class LootRandomizer {
                             List<Component> additional = new ArrayList<>();
                             if (isBlock(table)) {
                                 additional.add(type.getName());
+                            }
+                            if (data.silk() && data.shears()) {
+                                additional.add(ParsedLootTable.Type.SHEARS_OR_SILK.getName());
+                            } else if (data.silk()) {
+                                additional.add(ParsedLootTable.Type.SILK.getName());
+                            } else if (data.shears()) {
+                                additional.add(ParsedLootTable.Type.SHEARS.getName());
                             }
                             if (SpecialItems.EFFECT_ITEMS.contains(stack.getItem())) {
                                 additional.add(Component.literal("May have random effects!"));
@@ -259,11 +281,18 @@ public class LootRandomizer {
         return LOOT_MAP.get(table).stream().flatMap(LootRandomizer::expandData).collect(Collectors.toUnmodifiableSet());
     }
 
+    public static ResourceLocation getEggForEntityTable(ResourceLocation table) {
+        if (!ENTITY_EGG_MAP.containsKey(table) && table.getPath().startsWith("entities/sheep/")) {
+            return ITEM_REGISTRY.getKey(Items.SHEEP_SPAWN_EGG);
+        }
+        return ENTITY_EGG_MAP.get(table);
+    }
+
     private static Stream<ResourceLocation> expandData(LootData data) {
         if (data.tag()) {
-            return ITEM_REGISTRY.getTags()
-                    .filter(pair -> pair.getFirst().location().equals(data.location()))
-                    .flatMap(pair -> pair.getSecond().stream().map(holder -> ITEM_REGISTRY.getKey(holder.get())));
+            return ITEM_REGISTRY.getTag(data.makeTagKey())
+                    .map(holders -> holders.stream().map(Holder::get).map(ITEM_REGISTRY::getKey))
+                    .orElseThrow();
         } else if (data.reference()) {
             return getItems(data.location()).stream();
         } else {
@@ -309,6 +338,7 @@ public class LootRandomizer {
         Set<LootData> items = LOOT_MAP.computeIfAbsent(id, k -> new ObjectOpenHashSet<>());
 
         requiresPick = isBlock(id) && PICKAXE_MINABLE.contains(BLOCK_MAP.get(id));
+        requiresShovel = isBlock(id) && SHOVEL_MINABLE.contains(BLOCK_MAP.get(id));
 
         handleJsonRaw(table, items);
     }
@@ -413,7 +443,7 @@ public class LootRandomizer {
     private static void handleItem(JsonObject entry, Set<LootData> items) {
         ResourceLocation vanilla = getName(entry);
         ResourceLocation random = getRandomized(vanilla);
-        LootData data = LootData.standard(random).pick(requiresPick);
+        LootData data = LootData.standard(random).pick(requiresPick).shovel(requiresShovel);
 
         if (!appliesToAll) {
             requiresSilk = hasCondition(entry, "match_tool", LootRandomizer::handleMatchTool);
@@ -574,6 +604,7 @@ public class LootRandomizer {
         public static final int REQUIRES_PICK = 3;
         public static final int TABLE_REFERENCE = 4;
         public static final int TAG_REFERENCE = 5;
+        public static final int REQUIRES_SHOVEL = 6;
 
         public static LootData standard(ResourceLocation item) {
             return new LootData(item);
@@ -610,6 +641,10 @@ public class LootRandomizer {
             return data.get(REQUIRES_PICK);
         }
 
+        public boolean shovel() {
+            return data.get(REQUIRES_SHOVEL);
+        }
+
         public boolean reference() {
             return data.get(TABLE_REFERENCE);
         }
@@ -638,6 +673,11 @@ public class LootRandomizer {
             return this;
         }
 
+        public LootData shovel(boolean b) {
+            data.set(REQUIRES_SHOVEL, b);
+            return this;
+        }
+
         public LootData reference(boolean b) {
             data.set(TABLE_REFERENCE, b);
             return this;
@@ -649,11 +689,12 @@ public class LootRandomizer {
         }
 
         public ParsedLootTable.Type getType() {
-            if (silk() && shears()) return ParsedLootTable.Type.SHEARS_OR_SILK;
-            if (shears()) return ParsedLootTable.Type.SHEARS;
-            if (!pick()) return ParsedLootTable.Type.HAND;
-            if (silk()) return ParsedLootTable.Type.SILK_PICK;
-            return ParsedLootTable.Type.PICK;
+            if (!shovel() && !pick()) return ParsedLootTable.Type.HAND;
+            return shovel() ? ParsedLootTable.Type.SHOVEL : ParsedLootTable.Type.PICK;
+        }
+
+        public TagKey<Item> makeTagKey() {
+            return TagKey.create(Registries.ITEM, this.location());
         }
 
         public ResourceLocation location() {

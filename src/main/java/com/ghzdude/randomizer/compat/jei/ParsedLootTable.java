@@ -40,7 +40,9 @@ public record ParsedLootTable(ItemStack input, List<ItemStack> drops, ResourceLo
     public enum Type {
         HAND("Hand"),
         PICK("Pick"),
-        SILK_PICK("Silk Touch"),
+        SHOVEL("Shovel"),
+        AXE("Axe"),
+        SILK("Silk Touch"),
         SHEARS("Shears"),
         SHEARS_OR_SILK("Silk or Shears");
 
