@@ -118,6 +118,7 @@ public class RandomizerCore
     public void onStop(ServerStoppingEvent event) {
         RandomizerUtil.dispose();
         LootRandomizer.dispose();
+        CompletabilityVerifier.dispose();
         serverStarted = false;
     }
 

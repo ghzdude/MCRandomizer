@@ -432,8 +432,6 @@ public class CompletabilityVerifier {
         ENDER_EYE = ITEM_REGISTRY.getKey(Items.ENDER_EYE);
         OBSIDIAN = ITEM_REGISTRY.getKey(Items.OBSIDIAN);
 
-        dispose();
-
         for (ResourceLocation recipe : RecipeRandomizer.getKnownRecipes()) {
             ResourceLocation result = RecipeRandomizer.getResultFor(recipe);
 
@@ -457,7 +455,7 @@ public class CompletabilityVerifier {
         ALL_NETHER.removeIf(ALL_OVERWORLD::contains);
     }
 
-    private static void dispose() {
+    public static void dispose() {
         RESULT_MAP.clear();
         INGREDIENT_MAP.clear();
         RECIPE_MAP.clear();
