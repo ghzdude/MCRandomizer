@@ -629,12 +629,46 @@ public class CompletabilityVerifier {
 
         int craftableRecipes = recipes.size();
 
-        // iterate the recipes that make this ingredient
+        Set<ResourceLocation> failedRecipes = new ObjectOpenHashSet<>();
+
+        boolean quickSearch = false;
+
+        // quickly iterate recipes to see if any are immediately obtainable
         for (ResourceLocation recipe : recipes) {
+
+            // quick check just like ingredients
+            if (isLoot(recipe) && checkLoot(recipe)) {
+                quickSearch = true;
+            }
+
+            if (quickSearch) {
+                if (RandomizerConfig.enableDebug)
+                    LOGGER.debug("Recipe '{}' is immediately obtainable!", recipe);
+                break;
+            }
+
+            failedRecipes.add(recipe);
+        }
+
+        // one of the recipes is immediately obtainable, don't bother looking at the other recipes
+        if (quickSearch) {
+            return true;
+        }
+
+        // otherwise iterate the failed recipes
+        for (ResourceLocation recipe : failedRecipes) {
 
             // we are already walking this recipe, skip
             if (!addToPath(recipe)) {
                 craftableRecipes--;
+                continue;
+            }
+
+            // we can't make anything give chest loot
+            if (LootRandomizer.isChestLoot(recipe) && !checkLoot(recipe)) {
+                // this is chest loot and it's end only
+                craftableRecipes--;
+                walkBack(false);
                 continue;
             }
 
@@ -643,14 +677,6 @@ public class CompletabilityVerifier {
             // this recipe does not exist in map, OR
             // this recipe has no ingredients to check, SKIP
             if (indexedIngredients.isEmpty()) {
-                craftableRecipes--;
-                walkBack(false);
-                continue;
-            }
-
-            // we can't make anything give chest loot
-            if (LootRandomizer.isChestLoot(recipe) && !checkLoot(recipe)) {
-                // this is chest loot and it's end only
                 craftableRecipes--;
                 walkBack(false);
                 continue;
@@ -828,8 +854,11 @@ public class CompletabilityVerifier {
 
         ResourceLocation last = recipePath.removeLast();
         if (!RandomizerConfig.enableDebug) return;
-        if (success) LOGGER.debug("Back to recipe '{}'", recipePath.peekLast());
-        else LOGGER.debug("Recipe '{}' is not obtainable, back to recipe '{}'", last, recipePath.peekLast());
+        if (success) {
+            LOGGER.debug("Back to recipe '{}'", recipePath.peekLast());
+        } else {
+            LOGGER.debug("Recipe '{}' is not obtainable, back to recipe '{}'", last, recipePath.peekLast());
+        }
     }
 
     private static boolean addToPath(ResourceLocation recipe) {
@@ -840,8 +869,11 @@ public class CompletabilityVerifier {
 
     private static void logIngredient(Object ingredient, ResourceLocation recipe, boolean success) {
         if (!RandomizerConfig.enableDebug) return;
-        if (success) LOGGER.debug("Ingredient '{}' in recipe '{}' is obtainable!", ingredient, recipe);
-        else LOGGER.debug("All ingredients for recipe '{}' are unobtainable!", recipe);
+        if (success) {
+            LOGGER.debug("Ingredient '{}' in recipe '{}' is obtainable!", ingredient, recipe);
+        } else {
+            LOGGER.debug("All ingredients for recipe '{}' are unobtainable!", recipe);
+        }
     }
 
     private static void logEmptyIngredients(ResourceLocation recipe) {
