@@ -507,7 +507,9 @@ public class CompletabilityVerifier {
             addIngredient(table, block);
         }
         if (LootRandomizer.isEntityDrop(table)) {
-            addIngredient(table, LootRandomizer.getEggForEntityTable(table));
+            ResourceLocation egg = LootRandomizer.getEggForEntityTable(table);
+            if (egg == null) return;
+            addIngredient(table, egg);
         }
     }
 

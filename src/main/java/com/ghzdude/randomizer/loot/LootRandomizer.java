@@ -281,6 +281,7 @@ public class LootRandomizer {
         return LOOT_MAP.get(table).stream().flatMap(LootRandomizer::expandData).collect(Collectors.toUnmodifiableSet());
     }
 
+    @Nullable
     public static ResourceLocation getEggForEntityTable(ResourceLocation table) {
         if (!ENTITY_EGG_MAP.containsKey(table) && table.getPath().startsWith("entities/sheep/")) {
             return ITEM_REGISTRY.getKey(Items.SHEEP_SPAWN_EGG);
