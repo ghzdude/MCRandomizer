@@ -6,6 +6,7 @@ import com.ghzdude.randomizer.compat.jei.ParsedLootTable;
 import com.ghzdude.randomizer.special.item.SpecialItems;
 import com.ghzdude.randomizer.util.RandomizerUtil;
 import com.google.common.collect.ImmutableSet;
+import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.mojang.logging.LogUtils;
@@ -51,6 +52,9 @@ import java.util.stream.Stream;
 public class LootRandomizer {
 
     private static final Logger LOGGER = LogUtils.getLogger();
+    public static final String MATCH_TOOL = "match_tool";
+    public static final String CAN_TOOL_PERFORM_ACTION = "can_tool_perform_action";
+    public static final String INVERTED = "inverted";
     private static RandomizationMapData INSTANCE = null;
     public static Registry<LootTable> LOOT_REGISTRY;
     public static Registry<Item> ITEM_REGISTRY;
@@ -203,34 +207,38 @@ public class LootRandomizer {
                         .map(Item::getDefaultInstance)
                         .filter(stack -> !stack.isEmpty())
                         .forEach(stack -> {
-                            List<Component> additional = new ArrayList<>();
-                            if (isBlock(table)) {
-                                additional.add(type.getName());
-                            }
-                            if (data.silk() && data.shears()) {
-                                additional.add(ParsedLootTable.Type.SHEARS_OR_SILK.getName());
-                            } else if (data.silk()) {
-                                additional.add(ParsedLootTable.Type.SILK.getName());
-                            } else if (data.shears()) {
-                                additional.add(ParsedLootTable.Type.SHEARS.getName());
-                            }
-                            if (SpecialItems.EFFECT_ITEMS.contains(stack.getItem())) {
-                                additional.add(Component.literal("May have random effects!"));
-                            }
-                            if (SpecialItems.ENCHANTABLE.contains(stack.getItem())) {
-                                additional.add(Component.literal("May have random enchantments!"));
-                            }
-                            if (!additional.isEmpty()) {
-                                List<Component> existing = getOrCreateLines(stack);
-                                existing.addAll(additional);
-                                stack.set(DataComponents.LORE, new ItemLore(existing));
-                            }
+                            configureOutputStack(table, data, stack, type);
                             drops.add(stack);
                         });
             }
 
             if (!drops.isEmpty())
                 ParsedLootTable.registerRecipe(inputStack, drops, table);
+        }
+    }
+
+    private static void configureOutputStack(ResourceLocation table, LootData data, ItemStack stack, ParsedLootTable.Type type) {
+        List<Component> additional = new ArrayList<>();
+        if (isBlock(table)) {
+            additional.add(type.getName());
+        }
+        if (data.silk() && data.shears()) {
+            additional.add(ParsedLootTable.Type.SHEARS_OR_SILK.getName());
+        } else if (data.silk()) {
+            additional.add(ParsedLootTable.Type.SILK.getName());
+        } else if (data.shears()) {
+            additional.add(ParsedLootTable.Type.SHEARS.getName());
+        }
+        if (SpecialItems.EFFECT_ITEMS.contains(stack.getItem())) {
+            additional.add(Component.literal("May have random effects!"));
+        }
+        if (SpecialItems.ENCHANTABLE.contains(stack.getItem())) {
+            additional.add(Component.literal("May have random enchantments!"));
+        }
+        if (!additional.isEmpty()) {
+            List<Component> existing = getOrCreateLines(stack);
+            existing.addAll(additional);
+            stack.set(DataComponents.LORE, new ItemLore(existing));
         }
     }
 
@@ -319,6 +327,25 @@ public class LootRandomizer {
     public static void registerSpecialDrop(ResourceLocation table, ResourceLocation drop, ResourceLocation replace) {
         SPECIAL_MAP.computeIfAbsent(table, k -> new Object2ObjectOpenHashMap<>())
                 .put(drop, replace);
+
+        ParsedLootTable parsedLootTable = ParsedLootTable.get(table);
+
+        List<ItemStack> drops = new ArrayList<>();
+        for (LootData data : LOOT_MAP.get(table)) {
+            ParsedLootTable.Type type = data.getType();
+            expandData(data).map(l -> drop.equals(l) ? replace : l)
+                    .map(ITEM_REGISTRY::get)
+                    .filter(Objects::nonNull)
+                    .map(Item::getDefaultInstance)
+                    .filter(stack -> !stack.isEmpty())
+                    .forEach(stack -> {
+                        configureOutputStack(table, data, stack, type);
+                        drops.add(stack);
+                    });
+        }
+
+        if (!drops.isEmpty())
+            ParsedLootTable.registerRecipe(parsedLootTable.input(), drops, parsedLootTable.lootTable());
     }
 
     private static void collectFromTag(TagKey<Block> key, Set<ResourceLocation> collection) {
@@ -361,8 +388,8 @@ public class LootRandomizer {
                     .asList().stream().map(JsonElement::getAsJsonObject).toList();
 
             if (pool.has("conditions") && !appliesToAll) {
-                requiresSilk = hasCondition(pool, "match_tool", LootRandomizer::handleMatchTool);
-                requiresShears = hasCondition(pool, "can_tool_perform_action", LootRandomizer::handleShears);
+                requiresSilk = handleConditions(pool, MATCH_TOOL, LootRandomizer::handleMatchTool);
+                requiresShears = handleConditions(pool, CAN_TOOL_PERFORM_ACTION, LootRandomizer::handleShears);
                 appliesToAll = requiresSilk || requiresShears;
             }
 
@@ -447,8 +474,8 @@ public class LootRandomizer {
         LootData data = LootData.standard(random).pick(requiresPick).shovel(requiresShovel);
 
         if (!appliesToAll) {
-            requiresSilk = hasCondition(entry, "match_tool", LootRandomizer::handleMatchTool);
-            requiresShears = hasCondition(entry, "can_tool_perform_action", LootRandomizer::handleShears);
+            requiresSilk = handleConditions(entry, MATCH_TOOL, LootRandomizer::handleMatchTool);
+            requiresShears = handleConditions(entry, CAN_TOOL_PERFORM_ACTION, LootRandomizer::handleShears);
 
             if (entry.has("functions")) {
                 List<JsonObject> functions = entry.getAsJsonArray("functions").asList().stream()
@@ -477,23 +504,47 @@ public class LootRandomizer {
         throw new IllegalArgumentException("'%s' must be an item or tag!".formatted(vanilla));
     }
 
-    private static boolean hasCondition(JsonObject object, String type, Predicate<JsonObject> predicate) {
+    private static boolean hasCondition(JsonObject object, String type) {
         if (!object.has("conditions")) return false;
         List<JsonObject> conditions = object.getAsJsonArray("conditions")
                 .asList().stream().map(JsonElement::getAsJsonObject).toList();
 
         for (JsonObject condition : conditions) {
-            if (isCondition(condition, type) && predicate.test(condition)) {
-                    return true;
-            } else if (isCondition(condition, "any_of")) {
-                List<JsonObject> terms = condition.getAsJsonArray("terms")
-                        .asList().stream().map(JsonElement::getAsJsonObject).toList();
+            if (isCondition(condition, type)) return true;
+        }
+        return false;
+    }
 
-                for (JsonObject term : terms) {
-                    if (isCondition(term, type) && predicate.test(term)) {
-                        return true;
-                    }
-                }
+    private static boolean handleConditions(JsonObject object, String type, Predicate<JsonObject> predicate) {
+        if (!object.has("conditions")) return false;
+        List<JsonObject> conditions = object.getAsJsonArray("conditions")
+                .asList().stream().map(JsonElement::getAsJsonObject).toList();
+
+        for (JsonObject condition : conditions) {
+            if (handleCondition(type, predicate, condition)) return true;
+        }
+        return false;
+    }
+
+    private static boolean handleCondition(String type, Predicate<JsonObject> predicate, JsonObject condition) {
+        if (isCondition(condition, type) && predicate.test(condition)) {
+            return true;
+        } else if (isCondition(condition, "any_of")) {
+            return handleTerms(type, predicate, condition.getAsJsonArray("terms"));
+        } else if (isCondition(condition, INVERTED)) {
+            JsonObject term = condition.getAsJsonObject("term");
+            return !handleCondition(type, predicate, term);
+        }
+        return false;
+    }
+
+    private static boolean handleTerms(String type, Predicate<JsonObject> predicate, JsonArray condition) {
+        List<JsonObject> terms = condition.asList().stream()
+                .map(JsonElement::getAsJsonObject).toList();
+
+        for (JsonObject term : terms) {
+            if (isCondition(term, type) && predicate.test(term)) {
+                return true;
             }
         }
         return false;

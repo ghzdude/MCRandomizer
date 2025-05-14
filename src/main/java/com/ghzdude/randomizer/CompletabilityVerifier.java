@@ -443,6 +443,15 @@ public class CompletabilityVerifier {
         ENDER_EYE = ITEM_REGISTRY.getKey(Items.ENDER_EYE);
         OBSIDIAN = ITEM_REGISTRY.getKey(Items.OBSIDIAN);
 
+        if (data.fromDisk) {
+            LOGGER.info("Loading saved completability data!");
+            for (ModificationData modificationData : data.MODIFICATION_DATA) {
+                LootRandomizer.registerSpecialDrop(modificationData.table, modificationData.original, modificationData.replacement);
+            }
+            LOGGER.info("Loaded {} entries!", data.MODIFICATION_DATA.size());
+            return;
+        }
+
         for (ResourceLocation recipe : RecipeRandomizer.getKnownRecipes()) {
             ResourceLocation result = RecipeRandomizer.getResultFor(recipe);
 
@@ -599,11 +608,7 @@ public class CompletabilityVerifier {
 
     public static void ensureCompletability() {
         if (data.fromDisk) {
-            LOGGER.info("Loading saved completability data!");
-            for (ModificationData modificationData : data.MODIFICATION_DATA) {
-                LootRandomizer.registerSpecialDrop(modificationData.table, modificationData.original, modificationData.replacement);
-            }
-            LOGGER.info("Loaded {} entries!", data.MODIFICATION_DATA.size());
+            // we loaded from disk, no need to check again
             return;
         }
 

@@ -1,13 +1,15 @@
 package com.ghzdude.randomizer.compat.jei;
 
-import com.ghzdude.randomizer.util.RandomizerUtil;
+import com.ghzdude.randomizer.RandomizerConfig;
 import com.google.common.collect.ImmutableList;
+import com.mojang.logging.LogUtils;
 import it.unimi.dsi.fastutil.objects.Object2ObjectMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import org.jetbrains.annotations.NotNull;
+import org.slf4j.Logger;
 
 import java.util.List;
 import java.util.Objects;
@@ -15,10 +17,14 @@ import java.util.Objects;
 public record ParsedLootTable(ItemStack input, List<ItemStack> drops, ResourceLocation lootTable) {
 
     private static final Object2ObjectMap<ResourceLocation, ParsedLootTable> REGISTRY = new Object2ObjectOpenHashMap<>();
+    private static final Logger LOGGER = LogUtils.getLogger();
 
     public static void registerRecipe(ItemStack input, List<ItemStack> drops, @NotNull ResourceLocation table) {
-        ResourceLocation recipeId = RandomizerUtil.location(table.getNamespace() + "-" + table.getPath());
-        REGISTRY.put(recipeId, new ParsedLootTable(input, drops, Objects.requireNonNull(table)));
+        // todo figure out a resource key instead of table id
+        ParsedLootTable existing = REGISTRY.put(table, new ParsedLootTable(input, drops, Objects.requireNonNull(table)));
+        if (existing != null && RandomizerConfig.enableDebug) {
+            LOGGER.debug("Parsed Loot Table '{}' was replaced!", existing.lootTable());
+        }
     }
 
     public static void clearRegistry() {
