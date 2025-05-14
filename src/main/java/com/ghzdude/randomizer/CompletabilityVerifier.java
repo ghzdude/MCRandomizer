@@ -12,17 +12,24 @@ import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMaps;
 import it.unimi.dsi.fastutil.objects.*;
 import net.minecraft.core.Holder;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.Tag;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.tags.TagKey;
+import net.minecraft.util.datafix.DataFixTypes;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.saveddata.SavedData;
+import net.minecraft.world.level.storage.DimensionDataStorage;
 import net.minecraft.world.level.storage.loot.BuiltInLootTables;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
@@ -71,6 +78,8 @@ public class CompletabilityVerifier {
      * Maps a recipe to a set of its ingredients that needs to be modified
      */
     private static final Map<ResourceLocation, ResourceLocation> MODIFY_RECIPES = new Object2ObjectOpenHashMap<>();
+
+    private static VerifierSaveData data;
 
     public static ResourceLocation ENDER_EYE;
     public static ResourceLocation OBSIDIAN;
@@ -429,6 +438,8 @@ public class CompletabilityVerifier {
         RESULT_MAP.defaultReturnValue(Collections.emptySet());
         INGREDIENT_MAP.defaultReturnValue(Int2ObjectMaps.emptyMap());
 
+        data = VerifierSaveData.get(server.overworld().getDataStorage());
+
         ENDER_EYE = ITEM_REGISTRY.getKey(Items.ENDER_EYE);
         OBSIDIAN = ITEM_REGISTRY.getKey(Items.OBSIDIAN);
 
@@ -461,6 +472,7 @@ public class CompletabilityVerifier {
         RECIPE_MAP.clear();
         COMPLETION_QUEUE.clear();
         recipePath.clear();
+        data = null;
     }
 
     public static void addRecipe(List<Ingredient> ingredients, ResourceLocation output, ResourceLocation recipe) {
@@ -578,11 +590,23 @@ public class CompletabilityVerifier {
             // map this random drop to the failed item, specifically for this table
             LootRandomizer.registerSpecialDrop(table, randomDrop, MODIFY_RECIPES.get(table));
             COMPLETABILITY_CACHE.put(table, true);
-            // todo write these to file
+            data.addEntry(table, randomDrop, MODIFY_RECIPES.get(table));
         }
+
+        if (!MODIFY_RECIPES.isEmpty())
+            data.setDirty(true);
     }
 
     public static void ensureCompletability() {
+        if (data.fromDisk) {
+            LOGGER.info("Loading saved completability data!");
+            for (ModificationData modificationData : data.MODIFICATION_DATA) {
+                LootRandomizer.registerSpecialDrop(modificationData.table, modificationData.original, modificationData.replacement);
+            }
+            LOGGER.info("Loaded {} entries!", data.MODIFICATION_DATA.size());
+            return;
+        }
+
         boolean validRecipe = ensureCompletability(ENDER_EYE);
 
         if (requiresNether) {
@@ -871,9 +895,76 @@ public class CompletabilityVerifier {
         LOGGER.debug("{} '{}' has a set of ingredients that is empty!", type, recipe);
     }
 
-    private enum Type {
-        OVERWORLD,
-        NETHER,
-        FAILED
+    private static class VerifierSaveData extends SavedData {
+
+        public static final Factory<VerifierSaveData> FACTORY = new Factory<>(VerifierSaveData::new, VerifierSaveData::load, DataFixTypes.LEVEL);
+
+
+        public static VerifierSaveData get(DimensionDataStorage storage) {
+            return storage.computeIfAbsent(FACTORY, "%s_spoiler_log".formatted(RandomizerCore.MODID));
+        }
+
+        /**
+         * Maps a loot table id to a map of a recipe to a set of its ingredients that needs to be modified
+         */
+        private final List<ModificationData> MODIFICATION_DATA = new ArrayList<>();
+
+        public boolean fromDisk = false;
+
+        public void addEntry(ResourceLocation table, ResourceLocation original, ResourceLocation replacement) {
+            addEntry(new ModificationData(table, original, replacement));
+        }
+
+        private void addEntry(ModificationData data) {
+            if (!MODIFICATION_DATA.contains(data))
+                MODIFICATION_DATA.add(data);
+        }
+
+        @Override
+        public @NotNull CompoundTag save(@NotNull CompoundTag tag, HolderLookup.@NotNull Provider provider) {
+            ListTag data = new ListTag();
+            LOGGER.info("Saving Verification Data!");
+            for (ModificationData table : MODIFICATION_DATA) {
+                data.add(table.toNBT());
+            }
+            LOGGER.info("Wrote {} entries!", MODIFICATION_DATA.size());
+            tag.put("data", data);
+            return tag;
+        }
+
+        public static VerifierSaveData load(CompoundTag tag, HolderLookup.Provider provider) {
+            VerifierSaveData data = new VerifierSaveData();
+            ListTag tagList = tag.getList("data", Tag.TAG_COMPOUND);
+
+            for (int i = 0; i < tagList.size(); i++) {
+                data.addEntry(ModificationData.fromNBT(tagList.getCompound(i)));
+            }
+
+            data.fromDisk = true;
+
+            return data;
+        }
+    }
+
+    private record ModificationData(
+            ResourceLocation table,
+            ResourceLocation original,
+            ResourceLocation replacement
+    ) {
+       public CompoundTag toNBT() {
+           return CompoundTag.builder()
+                   .put("id", table.toString())
+                   .put("original", original.toString())
+                   .put("replacement", replacement.toString())
+                   .build();
+       }
+
+       public static ModificationData fromNBT(CompoundTag tag) {
+           return new ModificationData(
+                   ResourceLocation.parse(tag.getString("id")),
+                   ResourceLocation.parse(tag.getString("original")),
+                   ResourceLocation.parse(tag.getString("replacement"))
+           );
+       }
     }
 }
