@@ -221,7 +221,7 @@ public class LootRandomizer {
                                 additional.add(Component.literal("May have random enchantments!"));
                             }
                             if (!additional.isEmpty()) {
-                                List<Component> existing = getOrCreateLines(inputStack);
+                                List<Component> existing = getOrCreateLines(stack);
                                 existing.addAll(additional);
                                 stack.set(DataComponents.LORE, new ItemLore(existing));
                             }

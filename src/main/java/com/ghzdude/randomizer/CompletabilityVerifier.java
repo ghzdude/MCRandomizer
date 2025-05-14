@@ -578,6 +578,7 @@ public class CompletabilityVerifier {
             // map this random drop to the failed item, specifically for this table
             LootRandomizer.registerSpecialDrop(table, randomDrop, MODIFY_RECIPES.get(table));
             COMPLETABILITY_CACHE.put(table, true);
+            // todo write these to file
         }
     }
 
@@ -629,34 +630,15 @@ public class CompletabilityVerifier {
 
         int craftableRecipes = recipes.size();
 
-        Set<ResourceLocation> failedRecipes = new ObjectOpenHashSet<>();
-
-        boolean quickSearch = false;
-
         // quickly iterate recipes to see if any are immediately obtainable
-        for (ResourceLocation recipe : recipes) {
-
-            // quick check just like ingredients
-            if (isLoot(recipe) && checkLoot(recipe)) {
-                quickSearch = true;
-            }
-
-            if (quickSearch) {
-                if (RandomizerConfig.enableDebug)
-                    LOGGER.debug("Recipe '{}' is immediately obtainable!", recipe);
-                break;
-            }
-
-            failedRecipes.add(recipe);
-        }
-
-        // one of the recipes is immediately obtainable, don't bother looking at the other recipes
-        if (quickSearch) {
+        if (quickIterateRecipes(recipes)) {
+            // one of the recipes are immediately obtainable, don't bother looking at the other recipes
+            // logging should already be handled
             return true;
         }
 
         // otherwise iterate the failed recipes
-        for (ResourceLocation recipe : failedRecipes) {
+        for (ResourceLocation recipe : recipes) {
 
             // we are already walking this recipe, skip
             if (!addToPath(recipe)) {
@@ -710,7 +692,7 @@ public class CompletabilityVerifier {
                 .collect(Collectors.toUnmodifiableSet());
     }
 
-    private static boolean quickIterate(Set<ResourceLocation> ingredients, Set<ResourceLocation> iterated, Set<ResourceLocation> failed) {
+    private static boolean quickIterateIngredient(Set<ResourceLocation> ingredients, Set<ResourceLocation> iterated, Set<ResourceLocation> failed) {
         boolean quickSearch = false;
         for (ResourceLocation ingredient : ingredients) {
             if (!iterated.add(ingredient)) continue;
@@ -735,12 +717,7 @@ public class CompletabilityVerifier {
             }
 
             // iterate recipes that give this ingredient
-            for (ResourceLocation r : RESULT_MAP.get(ingredient)) {
-                if (isLoot(r) && checkLoot(r)) {
-                    quickSearch = true;
-                    break;
-                }
-            }
+            quickSearch = quickIterateRecipes(RESULT_MAP.get(ingredient));
 
             if (quickSearch) {
                 logIngredient(ingredient, recipePath.peekLast(), true);
@@ -767,6 +744,18 @@ public class CompletabilityVerifier {
         return false;
     }
 
+    private static boolean quickIterateRecipes(Set<ResourceLocation> recipes) {
+        boolean quickMatch = recipes.stream().anyMatch(l -> isLoot(l) && ALL_OVERWORLD.contains(l));
+        if (quickMatch) return true;
+
+        quickMatch = recipes.stream().anyMatch(l -> isLoot(l) && ALL_NETHER.contains(l));
+        if (quickMatch) {
+            requiresNether = true;
+            return true;
+        }
+        return false;
+    }
+
     private static boolean iterateIngredients(Int2ObjectMap<Set<ResourceLocation>> ingredientMap, ResourceLocation recipe) {
         // for each "index"
         int craftableSlots = ingredientMap.size();
@@ -785,10 +774,10 @@ public class CompletabilityVerifier {
             Set<ResourceLocation> failed = new ObjectOpenHashSet<>();
 
             // quickly search compact ingredients if any are immediately obtainable
-            if (quickIterate(compactIngredients, iterated, failed)) continue;
+            if (quickIterateIngredient(compactIngredients, iterated, failed)) continue;
 
             // iterate expanded ingredients
-            if (quickIterate(expandIngredients(compactIngredients), iterated, failed)) continue;
+            if (quickIterateIngredient(expandIngredients(compactIngredients), iterated, failed)) continue;
 
             if (!deepSearch(failed, recipe)) {
                 craftableSlots--;
@@ -880,5 +869,11 @@ public class CompletabilityVerifier {
         if (!RandomizerConfig.enableDebug) return;
         String type = isLoot(recipe) ? "Table" : "Recipe";
         LOGGER.debug("{} '{}' has a set of ingredients that is empty!", type, recipe);
+    }
+
+    private enum Type {
+        OVERWORLD,
+        NETHER,
+        FAILED
     }
 }
