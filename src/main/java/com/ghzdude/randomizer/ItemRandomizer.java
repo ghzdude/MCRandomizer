@@ -143,8 +143,4 @@ public class ItemRandomizer {
     public static boolean isBlacklisted(ResourceLocation item) {
         return BLACKLISTED_ITEMS.contains(item);
     }
-
-    public static Registry<Item> getRegistry() {
-        return REGISTRY;
-    }
 }
