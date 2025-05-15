@@ -22,9 +22,7 @@ import net.minecraft.world.item.component.ItemLore;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 
 public class LootTableCategory implements IRecipeCategory<ParsedLootTable> {
 
@@ -89,16 +87,16 @@ public class LootTableCategory implements IRecipeCategory<ParsedLootTable> {
                     .setStandardSlotBackground();
 
             if (i + 1 == maxSlots && !willFit) {
-                List<Component> lines = Optional.ofNullable(drop.get(DataComponents.LORE))
-                        .map(lore -> new ArrayList<>(lore.styledLines()))
-                        .orElse(new ArrayList<>());
-                lines.add(Component.literal("Not all items could fit!").withStyle(ChatFormatting.BOLD, ChatFormatting.RED));
+                List<Component> lines = RandomizerUtil.getOrCreateLines(drop);
+                lines.add(Component.translatable("randomizer.compat.jei.block_drop.cannot_fit")
+                        .withStyle(ChatFormatting.BOLD, ChatFormatting.RED));
                 drop.set(DataComponents.LORE, new ItemLore(lines));
                 slot.addIngredient(VanillaTypes.ITEM_STACK, drop);
                 break;
             }
 
-            slot.addIngredient(VanillaTypes.ITEM_STACK, drop);
+            if (!drop.isEmpty())
+                slot.addIngredient(VanillaTypes.ITEM_STACK, drop);
         }
     }
 

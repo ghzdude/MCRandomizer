@@ -201,7 +201,7 @@ public class LootRandomizer {
                 return;
             }
 
-            List<Component> lines = getOrCreateLines(inputStack);
+            List<Component> lines = RandomizerUtil.getOrCreateLines(inputStack);
             lines.add(Component.translatable("randomizer.compat.jei.table.id", table)
                     .withStyle(ChatFormatting.DARK_GRAY));
             inputStack.set(DataComponents.LORE, new ItemLore(lines));
@@ -243,15 +243,10 @@ public class LootRandomizer {
             additional.add(Component.literal("May have random enchantments!"));
         }
         if (!additional.isEmpty()) {
-            List<Component> existing = getOrCreateLines(stack);
+            List<Component> existing = RandomizerUtil.getOrCreateLines(stack);
             existing.addAll(additional);
             stack.set(DataComponents.LORE, new ItemLore(existing));
         }
-    }
-
-    private static @NotNull List<Component> getOrCreateLines(ItemStack inputStack) {
-        return Optional.ofNullable(inputStack.get(DataComponents.LORE))
-                .map(itemLore -> new ArrayList<>(itemLore.lines())).orElse(new ArrayList<>());
     }
 
     private static @Nullable Item getItemFromBlock(ResourceLocation block) {

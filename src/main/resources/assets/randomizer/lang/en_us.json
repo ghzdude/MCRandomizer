@@ -8,6 +8,7 @@
   "randomizer.compat.jei.block_drop.type.silk_touch": "Requires Silk Touch",
   "randomizer.compat.jei.block_drop.type.shears": "Requires Shears",
   "randomizer.compat.jei.block_drop.type.silk_or_shears": "Requires Silk or Shears",
+  "randomizer.compat.jei.block_drop.cannot_fit": "Not all items could fit!",
   "randomizer.compat.jei.table.id": "Table ID: '%s'",
   "randomizer.giving_item.label": "Giving Item...",
   "randomizer.potion_title": "Randomly Generated %s",
