@@ -202,9 +202,8 @@ public class LootRandomizer {
             }
 
             List<Component> lines = getOrCreateLines(inputStack);
-
-            // todo lang
-            lines.add(Component.literal("Table ID: '%s'".formatted(table)).withStyle(ChatFormatting.DARK_GRAY));
+            lines.add(Component.translatable("randomizer.compat.jei.table.id", table)
+                    .withStyle(ChatFormatting.DARK_GRAY));
             inputStack.set(DataComponents.LORE, new ItemLore(lines));
 
             List<ItemStack> drops = new ArrayList<>();
