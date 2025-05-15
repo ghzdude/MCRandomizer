@@ -372,6 +372,9 @@ public class LootRandomizer {
 
         Set<LootData> items = LOOT_MAP.computeIfAbsent(id, k -> new ObjectOpenHashSet<>());
 
+        // todo handling table json needs to be improved
+        // certain tables do not have proper output information
+        // trying to fix it is a pain in the ass, so im leaving it for now
         requiresPick = isBlock(id) && PICKAXE_MINABLE.contains(BLOCK_MAP.get(id));
         requiresShovel = isBlock(id) && SHOVEL_MINABLE.contains(BLOCK_MAP.get(id));
 
