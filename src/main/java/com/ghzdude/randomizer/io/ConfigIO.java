@@ -2,7 +2,6 @@ package com.ghzdude.randomizer.io;
 
 import com.ghzdude.randomizer.RandomizerCore;
 import com.google.gson.*;
-import com.google.gson.stream.JsonReader;
 import com.mojang.logging.LogUtils;
 import it.unimi.dsi.fastutil.objects.Object2IntArrayMap;
 import it.unimi.dsi.fastutil.objects.Object2IntMap;
@@ -67,8 +66,9 @@ public class ConfigIO {
             return defaults;
         }
         try {
-            var reader = GSON.newJsonReader(Files.newBufferedReader(valueFile.toPath()));
-            JsonObject object = JsonParser.parseReader(reader).getAsJsonObject();
+
+            JsonObject object = JsonParser.parseString(Files.readString(valueFile.toPath())).getAsJsonObject();
+
             for (String vanilla : object.keySet()) {
                 var loc = ResourceLocation.parse(vanilla);
                 int i = object.get(vanilla).getAsInt();
@@ -97,8 +97,7 @@ public class ConfigIO {
                 return defaults;
             }
 
-            JsonReader reader = GSON.newJsonReader(Files.newBufferedReader(blacklistFile.toPath()));
-            JsonArray elements = JsonParser.parseReader(reader).getAsJsonArray();
+            JsonArray elements = JsonParser.parseString(Files.readString(blacklistFile.toPath())).getAsJsonArray();
 
             for (JsonElement vanilla : elements) {
                 ResourceLocation location = ResourceLocation.parse(vanilla.getAsString());
