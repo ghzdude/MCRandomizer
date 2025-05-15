@@ -182,6 +182,14 @@ public class LootRandomizer {
                 inputStack = new ItemStack(Items.DECORATED_POT);
             } else if (table.getPath().startsWith("archaeology/")) {
                 inputStack = new ItemStack(Items.BRUSH);
+            } else if (table.getPath().equals("gameplay/piglin_bartering")) {
+                inputStack = new ItemStack(Items.GOLD_INGOT);
+            } else if (table.getPath().equals("gameplay/cat_morning_gift")) {
+                inputStack = new ItemStack(Items.CAT_SPAWN_EGG);
+            } else if (table.getPath().equals("gameplay/sniffer_digging")) {
+                inputStack = new ItemStack(Items.SNIFFER_SPAWN_EGG);
+            } else if (table.getPath().equals("shearing/bogged")) {
+                inputStack = new ItemStack(Items.SHEARS);
             } else {
                 if (RandomizerConfig.enableDebug)
                     LOGGER.debug("Unhandled Table: '{}'", table);
