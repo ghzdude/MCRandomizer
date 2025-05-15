@@ -46,25 +46,24 @@ public class ItemRandomizer {
         ENABLED = server.getWorldData().enabledFeatures();
         SpecialItems.init(REGISTRY::getKey);
 
-        if (BLACKLISTED_ITEMS.isEmpty()) {
-            BLACKLISTED_ITEMS.addAll(ConfigIO.read("blacklisted_items", Stream.of(
-                            Items.COMMAND_BLOCK,
-                            Items.COMMAND_BLOCK_MINECART,
-                            Items.CHAIN_COMMAND_BLOCK,
-                            Items.REPEATING_COMMAND_BLOCK,
-                            Items.BARRIER,
-                            Items.LIGHT,
-                            Items.STRUCTURE_BLOCK,
-                            Items.STRUCTURE_VOID,
-                            Items.KNOWLEDGE_BOOK,
-                            Items.JIGSAW,
-                            Items.DEBUG_STICK)
-                    .map(REGISTRY::getKey)
-                    .filter(Objects::nonNull)
-                    .toList(), REGISTRY));
+        BLACKLISTED_ITEMS.addAll(ConfigIO.read("blacklisted_items", Stream.of(
+                        Items.COMMAND_BLOCK,
+                        Items.COMMAND_BLOCK_MINECART,
+                        Items.CHAIN_COMMAND_BLOCK,
+                        Items.REPEATING_COMMAND_BLOCK,
+                        Items.BARRIER,
+                        Items.LIGHT,
+                        Items.STRUCTURE_BLOCK,
+                        Items.STRUCTURE_VOID,
+                        Items.KNOWLEDGE_BOOK,
+                        Items.JIGSAW,
+                        Items.DEBUG_STICK)
+                .map(REGISTRY::getKey)
+                .filter(Objects::nonNull)
+                .toList(), REGISTRY));
 
-            BLACKLISTED_ITEMS.add(REGISTRY.getKey(Items.AIR));
-        }
+        // hard code air blacklist
+        BLACKLISTED_ITEMS.add(REGISTRY.getKey(Items.AIR));
 
         ConfigIO.readValues("items", SpecialItems.CONFIGURED_ITEMS, REGISTRY)
                 .object2IntEntrySet().forEach(ItemRandomizer::putValidItem);
