@@ -3,22 +3,25 @@ package com.ghzdude.randomizer.util;
 import com.ghzdude.randomizer.*;
 import com.ghzdude.randomizer.special.generators.*;
 import com.ghzdude.randomizer.special.item.SpecialItems;
+import com.mojang.logging.LogUtils;
 import net.minecraft.core.Registry;
 import net.minecraft.core.RegistryAccess;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import org.jetbrains.annotations.NotNull;
+import org.slf4j.Logger;
 
-import java.util.List;
-import java.util.Objects;
-import java.util.Random;
+import java.util.*;
 
 public class RandomizerUtil {
 
     private static boolean init;
+    private static final Logger LOGGER = LogUtils.getLogger();
 
     public static void init(RegistryAccess access) {
         StructureRandomizer.init(access);
@@ -69,7 +72,7 @@ public class RandomizerUtil {
     }
 
     public static void addStackToPlayer(ItemStack stack, Inventory inventory) {
-        RandomizerCore.LOGGER.warn("Given {} to {}.", stack.copy(), inventory.player.getName().getString());
+        LOGGER.warn("Given {} to {}.", stack.copy(), inventory.player.getName().getString());
         if (!inventory.add(stack)) {
             inventory.player.drop(stack, false);
         }
@@ -121,5 +124,10 @@ public class RandomizerUtil {
 
     public static ResourceLocation location(String path) {
         return ResourceLocation.fromNamespaceAndPath(RandomizerCore.MODID, path);
+    }
+
+    public static @NotNull List<Component> getOrCreateLines(ItemStack inputStack) {
+        return Optional.ofNullable(inputStack.get(DataComponents.LORE))
+                .map(itemLore -> new ArrayList<>(itemLore.lines())).orElse(new ArrayList<>());
     }
 }

@@ -5,7 +5,9 @@ import com.ghzdude.randomizer.special.passages.Passage;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.stream.JsonReader;
+import com.mojang.logging.LogUtils;
 import net.minecraftforge.fml.loading.FMLPaths;
+import org.slf4j.Logger;
 
 import java.io.File;
 import java.io.IOException;
@@ -16,6 +18,7 @@ import java.util.List;
 import java.util.Locale;
 
 public class PassageIO {
+    private static final Logger LOGGER = LogUtils.getLogger();
     private static final String PASSAGE_DIR = "config\\" + RandomizerCore.MODID + "\\passages\\";
     private static final File directory = new File(FMLPaths.CONFIGDIR.get().toFile(), PASSAGE_DIR);
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
@@ -86,7 +89,7 @@ public class PassageIO {
                     writer.close();
                 }
             } catch (IOException | NullPointerException e) {
-                RandomizerCore.LOGGER.warn("Failure to write JSON at {}", passageFile.getAbsolutePath());
+                LOGGER.warn("Failure to write JSON at {}", passageFile.getAbsolutePath());
             }
         }
     }
@@ -122,11 +125,11 @@ public class PassageIO {
                     if (passages.stream().noneMatch(pass -> pass.title().equals(title))) {
                         passages.add(new Passage(author, title, body));
                     } else {
-                        RandomizerCore.LOGGER.warn("Passage \"{}\" already exists! Titles must be unique!", passage);
+                        LOGGER.warn("Passage \"{}\" already exists! Titles must be unique!", passage);
                     }
                     reader.close();
                 } catch (IOException | NullPointerException e) {
-                    RandomizerCore.LOGGER.warn("Failure to read JSON at \"{}\" Overriding!", passageFile.getAbsolutePath());
+                    LOGGER.warn("Failure to read JSON at \"{}\" Overriding!", passageFile.getAbsolutePath());
                 }
             }
         }
