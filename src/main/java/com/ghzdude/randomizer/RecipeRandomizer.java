@@ -14,9 +14,9 @@ import net.minecraft.advancements.Advancement;
 import net.minecraft.advancements.AdvancementHolder;
 import net.minecraft.advancements.critereon.InventoryChangeTrigger;
 import net.minecraft.core.Holder;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.core.HolderSet;
 import net.minecraft.core.Registry;
-import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
@@ -119,7 +119,7 @@ public class RecipeRandomizer {
         }
     }
 
-    public static void randomizeRecipes(RecipeManager manager, RegistryAccess access) {
+    public static void randomizeRecipes(RecipeManager manager, HolderLookup.Provider access) {
         for (RecipeHolder<?> holder : manager.getRecipes()) {
             CACHED_RECIPES.put(holder.id().location(), holder);
             Recipe<?> recipe = holder.value();

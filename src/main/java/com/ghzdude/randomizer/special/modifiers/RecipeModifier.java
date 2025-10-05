@@ -1,16 +1,16 @@
 package com.ghzdude.randomizer.special.modifiers;
 
 import com.ghzdude.randomizer.RecipeRandomizer;
-import net.minecraft.core.RegistryAccess;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.server.packs.resources.ResourceManagerReloadListener;
 import net.minecraft.world.item.crafting.RecipeManager;
 
 public class RecipeModifier implements ResourceManagerReloadListener {
 
-    private final RegistryAccess access;
+    private final HolderLookup.Provider access;
     private final RecipeManager manager;
-    public RecipeModifier(RegistryAccess access, RecipeManager manager) {
+    public RecipeModifier(HolderLookup.Provider access, RecipeManager manager) {
         this.access = access;
         this.manager = manager;
     }

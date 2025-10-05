@@ -5,7 +5,7 @@ import com.ghzdude.randomizer.special.modifiers.AdvancementModifier;
 import com.ghzdude.randomizer.special.modifiers.RecipeModifier;
 import com.ghzdude.randomizer.util.RandomizerUtil;
 import com.mojang.logging.LogUtils;
-import net.minecraft.core.RegistryAccess;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.ServerAdvancementManager;
@@ -17,17 +17,12 @@ import net.minecraftforge.event.AddReloadListenerEvent;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.server.ServerStartedEvent;
 import net.minecraftforge.event.server.ServerStoppingEvent;
-import net.minecraftforge.eventbus.api.IEventBus;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.fml.ModLoadingContext;
+import net.minecraftforge.eventbus.api.listener.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.config.ModConfig;
-import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
-import org.jetbrains.annotations.ApiStatus;
 import org.slf4j.Logger;
 
-import java.lang.reflect.InvocationTargetException;
 import java.util.Random;
 
 // The value here should match an entry in the META-INF/mods.toml file
@@ -50,41 +45,17 @@ public class RandomizerCore
     private int OFFSET = 0;
     private static final int COUNTER_MAX = 50;
 
-    @Deprecated
-    @ApiStatus.ScheduledForRemoval(inVersion = "1.22")
-    public RandomizerCore() {
-        // this constructor is only for 1.21
-        // the context getters will be removed for 1.21.1 and above, so call them reflectively here
-        try {
-            var javaContext = (FMLJavaModLoadingContext) FMLJavaModLoadingContext.class.getMethod("get").invoke(null);
-            var baseContext = (ModLoadingContext) ModLoadingContext.class.getMethod("get").invoke(null);
-
-            IEventBus modEventBus = javaContext.getModEventBus();
-
-            baseContext.registerConfig(ModConfig.Type.COMMON, RandomizerConfig.Holder.getSpec());
-
-            // Register the commonSetup method for modloading
-            modEventBus.addListener(this::commonSetup);
-
-            // Register ourselves for server and other game events we are interested in
-            MinecraftForge.EVENT_BUS.register(this);
-
-        } catch (NoSuchMethodException | InvocationTargetException | IllegalAccessException ignored) {}
-    }
-
     public RandomizerCore(FMLJavaModLoadingContext context) {
-        IEventBus modEventBus = context.getModEventBus();
+//        var modEventBus = context.getModBusGroup();
 
         context.registerConfig(ModConfig.Type.COMMON, RandomizerConfig.Holder.getSpec());
 
         // Register the commonSetup method for modloading
-        modEventBus.addListener(this::commonSetup);
+//        modEventBus.addListener(this::commonSetup);
+//        MinecraftForge.EVENT_BUS
 
         // Register ourselves for server and other game events we are interested in
         MinecraftForge.EVENT_BUS.register(this);
-    }
-
-    private void commonSetup(final FMLCommonSetupEvent event) {
         MinecraftForge.EVENT_BUS.register(new MobRandomizer());
     }
 
@@ -93,7 +64,7 @@ public class RandomizerCore
     }
 
     public static void incrementAmtItemsGiven(CompoundTag data) {
-        data.putInt(AMOUNT_KEY, data.getInt(AMOUNT_KEY) + 1);
+        data.getInt(AMOUNT_KEY).ifPresent(integer -> data.putInt(AMOUNT_KEY, integer + 1));
     }
 
     @SubscribeEvent
@@ -125,7 +96,7 @@ public class RandomizerCore
     @SubscribeEvent
     public void reload(AddReloadListenerEvent event) {
         if (!serverStarted) return;
-        RegistryAccess access = event.getRegistryAccess();
+        HolderLookup.Provider access = event.getRegistries();
         RecipeManager recipeManager = event.getServerResources().getRecipeManager();
         ServerAdvancementManager serverAdvancementManager = event.getServerResources().getAdvancements();
 
@@ -139,7 +110,7 @@ public class RandomizerCore
     }
 
     @SubscribeEvent
-    public void update(TickEvent.PlayerTickEvent event) {
+    public void playerTickPre(TickEvent.PlayerTickEvent.Pre event) {
         if (!shouldTick(event)) return;
 
         var player = (ServerPlayer) event.player;
@@ -149,16 +120,16 @@ public class RandomizerCore
             if (!data.contains(POINT_MAX_KEY))
                 data.putInt(POINT_MAX_KEY, 1);
 
-            int pointMax = data.getInt(POINT_MAX_KEY);
+            int pointMax = data.getInt(POINT_MAX_KEY).orElseThrow();
 
             int points = RandomizerConfig.pointsCarryover ?
-                    data.getInt(POINT_KEY) + pointMax : pointMax;
+                    data.getInt(POINT_KEY).orElseThrow() + pointMax : pointMax;
 
             int pointsToUse = seededRNG.nextInt(points) + 1;
             int remaining = pointsToUse;
 
             if (RandomizerConfig.generateStructures && seededRNG.nextInt(100) < RandomizerConfig.structureProbability) {
-                remaining = StructureRandomizer.tryPlace(pointsToUse, player.serverLevel(), player);
+                remaining = StructureRandomizer.tryPlace(pointsToUse, player.level(), player);
             } else if (RandomizerConfig.giveRandomItems) {
                 remaining = ItemRandomizer.giveRandomItem(pointsToUse, player.getInventory());
             }
@@ -176,9 +147,8 @@ public class RandomizerCore
         return player.gameMode.isSurvival();
     }
 
-    private boolean shouldTick(TickEvent.PlayerTickEvent event) {
+    private boolean shouldTick(TickEvent.PlayerTickEvent.Pre event) {
         if (event.side.isClient()) return false;
-        if (event.phase == TickEvent.Phase.END) return false;
         if (OFFSET < 0) OFFSET = 0;
         return ++OFFSET % RandomizerConfig.itemCooldown == 0;
     }
@@ -187,16 +157,16 @@ public class RandomizerCore
         if (!data.contains(CYCLE_COUNTER_KEY))
             data.putInt(CYCLE_COUNTER_KEY, RandomizerConfig.cycleBase);
 
-        int cycle = data.getInt(CYCLE_KEY) + 1;
-        int cycleCounter = data.getInt(CYCLE_COUNTER_KEY);
-        int pointMax = data.getInt(POINT_MAX_KEY);
+        int cycle = data.getInt(CYCLE_KEY).orElseThrow() + 1;
+        int cycleCounter = data.getInt(CYCLE_COUNTER_KEY).orElseThrow();
+        int pointMax = data.getInt(POINT_MAX_KEY).orElseThrow();
 
         if (cycle % cycleCounter == 0) {
             cycle = 0;
             int i = (cycleCounter / 2) + 1;
             cycleCounter = Math.min(cycleCounter + i, COUNTER_MAX);
             data.putInt(POINT_MAX_KEY, pointMax + 1);
-            player.sendSystemMessage(Component.translatable("randomizer.player.point_max.increased", pointMax));
+            player.displayClientMessage(Component.translatable("randomizer.player.point_max.increased", pointMax), false);
         }
         data.putInt(CYCLE_KEY, cycle);
         data.putInt(CYCLE_COUNTER_KEY, cycleCounter);
