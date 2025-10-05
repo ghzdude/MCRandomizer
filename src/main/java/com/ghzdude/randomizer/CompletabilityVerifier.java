@@ -4,31 +4,32 @@ import com.ghzdude.randomizer.loot.LootRandomizer;
 import com.ghzdude.randomizer.util.RandomizerUtil;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.mojang.datafixers.util.Pair;
 import com.mojang.logging.LogUtils;
+import com.mojang.serialization.Codec;
 import com.mojang.serialization.DataResult;
+import com.mojang.serialization.DynamicOps;
 import com.mojang.serialization.JsonOps;
+import com.mojang.serialization.codecs.RecordCodecBuilder;
 import it.unimi.dsi.fastutil.ints.Int2ObjectArrayMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMaps;
 import it.unimi.dsi.fastutil.objects.*;
-import net.minecraft.core.Holder;
-import net.minecraft.core.HolderLookup;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.Registries;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.ListTag;
-import net.minecraft.nbt.Tag;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.tags.TagKey;
 import net.minecraft.util.datafix.DataFixTypes;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.item.DyeColor;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.saveddata.SavedData;
+import net.minecraft.world.level.saveddata.SavedDataType;
 import net.minecraft.world.level.storage.DimensionDataStorage;
 import net.minecraft.world.level.storage.loot.BuiltInLootTables;
 import org.jetbrains.annotations.NotNull;
@@ -61,11 +62,6 @@ public class CompletabilityVerifier {
     // this stores tag locations, and also a set of item locations if no tags for a given slot
     private static final Object2ObjectMap<ResourceLocation, Int2ObjectMap<Set<ResourceLocation>>> INGREDIENT_MAP = new Object2ObjectOpenHashMap<>();
 
-    /**
-     * maps a recipe to its result item. loot table are not in this map. this is only used for the printing the recipe path
-     */
-    private static final Object2ObjectMap<ResourceLocation, ResourceLocation> RECIPE_MAP = new Object2ObjectOpenHashMap<>();
-
     private static final Object2BooleanMap<ResourceLocation> COMPLETABILITY_CACHE = new Object2BooleanOpenHashMap<>();
 
     // map ingredient -> items
@@ -84,12 +80,14 @@ public class CompletabilityVerifier {
     public static ResourceLocation ENDER_EYE;
     public static ResourceLocation OBSIDIAN;
 
-    private static final Deque<ResourceLocation> recipePath = new ArrayDeque<>();
+    private static final Deque<ResourceLocation> RECIPE_PATH = new ArrayDeque<>();
+    private static final Deque<Component> PRINT_PATH = new ArrayDeque<>();
     private static final Deque<ResourceLocation> COMPLETION_QUEUE = new ArrayDeque<>();
     private static final Logger LOGGER = LogUtils.getLogger();
 
     private static boolean requiresNether = false;
     private static boolean isCompletable = false;
+    private static boolean walkingBack = false;
 
     private static Registry<Item> ITEM_REGISTRY;
 
@@ -154,41 +152,41 @@ public class CompletabilityVerifier {
             BuiltInLootTables.OCEAN_RUIN_WARM_ARCHAEOLOGY,
 
             // sheep
-            BuiltInLootTables.SHEEP_BLACK,
-            BuiltInLootTables.SHEEP_GRAY,
-            BuiltInLootTables.SHEEP_LIGHT_GRAY,
-            BuiltInLootTables.SHEEP_WHITE,
-            BuiltInLootTables.SHEEP_RED,
-            BuiltInLootTables.SHEEP_ORANGE,
-            BuiltInLootTables.SHEEP_YELLOW,
-            BuiltInLootTables.SHEEP_GREEN,
-            BuiltInLootTables.SHEEP_CYAN,
-            BuiltInLootTables.SHEEP_BLUE,
-            BuiltInLootTables.SHEEP_PURPLE,
-            BuiltInLootTables.SHEEP_BROWN,
-            BuiltInLootTables.SHEEP_LIGHT_BLUE,
-            BuiltInLootTables.SHEEP_LIME,
-            BuiltInLootTables.SHEEP_MAGENTA,
-            BuiltInLootTables.SHEEP_PINK,
+            BuiltInLootTables.SHEAR_SHEEP_BY_DYE.get(DyeColor.BLACK),
+            BuiltInLootTables.SHEAR_SHEEP_BY_DYE.get(DyeColor.GRAY),
+            BuiltInLootTables.SHEAR_SHEEP_BY_DYE.get(DyeColor.LIGHT_GRAY),
+            BuiltInLootTables.SHEAR_SHEEP_BY_DYE.get(DyeColor.WHITE),
+            BuiltInLootTables.SHEAR_SHEEP_BY_DYE.get(DyeColor.RED),
+            BuiltInLootTables.SHEAR_SHEEP_BY_DYE.get(DyeColor.ORANGE),
+            BuiltInLootTables.SHEAR_SHEEP_BY_DYE.get(DyeColor.YELLOW),
+            BuiltInLootTables.SHEAR_SHEEP_BY_DYE.get(DyeColor.GREEN),
+            BuiltInLootTables.SHEAR_SHEEP_BY_DYE.get(DyeColor.CYAN),
+            BuiltInLootTables.SHEAR_SHEEP_BY_DYE.get(DyeColor.BLUE),
+            BuiltInLootTables.SHEAR_SHEEP_BY_DYE.get(DyeColor.PURPLE),
+            BuiltInLootTables.SHEAR_SHEEP_BY_DYE.get(DyeColor.BROWN),
+            BuiltInLootTables.SHEAR_SHEEP_BY_DYE.get(DyeColor.LIGHT_BLUE),
+            BuiltInLootTables.SHEAR_SHEEP_BY_DYE.get(DyeColor.LIME),
+            BuiltInLootTables.SHEAR_SHEEP_BY_DYE.get(DyeColor.MAGENTA),
+            BuiltInLootTables.SHEAR_SHEEP_BY_DYE.get(DyeColor.PINK),
 
             // mobs
-            EntityType.COW.getDefaultLootTable(),
-            EntityType.COD.getDefaultLootTable(),
-            EntityType.RABBIT.getDefaultLootTable(),
-            EntityType.TROPICAL_FISH.getDefaultLootTable(),
-            EntityType.PUFFERFISH.getDefaultLootTable(),
-            EntityType.SILVERFISH.getDefaultLootTable(),
-            EntityType.ILLUSIONER.getDefaultLootTable(),
-            EntityType.PIG.getDefaultLootTable(),
-            EntityType.PILLAGER.getDefaultLootTable(),
-            EntityType.ILLUSIONER.getDefaultLootTable(),
-            EntityType.ZOMBIE.getDefaultLootTable(),
-            EntityType.CREEPER.getDefaultLootTable(),
-            EntityType.SPIDER.getDefaultLootTable(),
-            EntityType.SKELETON.getDefaultLootTable(),
-            EntityType.WITCH.getDefaultLootTable(),
-            EntityType.BREEZE.getDefaultLootTable(),
-            EntityType.ARMADILLO.getDefaultLootTable()
+            EntityType.COW.getDefaultLootTable().orElseThrow(),
+            EntityType.COD.getDefaultLootTable().orElseThrow(),
+            EntityType.RABBIT.getDefaultLootTable().orElseThrow(),
+            EntityType.TROPICAL_FISH.getDefaultLootTable().orElseThrow(),
+            EntityType.PUFFERFISH.getDefaultLootTable().orElseThrow(),
+            EntityType.SILVERFISH.getDefaultLootTable().orElseThrow(),
+            EntityType.ILLUSIONER.getDefaultLootTable().orElseThrow(),
+            EntityType.PIG.getDefaultLootTable().orElseThrow(),
+            EntityType.PILLAGER.getDefaultLootTable().orElseThrow(),
+            EntityType.ILLUSIONER.getDefaultLootTable().orElseThrow(),
+            EntityType.ZOMBIE.getDefaultLootTable().orElseThrow(),
+            EntityType.CREEPER.getDefaultLootTable().orElseThrow(),
+            EntityType.SPIDER.getDefaultLootTable().orElseThrow(),
+            EntityType.SKELETON.getDefaultLootTable().orElseThrow(),
+            EntityType.WITCH.getDefaultLootTable().orElseThrow(),
+            EntityType.BREEZE.getDefaultLootTable().orElseThrow(),
+            EntityType.ARMADILLO.getDefaultLootTable().orElseThrow()
     ).map(ResourceKey::location).toList();
 
     private static final List<ResourceLocation> OVERWORLD_BLOCKS = Stream.of(
@@ -354,7 +352,7 @@ public class CompletabilityVerifier {
             Blocks.ROSE_BUSH,
             Blocks.SMALL_DRIPLEAF,
             Blocks.BIG_DRIPLEAF
-    ).distinct().map(block -> block.getLootTable().location()).toList();
+    ).distinct().map(block -> block.getLootTable().orElseThrow().location()).toList();
 
     // store all overworld obtainable things in here
     private static final List<ResourceLocation> ALL_OVERWORLD = new ArrayList<>();
@@ -408,7 +406,7 @@ public class CompletabilityVerifier {
             Blocks.WARPED_STEM,
             Blocks.WARPED_WART_BLOCK,
             Blocks.SHROOMLIGHT
-    ).distinct().map(block -> block.getLootTable().location()).toList();
+    ).distinct().map(block -> block.getLootTable().orElseThrow().location()).toList();
 
     // store all nether obtainable things in here
     private static final List<ResourceLocation> ALL_NETHER = new ArrayList<>();
@@ -423,18 +421,18 @@ public class CompletabilityVerifier {
             BuiltInLootTables.PIGLIN_BARTERING,
 
             // mobs
-            EntityType.BLAZE.getDefaultLootTable(),
-            EntityType.PIGLIN.getDefaultLootTable(),
-            EntityType.PIGLIN_BRUTE.getDefaultLootTable(),
-            EntityType.ZOGLIN.getDefaultLootTable(),
-            EntityType.HOGLIN.getDefaultLootTable(),
-            EntityType.GHAST.getDefaultLootTable(),
-            EntityType.WITHER_SKELETON.getDefaultLootTable(),
-            EntityType.MAGMA_CUBE.getDefaultLootTable()
+            EntityType.BLAZE.getDefaultLootTable().orElseThrow(),
+            EntityType.PIGLIN.getDefaultLootTable().orElseThrow(),
+            EntityType.PIGLIN_BRUTE.getDefaultLootTable().orElseThrow(),
+            EntityType.ZOGLIN.getDefaultLootTable().orElseThrow(),
+            EntityType.HOGLIN.getDefaultLootTable().orElseThrow(),
+            EntityType.GHAST.getDefaultLootTable().orElseThrow(),
+            EntityType.WITHER_SKELETON.getDefaultLootTable().orElseThrow(),
+            EntityType.MAGMA_CUBE.getDefaultLootTable().orElseThrow()
     ).map(ResourceKey::location).toList();
 
     public static void init(MinecraftServer server) {
-        ITEM_REGISTRY = server.registryAccess().registryOrThrow(Registries.ITEM);
+        ITEM_REGISTRY = server.registryAccess().lookupOrThrow(Registries.ITEM);
         RESULT_MAP.defaultReturnValue(Collections.emptySet());
         INGREDIENT_MAP.defaultReturnValue(Int2ObjectMaps.emptyMap());
 
@@ -443,14 +441,14 @@ public class CompletabilityVerifier {
         ENDER_EYE = ITEM_REGISTRY.getKey(Items.ENDER_EYE);
         OBSIDIAN = ITEM_REGISTRY.getKey(Items.OBSIDIAN);
 
-        if (data.fromDisk) {
-            LOGGER.info("Loading saved completability data!");
-            for (ModificationData modificationData : data.MODIFICATION_DATA) {
-                LootRandomizer.registerSpecialDrop(modificationData.table, modificationData.original, modificationData.replacement);
-            }
-            LOGGER.info("Loaded {} entries!", data.MODIFICATION_DATA.size());
-            return;
-        }
+//        if (data.fromDisk) {
+//            LOGGER.info("Loading saved completability data!");
+//            for (ModificationData modificationData : data.MODIFICATION_DATA) {
+//                LootRandomizer.registerSpecialDrop(modificationData.table, modificationData.original, modificationData.replacement);
+//            }
+//            LOGGER.info("Loaded {} entries!", data.MODIFICATION_DATA.size());
+//            return;
+//        }
 
         for (ResourceLocation recipe : RecipeRandomizer.getKnownRecipes()) {
             ResourceLocation result = RecipeRandomizer.getResultFor(recipe);
@@ -478,9 +476,8 @@ public class CompletabilityVerifier {
     public static void dispose() {
         RESULT_MAP.clear();
         INGREDIENT_MAP.clear();
-        RECIPE_MAP.clear();
         COMPLETION_QUEUE.clear();
-        recipePath.clear();
+        RECIPE_PATH.clear();
         data = null;
     }
 
@@ -537,13 +534,13 @@ public class CompletabilityVerifier {
     private static void parseJson(JsonObject object, Set<ResourceLocation> items) {
         if (object.has("tag")) {
             ResourceLocation tag = ResourceLocation.parse(object.get("tag").getAsString());
-            TAG_MAP.computeIfAbsent(tag, (ResourceLocation k) -> ITEM_REGISTRY.getTag(TagKey.create(Registries.ITEM, k))
-                    .map(holders -> holders.stream()
-                            .map(Holder::value)
-                            .map(ITEM_REGISTRY::getKey)
-                            .filter(Objects::nonNull)
-                            .collect(Collectors.toUnmodifiableSet()))
-                    .orElse(Collections.emptySet()));
+//            TAG_MAP.computeIfAbsent(tag, (ResourceLocation k) -> ITEM_REGISTRY.getTag(TagKey.create(Registries.ITEM, k))
+//                    .map(holders -> holders.stream()
+//                            .map(Holder::value)
+//                            .map(ITEM_REGISTRY::getKey)
+//                            .filter(Objects::nonNull)
+//                            .collect(Collectors.toUnmodifiableSet()))
+//                    .orElse(Collections.emptySet()));
             items.add(tag);
         } else if (object.has("item")) {
             items.add(ResourceLocation.parse(object.get("item").getAsString()));
@@ -571,8 +568,6 @@ public class CompletabilityVerifier {
 
     private static void addResult(ResourceLocation item, ResourceLocation recipe) {
         RESULT_MAP.computeIfAbsent(item, k -> new ObjectOpenHashSet<>()).add(recipe);
-        if (!isLoot(recipe))
-            RECIPE_MAP.put(recipe, item);
     }
 
     private static boolean modifyRecipe(ResourceLocation table, ResourceLocation ingredient) {
@@ -598,7 +593,7 @@ public class CompletabilityVerifier {
             ResourceLocation randomDrop = drops.stream().findAny().orElseThrow();
             // map this random drop to the failed item, specifically for this table
             LootRandomizer.registerSpecialDrop(table, randomDrop, MODIFY_RECIPES.get(table));
-            COMPLETABILITY_CACHE.put(table, true);
+            computeCompletion(table);
             data.addEntry(table, randomDrop, MODIFY_RECIPES.get(table));
         }
 
@@ -609,15 +604,17 @@ public class CompletabilityVerifier {
     public static void ensureCompletability() {
         if (data.fromDisk) {
             // we loaded from disk, no need to check again
-            return;
+//            return;
         }
 
-        boolean validRecipe = ensureCompletability(ENDER_EYE);
+        PRINT_PATH.add(Component.translatable("Iterating all ender eye recipes"));
+        boolean validRecipe = ensureCompletability(ENDER_EYE, true);
 
         if (requiresNether) {
-            recipePath.clear();
+            RECIPE_PATH.clear();
+            PRINT_PATH.add(Component.translatable("Requires nether access, iterating obsidian recipes"));
             LOGGER.info("Nether access is required!");
-            validRecipe = ensureCompletability(OBSIDIAN);
+            validRecipe = ensureCompletability(OBSIDIAN, true);
             if (!validRecipe) {
                 LOGGER.warn("Obsidian is not obtainable!");
             }
@@ -632,6 +629,10 @@ public class CompletabilityVerifier {
             isCompletable = true;
         }
 
+        for (Component component : PRINT_PATH) {
+            LOGGER.debug(component.getString());
+        }
+
         if (!isCompletable) {
             LOGGER.info("Game is Incompletable!");
         }
@@ -642,6 +643,15 @@ public class CompletabilityVerifier {
      * @return true if this ingredient is obtainable from common blocks in the overworld or nether
      */
     private static boolean ensureCompletability(ResourceLocation ingredient) {
+        return ensureCompletability(ingredient, false);
+    }
+
+    /**
+     * @param ingredient the registry location of the item ingredient
+     * @param init if this is the first method call
+     * @return true if this ingredient is obtainable from common blocks in the overworld or nether
+     */
+    private static boolean ensureCompletability(ResourceLocation ingredient, boolean init) {
         Set<ResourceLocation> recipes = RESULT_MAP.get(ingredient);
 
         if (recipes.isEmpty()) {
@@ -657,62 +667,89 @@ public class CompletabilityVerifier {
             LOGGER.debug("{} recipes found: {}", recipes.size(), recipes);
         }
 
-        int craftableRecipes = recipes.size();
+        Set<ResourceLocation> passed = iterateRecipes(recipes, false, true);
 
-        // quickly iterate recipes to see if any are immediately obtainable
-        if (quickIterateRecipes(recipes)) {
-            // one of the recipes are immediately obtainable, don't bother looking at the other recipes
-            // logging should already be handled
+        if (!passed.isEmpty()) return true;
+
+        passed = iterateRecipes(recipes, true, true);
+
+        // select a recipe to modify
+        if (passed.isEmpty()) {
+            // i shouldn't modify recipes just yet
+            // should just store it for later
+            ResourceLocation random = RandomizerUtil.getRandom(ALL_OVERWORLD, RandomizerCore.seededRNG);
+            print("Ingredient '%s' can be obtained from '%s'", ingredient, random);
+            return modifyRecipe(random, ingredient);
+        } else {
+            // this might be duplicated?
+            print("Ingredient '%s' can be obtained from %s", ingredient, passed);
             return true;
         }
+    }
 
+    private static void print(String key, Object... args) {
+        PRINT_PATH.add(Component.translatable(key, args));
+    }
+
+    private static Set<ResourceLocation> iterateRecipes(Set<ResourceLocation> recipes, boolean deep, boolean init) {
+        // quick iterate
+        if (!deep) {
+            Set<ResourceLocation> obtainableRecipes = recipes.stream()
+                    .filter(ALL_OVERWORLD::contains)
+                    .collect(Collectors.toUnmodifiableSet());
+
+            if (!obtainableRecipes.isEmpty()) {
+                return obtainableRecipes;
+            }
+
+            obtainableRecipes = recipes.stream()
+                    .filter(ALL_NETHER::contains)
+                    .collect(Collectors.toUnmodifiableSet());
+
+            if (!obtainableRecipes.isEmpty()) {
+                requiresNether = true;
+                return obtainableRecipes;
+            }
+
+            return Collections.emptySet();
+        }
+
+        // look deeper
         // otherwise iterate the failed recipes
         for (ResourceLocation recipe : recipes) {
 
             // we are already walking this recipe, skip
             if (!addToPath(recipe)) {
-                craftableRecipes--;
                 continue;
             }
 
             // we can't make anything give chest loot
-            if (LootRandomizer.isChestLoot(recipe) && !checkLoot(recipe)) {
+            if (LootRandomizer.isChestLoot(recipe)) {
                 // this is chest loot and it's end only
-                craftableRecipes--;
                 walkBack(false);
                 continue;
             }
 
-            Int2ObjectMap<Set<ResourceLocation>> indexedIngredients = INGREDIENT_MAP.get(recipe);
+            ObjectCollection<Set<ResourceLocation>> indexedIngredients = INGREDIENT_MAP.get(recipe).values();
 
             // this recipe does not exist in map, OR
             // this recipe has no ingredients to check, SKIP
             if (indexedIngredients.isEmpty()) {
-                craftableRecipes--;
                 walkBack(false);
                 continue;
             }
 
+            // if obtainable, we succeed, but we still need to walk back
+            // because we are done looking at this recipe
+
             if (iterateIngredients(indexedIngredients, recipe)) {
-                // we succeed, but we still need to walk back
-                // because we are done looking at this recipe
                 walkBack(true);
-                return true;
+                // return the first recipe hit
+                return Set.of(recipe);
             }
-
-            craftableRecipes--;
-            walkBack(false);
         }
 
-        boolean success = craftableRecipes != 0;
-
-        // select a recipe to modify
-        if (craftableRecipes == 0) {
-            ResourceLocation random = RandomizerUtil.getRandom(ALL_OVERWORLD, RandomizerCore.seededRNG);
-            success = modifyRecipe(random, ingredient);
-        }
-
-        return success;
+        return Collections.emptySet();
     }
 
     private static Set<ResourceLocation> expandIngredients(Set<ResourceLocation> compactIngredients) {
@@ -722,14 +759,13 @@ public class CompletabilityVerifier {
     }
 
     private static boolean quickIterateIngredient(Set<ResourceLocation> ingredients, Set<ResourceLocation> iterated, Set<ResourceLocation> failed) {
-        boolean quickSearch = false;
         for (ResourceLocation ingredient : ingredients) {
             if (!iterated.add(ingredient)) continue;
 
             // we've already computed this ingredient
             if (COMPLETABILITY_CACHE.containsKey(ingredient)) {
                 if (COMPLETABILITY_CACHE.getBoolean(ingredient)) {
-                    quickSearch = true;
+                    return true;
                 } else {
                     if (!isTag(ingredient)) {
                         failed.add(ingredient);
@@ -746,18 +782,18 @@ public class CompletabilityVerifier {
             }
 
             // iterate recipes that give this ingredient
-            quickSearch = quickIterateRecipes(RESULT_MAP.get(ingredient));
+            Set<ResourceLocation> quickSearch = iterateRecipes(RESULT_MAP.get(ingredient), false, false);
 
-            if (quickSearch) {
-                logIngredient(ingredient, recipePath.peekLast(), true);
-                COMPLETABILITY_CACHE.put(ingredient, true);
-                break;
+            if (!quickSearch.isEmpty()) {
+                logIngredient(ingredient, RECIPE_PATH.peekLast(), true);
+                print("Ingredient '%s' can be obtained from %s", ingredient, quickSearch);
+                return computeCompletion(ingredient);
             } else if (!isTag(ingredient)) {
                 // sometimes compact ingredients can be normal items
                 failed.add(ingredient);
             }
         }
-        return quickSearch;
+        return false;
     }
 
     private static boolean deepSearch(Set<ResourceLocation> ingredients, ResourceLocation recipe) {
@@ -773,19 +809,7 @@ public class CompletabilityVerifier {
         return false;
     }
 
-    private static boolean quickIterateRecipes(Set<ResourceLocation> recipes) {
-        boolean quickMatch = recipes.stream().anyMatch(l -> isLoot(l) && ALL_OVERWORLD.contains(l));
-        if (quickMatch) return true;
-
-        quickMatch = recipes.stream().anyMatch(l -> isLoot(l) && ALL_NETHER.contains(l));
-        if (quickMatch) {
-            requiresNether = true;
-            return true;
-        }
-        return false;
-    }
-
-    private static boolean iterateIngredients(Int2ObjectMap<Set<ResourceLocation>> ingredientMap, ResourceLocation recipe) {
+    private static boolean iterateIngredients(ObjectCollection<Set<ResourceLocation>> ingredientMap, ResourceLocation recipe) {
         // for each "index"
         int craftableSlots = ingredientMap.size();
 
@@ -793,7 +817,7 @@ public class CompletabilityVerifier {
             LOGGER.debug("Currently iterating recipe '{}' for their ingredients", recipe);
         }
 
-        for (Set<ResourceLocation> compactIngredients : ingredientMap.values()) {
+        for (Set<ResourceLocation> compactIngredients : ingredientMap) {
             if (compactIngredients.isEmpty()) {
                 logEmptyIngredients(recipe);
                 continue;
@@ -865,23 +889,24 @@ public class CompletabilityVerifier {
     }
 
     private static void walkBack(boolean success) {
-        if (recipePath.isEmpty()) {
+        if (RECIPE_PATH.isEmpty()) {
             LOGGER.error("Cannot walk back on empty path!");
             return;
         }
 
-        ResourceLocation last = recipePath.removeLast();
+        ResourceLocation last = RECIPE_PATH.removeLast();
         if (!RandomizerConfig.enableDebug) return;
         if (success) {
-            LOGGER.debug("Back to recipe '{}'", recipePath.peekLast());
+            LOGGER.debug("Back to recipe '{}'", RECIPE_PATH.peekLast());
+            PRINT_PATH.add(Component.translatable("Recipe %s is obtainable!", last));
         } else {
-            LOGGER.debug("Recipe '{}' is not obtainable, back to recipe '{}'", last, recipePath.peekLast());
+            LOGGER.debug("Recipe '{}' is not obtainable, back to recipe '{}'", last, RECIPE_PATH.peekLast());
         }
     }
 
     private static boolean addToPath(ResourceLocation recipe) {
-        if (recipePath.contains(recipe)) return false;
-        recipePath.add(recipe);
+        if (RECIPE_PATH.contains(recipe)) return false;
+        RECIPE_PATH.add(recipe);
         return true;
     }
 
@@ -902,11 +927,28 @@ public class CompletabilityVerifier {
 
     private static class VerifierSaveData extends SavedData {
 
-        public static final Factory<VerifierSaveData> FACTORY = new Factory<>(VerifierSaveData::new, VerifierSaveData::load, DataFixTypes.LEVEL);
+        public static final Codec<VerifierSaveData> CODEC = new Codec<>() {
+            @Override
+            public <T> DataResult<T> encode(VerifierSaveData saveData, DynamicOps<T> dynamicOps, T t) {
+                return ModificationData.DATA_CODEC.listOf().encode(saveData.MODIFICATION_DATA, dynamicOps, t);
+            }
+
+            @Override
+            public <T> DataResult<Pair<VerifierSaveData, T>> decode(DynamicOps<T> dynamicOps, T t) {
+                VerifierSaveData data = new VerifierSaveData();
+                ModificationData.DATA_CODEC.listOf().decode(dynamicOps, t)
+                        .ifSuccess(pair -> data.MODIFICATION_DATA.addAll(pair.getFirst()));
+                data.fromDisk = true;
+                return DataResult.success(Pair.of(data, t));
+            }
+        };
+
+        public static final SavedDataType<VerifierSaveData> FACTORY = new SavedDataType<>("%s_modified_data".formatted(RandomizerCore.MODID),
+                VerifierSaveData::new, VerifierSaveData.CODEC, DataFixTypes.LEVEL);
 
 
         public static VerifierSaveData get(DimensionDataStorage storage) {
-            return storage.computeIfAbsent(FACTORY, "%s_spoiler_log".formatted(RandomizerCore.MODID));
+            return storage.computeIfAbsent(FACTORY);
         }
 
         /**
@@ -924,31 +966,6 @@ public class CompletabilityVerifier {
             if (!MODIFICATION_DATA.contains(data))
                 MODIFICATION_DATA.add(data);
         }
-
-        @Override
-        public @NotNull CompoundTag save(@NotNull CompoundTag tag, HolderLookup.@NotNull Provider provider) {
-            ListTag data = new ListTag();
-            LOGGER.info("Saving Verification Data!");
-            for (ModificationData table : MODIFICATION_DATA) {
-                data.add(table.toNBT());
-            }
-            LOGGER.info("Wrote {} entries!", MODIFICATION_DATA.size());
-            tag.put("data", data);
-            return tag;
-        }
-
-        public static VerifierSaveData load(CompoundTag tag, HolderLookup.Provider provider) {
-            VerifierSaveData data = new VerifierSaveData();
-            ListTag tagList = tag.getList("data", Tag.TAG_COMPOUND);
-
-            for (int i = 0; i < tagList.size(); i++) {
-                data.addEntry(ModificationData.fromNBT(tagList.getCompound(i)));
-            }
-
-            data.fromDisk = true;
-
-            return data;
-        }
     }
 
     private record ModificationData(
@@ -956,20 +973,11 @@ public class CompletabilityVerifier {
             ResourceLocation original,
             ResourceLocation replacement
     ) {
-       public CompoundTag toNBT() {
-           return CompoundTag.builder()
-                   .put("id", table.toString())
-                   .put("original", original.toString())
-                   .put("replacement", replacement.toString())
-                   .build();
-       }
 
-       public static ModificationData fromNBT(CompoundTag tag) {
-           return new ModificationData(
-                   ResourceLocation.parse(tag.getString("id")),
-                   ResourceLocation.parse(tag.getString("original")),
-                   ResourceLocation.parse(tag.getString("replacement"))
-           );
-       }
+        public static final Codec<ModificationData> DATA_CODEC = RecordCodecBuilder.create(builder -> builder.group(
+                ResourceLocation.CODEC.fieldOf("original").forGetter(ModificationData::original),
+                ResourceLocation.CODEC.fieldOf("table").forGetter(ModificationData::table),
+                ResourceLocation.CODEC.fieldOf("replacement").forGetter(ModificationData::replacement)
+        ).apply(builder, ModificationData::new));
     }
 }
