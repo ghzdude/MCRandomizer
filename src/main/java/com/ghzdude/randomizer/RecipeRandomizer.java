@@ -143,10 +143,10 @@ public class RecipeRandomizer {
                 newResult = result;
             }
 
-            modifyRecipeOutputs(recipe);
-            RESULT_MAP.put(holder.id().location(), ITEM_REGISTRY.getKey(newResult.getItem()));
-            OUTPUT_MAP.computeIfAbsent(ITEM_REGISTRY.getKey(newResult.getItem()), k -> new ArrayList<>())
-                    .add(holder.id().location());
+//            modifyRecipeOutputs(recipe);
+//            RESULT_MAP.put(holder.id().location(), ITEM_REGISTRY.getKey(newResult.getItem()));
+//            OUTPUT_MAP.computeIfAbsent(ITEM_REGISTRY.getKey(newResult.getItem()), k -> new ArrayList<>())
+//                    .add(holder.id().location());
 
             // if inputs are not to be randomized, move on to the next recipe
 //            if (RandomizerConfig.randomizeRecipeInputs) {
@@ -161,7 +161,9 @@ public class RecipeRandomizer {
             return;
         }
 
-        setter.randomizer$randomize(getMapData()::getStackFor);
+        if (!RandomizerConfig.ensureCompletability || !setter.randomizer$getResult().is(Items.ENDER_EYE)) {
+            setter.randomizer$randomize(getMapData()::getStackFor);
+        }
         ItemStack newResult = setter.randomizer$getResult();
         RESULT_MAP.put(id.location(), ITEM_REGISTRY.getKey(newResult.getItem()));
         OUTPUT_MAP.computeIfAbsent(ITEM_REGISTRY.getKey(newResult.getItem()), k -> new ArrayList<>())
