@@ -15,7 +15,7 @@ import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.level.Level;
 import net.minecraftforge.event.entity.EntityJoinLevelEvent;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.eventbus.api.listener.SubscribeEvent;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
@@ -40,8 +40,8 @@ public class MobRandomizer {
 
     // todo utilize SpawnPlacementCheck, PositionCheck, and FinalizeSpawn somehow
     public static void init(RegistryAccess access) {
-        ATTRIBUTE_REGISTRY = access.registryOrThrow(Registries.ATTRIBUTE);
-        TYPE_REGISTRY = access.registryOrThrow(Registries.ENTITY_TYPE);
+        ATTRIBUTE_REGISTRY = access.lookupOrThrow(Registries.ATTRIBUTE);
+        TYPE_REGISTRY = access.lookupOrThrow(Registries.ENTITY_TYPE);
 
         if (BLACKLISTED_ENTITIES.isEmpty()) {
             BLACKLISTED_ENTITIES.addAll(ConfigIO.read("blacklisted_mobs", Stream.of(
@@ -69,8 +69,8 @@ public class MobRandomizer {
         for (var type : TYPE_REGISTRY.keySet()) {
             if (BLACKLISTED_ENTITIES.contains(type)) continue;
             var value = TYPE_REGISTRY.get(type);
-            if (value == null || BLACKLISTED_CATEGORIES.contains(value.getCategory())) continue;
-            VALID_TYPES.add(value);
+            if (value.isEmpty() || BLACKLISTED_CATEGORIES.contains(value.get().get().getCategory())) continue;
+            VALID_TYPES.add(value.get().get());
         }
 
         for (var att : ATTRIBUTE_REGISTRY.keySet()) {
@@ -92,7 +92,7 @@ public class MobRandomizer {
             var randomized = mob.getPersistentData().contains("randomized");
             if (!randomized && !event.loadedFromDisk()) {
                 randomizeMobSpawn(mob);
-                event.setCanceled(true);
+//                event.setCanceled(true);
             }
         }
 
@@ -101,15 +101,15 @@ public class MobRandomizer {
         if (RandomizerConfig.randomizeMobAttributes && mob instanceof LivingEntity livingEntity) {
             final double offset = 40d;
 
-            for (var att : VALID_ATTRIBUTES) {
-                if (mob.getRandom().nextBoolean()) continue;
-                var h = ATTRIBUTE_REGISTRY.getHolder(att);
-                if (h.isEmpty()) continue;
-                var inst = livingEntity.getAttribute(h.get());
-                if (inst == null) continue;
-                double sanitizedMin = inst.getAttribute().get().sanitizeValue(offset / -2);
-                inst.addOrUpdateTransientModifier(createModifier(sanitizedMin, sanitizedMin + offset));
-            }
+//            for (var att : VALID_ATTRIBUTES) {
+//                if (mob.getRandom().nextBoolean()) continue;
+//                var h = ATTRIBUTE_REGISTRY.getHolder(att);
+//                if (h.isEmpty()) continue;
+//                var inst = livingEntity.getAttribute(h.get());
+//                if (inst == null) continue;
+//                double sanitizedMin = inst.getAttribute().get().sanitizeValue(offset / -2);
+//                inst.addOrUpdateTransientModifier(createModifier(sanitizedMin, sanitizedMin + offset));
+//            }
         }
     }
 
@@ -123,7 +123,7 @@ public class MobRandomizer {
         Entity mob;
         do {
             EntityType<?> entityType = RandomizerUtil.getRandom(VALID_TYPES, RandomizerCore.unseededRNG);
-            mob = entityType.create(level);
+            mob = entityType.create(level, EntitySpawnReason.COMMAND);
         } while (mob == null);
         return mob;
     }
