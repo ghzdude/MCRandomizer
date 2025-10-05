@@ -16,7 +16,10 @@ import net.minecraft.world.item.Items;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import java.util.Random;
 
 public class RandomizerUtil {
 
@@ -88,7 +91,7 @@ public class RandomizerUtil {
     }
 
     public static <T> @NotNull T getOrThrow(Registry<T> registry, ResourceLocation location) {
-        return Objects.requireNonNull(registry.get(location), "%s does not exist in %s".formatted(location, registry.key()));
+        return registry.get(location).orElseThrow().get();
     }
 
     public static ItemStack specialItemToStack(Item item, int points) {

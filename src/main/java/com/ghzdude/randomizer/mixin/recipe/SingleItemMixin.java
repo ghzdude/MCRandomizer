@@ -2,7 +2,6 @@ package com.ghzdude.randomizer.mixin.recipe;
 
 import com.ghzdude.randomizer.api.OutputSetter;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.crafting.AbstractCookingRecipe;
 import net.minecraft.world.item.crafting.SingleItemRecipe;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -14,7 +13,7 @@ public class SingleItemMixin implements OutputSetter {
     @Mutable
     @Final
     @Shadow
-    protected ItemStack result;
+    private ItemStack result;
 
     @Override
     public void randomizer$setResult(ItemStack stack) {

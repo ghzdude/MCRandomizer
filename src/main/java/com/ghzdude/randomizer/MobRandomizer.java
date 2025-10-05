@@ -15,7 +15,6 @@ import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.level.Level;
 import net.minecraftforge.event.entity.EntityJoinLevelEvent;
-import net.minecraftforge.eventbus.api.listener.SubscribeEvent;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
@@ -79,8 +78,7 @@ public class MobRandomizer {
         }
     }
 
-    @SubscribeEvent
-    public void onEntityJoin(EntityJoinLevelEvent event) {
+    public static void onEntityJoin(EntityJoinLevelEvent event) {
         if (event.getLevel().isClientSide || VALID_TYPES.isEmpty()) {
             return;
         }
@@ -119,7 +117,7 @@ public class MobRandomizer {
     }
 
     @NotNull
-    private Entity getRandomMob(Level level) {
+    private static Entity getRandomMob(Level level) {
         Entity mob;
         do {
             EntityType<?> entityType = RandomizerUtil.getRandom(VALID_TYPES, RandomizerCore.unseededRNG);
@@ -128,7 +126,7 @@ public class MobRandomizer {
         return mob;
     }
 
-    private void spawnMob(ServerLevel level, Entity mob, Entity reference) {
+    private static void spawnMob(ServerLevel level, Entity mob, Entity reference) {
         mob.setPos(reference.position());
         mob.setXRot(reference.getXRot());
         mob.setYRot(reference.getYRot());
@@ -145,7 +143,7 @@ public class MobRandomizer {
         }
     }
 
-    private void randomizeMobSpawn(Entity toSpawn) {
+    private static void randomizeMobSpawn(Entity toSpawn) {
         ServerLevel level = (ServerLevel) toSpawn.level();
 
         Entity mob = getRandomMob(level);

@@ -18,7 +18,7 @@ public class EnchantmentGenerator {
     private static final ArrayList<Holder<Enchantment>> VALID_ENCHANTS = new ArrayList<>();
 
     public static void init(RegistryAccess access) {
-        var enchantments = access.registryOrThrow(Registries.ENCHANTMENT);
+        var enchantments = access.lookupOrThrow(Registries.ENCHANTMENT);
         enchantments.stream()
                 .map(enchantments::wrapAsHolder)
                 .forEach(VALID_ENCHANTS::add);
@@ -30,7 +30,7 @@ public class EnchantmentGenerator {
         if (shouldEnchant < 80 && !stack.is(Items.ENCHANTED_BOOK)) return;
 
         List<Holder<Enchantment>> applicable = VALID_ENCHANTS.stream()
-                .filter(enchant -> stack.canApplyAtEnchantingTable(enchant.get()))
+                .filter(stack::canApplyAtEnchantingTable)
                 .collect(Collectors.toList());
 
         if (applicable.isEmpty()) return;

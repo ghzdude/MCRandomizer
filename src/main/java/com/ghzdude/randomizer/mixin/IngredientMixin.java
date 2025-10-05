@@ -1,8 +1,10 @@
 package com.ghzdude.randomizer.mixin;
 
 import com.ghzdude.randomizer.api.IngredientRandomizable;
+import net.minecraft.world.item.crafting.Ingredient;
+import org.spongepowered.asm.mixin.Mixin;
 
-//@Mixin(Ingredient.class)
+@Mixin(Ingredient.class)
 public abstract class IngredientMixin implements IngredientRandomizable {
 
 //    @Shadow @Final

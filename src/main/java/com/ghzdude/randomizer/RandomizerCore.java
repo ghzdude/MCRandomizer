@@ -15,6 +15,7 @@ import net.minecraft.world.item.crafting.RecipeManager;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.AddReloadListenerEvent;
 import net.minecraftforge.event.TickEvent;
+import net.minecraftforge.event.entity.EntityJoinLevelEvent;
 import net.minecraftforge.event.server.ServerStartedEvent;
 import net.minecraftforge.event.server.ServerStoppingEvent;
 import net.minecraftforge.eventbus.api.listener.SubscribeEvent;
@@ -56,7 +57,8 @@ public class RandomizerCore
 
         // Register ourselves for server and other game events we are interested in
         MinecraftForge.EVENT_BUS.register(this);
-        MinecraftForge.EVENT_BUS.register(new MobRandomizer());
+        EntityJoinLevelEvent.BUS.addListener(MobRandomizer::onEntityJoin);
+//        MinecraftForge.EVENT_BUS.register(MobRandomizer::onEntityJoin);
     }
 
     public static void incrementAmtItemsGiven(Player player) {
