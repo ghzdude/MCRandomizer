@@ -18,6 +18,8 @@ import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.Holder;
+import net.minecraft.core.HolderLookup;
+import net.minecraft.core.HolderSet;
 import net.minecraft.core.Registry;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.Registries;
@@ -26,20 +28,14 @@ import net.minecraft.resources.RegistryOps;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.tags.TagKey;
-import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
-import net.minecraft.world.item.SpawnEggItem;
 import net.minecraft.world.item.component.ItemLore;
-import net.minecraft.world.item.crafting.RecipeHolder;
-import net.minecraft.world.item.crafting.RecipeManager;
-import net.minecraft.world.item.crafting.RecipeType;
-import net.minecraft.world.item.crafting.SmeltingRecipe;
+import net.minecraft.world.item.crafting.*;
 import net.minecraft.world.level.block.*;
 import net.minecraft.world.level.storage.loot.LootContext;
 import net.minecraft.world.level.storage.loot.LootTable;
-import net.minecraftforge.common.ForgeSpawnEggItem;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
@@ -56,7 +52,7 @@ public class LootRandomizer {
     public static final String CAN_TOOL_PERFORM_ACTION = "can_tool_perform_action";
     public static final String INVERTED = "inverted";
     private static RandomizationMapData INSTANCE = null;
-    public static Registry<LootTable> LOOT_REGISTRY;
+    public static HolderLookup.RegistryLookup<LootTable> LOOT_REGISTRY;
     public static Registry<Item> ITEM_REGISTRY;
     public static Registry<Block> BLOCK_REGISTRY;
 
@@ -101,9 +97,9 @@ public class LootRandomizer {
     public static void init(MinecraftServer server) {
         INSTANCE = RandomizationMapData.get(server, "loot");
         SERVER = server;
-        LOOT_REGISTRY = server.reloadableRegistries().get().registryOrThrow(Registries.LOOT_TABLE);
-        ITEM_REGISTRY = server.registryAccess().registryOrThrow(Registries.ITEM);
-        BLOCK_REGISTRY = server.registryAccess().registryOrThrow(Registries.BLOCK);
+        LOOT_REGISTRY = server.reloadableRegistries().lookup().lookupOrThrow(Registries.LOOT_TABLE);
+        ITEM_REGISTRY = server.registryAccess().lookupOrThrow(Registries.ITEM);
+        BLOCK_REGISTRY = server.registryAccess().lookupOrThrow(Registries.BLOCK);
         RECIPE_MANAGER = server.getRecipeManager();
 
         TagKey<Block> pickaxeMineable = TagKey.create(Registries.BLOCK, ResourceLocation.withDefaultNamespace("mineable/pickaxe"));
@@ -129,20 +125,21 @@ public class LootRandomizer {
         for (Block block : BLOCK_REGISTRY) {
             if (block == Blocks.AIR) continue;
 
-            BLOCK_MAP.put(block.getLootTable().location(), BLOCK_REGISTRY.getKey(block));
+            BLOCK_MAP.put(block.getLootTable().orElseThrow().location(), BLOCK_REGISTRY.getKey(block));
         }
 
-        for (EntityType<?> type : server.registryAccess().registryOrThrow(Registries.ENTITY_TYPE)) {
-            SpawnEggItem egg = ForgeSpawnEggItem.fromEntityType(type);
-            if (egg == null) continue;
-            ENTITY_EGG_MAP.put(type.getDefaultLootTable().location(), ITEM_REGISTRY.getKey(egg));
-        }
+        // todo fix spawn eggs
+//        for (EntityType<?> type : server.registryAccess().lookupOrThrow(Registries.ENTITY_TYPE)) {
+//            SpawnEggItem egg = SpawnEggItem.fromEntityType(type);
+//            if (egg == null) continue;
+//            ENTITY_EGG_MAP.put(type.getDefaultLootTable().location(), ITEM_REGISTRY.getKey(egg));
+//        }
 
         RegistryOps<JsonElement> registryOps = RegistryOps.create(JsonOps.INSTANCE, server.registryAccess());
 
         LOGGER.info("Iterating through loot tables!");
 
-        for (LootTable table : LOOT_REGISTRY) {
+        for (LootTable table : LOOT_REGISTRY.listElements().map(Holder::get).toList()) {
             // serialize loot table into JSON for easy lookup
             DataResult<JsonElement> result = LootTable.DIRECT_CODEC.encodeStart(registryOps, table);
             if (result.isSuccess()) result.result()
@@ -160,12 +157,12 @@ public class LootRandomizer {
         for (ResourceLocation table : LOOT_MAP.keySet()) {
             Set<LootData> lootData = LOOT_MAP.get(table);
 
-            ItemStack inputStack;
+            ItemStack inputStack = ItemStack.EMPTY;
             if (isChestLoot(table)) {
                 inputStack = new ItemStack(Items.CHEST);
             } else if (isEntityDrop(table)) {
-                Item egg = ITEM_REGISTRY.get(getEggForEntityTable(table));
-                inputStack = new ItemStack(Objects.requireNonNull(egg));
+//                Item egg = ITEM_REGISTRY.get(getEggForEntityTable(table));
+//                inputStack = new ItemStack(Objects.requireNonNull(egg));
             } else if (table.getPath().startsWith("gameplay/fishing")) {
                 inputStack = new ItemStack(Items.FISHING_ROD);
             } else if (table.getPath().startsWith("spawners")) {
@@ -210,7 +207,9 @@ public class LootRandomizer {
             for (LootData data : lootData) {
                 ParsedLootTable.Type type = data.getType();
                 expandData(data).map(ITEM_REGISTRY::get)
-                        .filter(Objects::nonNull)
+                        .filter(Optional::isPresent)
+                        .map(Optional::get)
+                        .map(Holder::get)
                         .map(Item::getDefaultInstance)
                         .filter(stack -> !stack.isEmpty())
                         .forEach(stack -> {
@@ -250,7 +249,7 @@ public class LootRandomizer {
     }
 
     private static @Nullable Item getItemFromBlock(ResourceLocation block) {
-        return switch (BLOCK_REGISTRY.get(block)) {
+        return switch (BLOCK_REGISTRY.get(block).orElseThrow().get()) {
             case CandleCakeBlock candleCakeBlock -> {
                 DataResult<JsonElement> result = CandleCakeBlock.CODEC.encoder().encodeStart(JsonOps.INSTANCE, candleCakeBlock);
                 if (result.isError()) yield null;
@@ -259,6 +258,9 @@ public class LootRandomizer {
                         .map(object -> object.get("candle").getAsString())
                         .map(ResourceLocation::parse)
                         .map(ITEM_REGISTRY::get)
+                        .filter(Optional::isPresent)
+                        .map(Optional::get)
+                        .map(Holder::get)
                         .orElse(null);
             }
             case AttachedStemBlock stemBlock -> {
@@ -269,6 +271,9 @@ public class LootRandomizer {
                         .map(object -> object.get("seed").getAsString())
                         .map(ResourceLocation::parse)
                         .map(ITEM_REGISTRY::get)
+                        .filter(Optional::isPresent)
+                        .map(Optional::get)
+                        .map(Holder::get)
                         .orElse(null);
             }
             case WeepingVinesPlantBlock ignored -> Blocks.WEEPING_VINES.asItem();
@@ -278,8 +283,7 @@ public class LootRandomizer {
             case FlowerPotBlock flowerPotBlock -> flowerPotBlock.getEmptyPot().asItem();
             case BambooSaplingBlock ignored -> Blocks.BAMBOO.asItem();
             case TallSeagrassBlock ignored -> Blocks.SEAGRASS.asItem();
-            case null -> null;
-            default -> Optional.ofNullable(BLOCK_REGISTRY.get(block)).map(Block::asItem).orElse(null);
+            default -> Optional.of(BLOCK_REGISTRY.get(block).orElseThrow().value()).map(Block::asItem).orElse(null);
         };
     }
 
@@ -301,7 +305,7 @@ public class LootRandomizer {
 
     private static Stream<ResourceLocation> expandData(LootData data) {
         if (data.tag()) {
-            return ITEM_REGISTRY.getTag(data.makeTagKey())
+            return ITEM_REGISTRY.get(data.makeTagKey())
                     .map(holders -> holders.stream().map(Holder::get).map(ITEM_REGISTRY::getKey))
                     .orElseThrow();
         } else if (data.reference()) {
@@ -337,7 +341,9 @@ public class LootRandomizer {
             ParsedLootTable.Type type = data.getType();
             expandData(data).map(l -> drop.equals(l) ? replace : l)
                     .map(ITEM_REGISTRY::get)
-                    .filter(Objects::nonNull)
+                    .filter(Optional::isPresent)
+                    .map(Optional::get)
+                    .map(Holder::get)
                     .map(Item::getDefaultInstance)
                     .filter(stack -> !stack.isEmpty())
                     .forEach(stack -> {
@@ -351,7 +357,7 @@ public class LootRandomizer {
     }
 
     private static void collectFromTag(TagKey<Block> key, Set<ResourceLocation> collection) {
-        BLOCK_REGISTRY.getTag(key).ifPresent(blocks -> blocks.stream()
+        BLOCK_REGISTRY.get(key).ifPresent(blocks -> blocks.stream()
                 .map(holder -> BLOCK_REGISTRY.getKey(holder.get()))
                 .forEach(collection::add));
     }
@@ -425,8 +431,8 @@ public class LootRandomizer {
             ResourceLocation name = getName(entry);
             List<ResourceLocation> list = ITEM_REGISTRY.getTags()
                     // this isn't really a great solution, but it should work for sherds
-                    .filter(pair -> pair.getFirst().location().getPath().contains(name.getPath()))
-                    .flatMap(pair -> pair.getSecond().stream())
+                    .filter(named -> named.key().location().getPath().contains(name.getPath()))
+                    .flatMap(HolderSet.ListBacked::stream)
                     .map(holder -> ITEM_REGISTRY.getKey(holder.get()))
                     .toList();
 
@@ -582,12 +588,17 @@ public class LootRandomizer {
 
     private static Optional<ResourceLocation> canSmelt(JsonObject function, ResourceLocation currentItem) {
         if (function.has("function") && function.get("function").getAsString().contains("furnace_smelt")) {
-            List<RecipeHolder<SmeltingRecipe>> recipes = RECIPE_MANAGER.getAllRecipesFor(RecipeType.SMELTING);
-            Optional<Holder.Reference<Item>> item = ITEM_REGISTRY.getHolder(currentItem);
+            //noinspection unchecked
+            List<RecipeHolder<SmeltingRecipe>> recipes = RECIPE_MANAGER.getRecipes().stream()
+                    .filter(recipeHolder -> recipeHolder.value().getType().equals(RecipeType.SMELTING))
+                    .map(recipeHolder -> (RecipeHolder<SmeltingRecipe>) recipeHolder)
+                    .toList();
+            Optional<Holder.Reference<Item>> item = ITEM_REGISTRY.get(currentItem);
             if (item.isEmpty()) return Optional.empty();
             ItemStack stack = new ItemStack(item.get());
-            return recipes.stream().filter(holder -> holder.value().getIngredients().getFirst().test(stack))
-                    .map(holder -> holder.value().getResultItem(SERVER.registryAccess()))
+            return recipes.stream().filter(holder -> holder.value().input().test(stack))
+                    // todo fix
+                    .map(holder -> holder.value().assemble(new SingleRecipeInput(ItemStack.EMPTY), SERVER.registryAccess()))
                     .map(is -> Objects.requireNonNull(ITEM_REGISTRY.getKey(is.getItem())))
                     .findAny();
         }
@@ -643,7 +654,7 @@ public class LootRandomizer {
                 var random = mapData.getItemFor(stack.getItem());
                 ResourceLocation key = ITEM_REGISTRY.getKey(random);
                 if (replacementMap.containsKey(key)) {
-                    random = Objects.requireNonNull(ITEM_REGISTRY.get(replacementMap.get(key)));
+                    random = ITEM_REGISTRY.get(replacementMap.get(key)).orElseThrow().get();
                 }
                 ret.add(RandomizerUtil.itemToStack(random, stack.getCount()));
             } else {
