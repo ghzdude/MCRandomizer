@@ -14,6 +14,7 @@ import com.mojang.serialization.JsonOps;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import net.minecraft.advancements.Advancement;
 import net.minecraft.advancements.AdvancementHolder;
+import net.minecraft.advancements.AdvancementRewards;
 import net.minecraft.advancements.critereon.InventoryChangeTrigger;
 import net.minecraft.core.Holder;
 import net.minecraft.core.HolderLookup;
@@ -129,30 +130,6 @@ public class RecipeRandomizer {
             if (recipe.isSpecial()) continue;
             DataResult<JsonElement> encoded = Recipe.CODEC.encodeStart(JsonOps.INSTANCE, recipe);
             encoded.map(JsonElement::getAsJsonObject).ifSuccess(object -> handleRecipe(object, recipe, holder.id()));
-            if (true) continue;
-
-            ItemStack result = ItemStack.EMPTY;
-            ItemStack newResult = INSTANCE.getStackFor(result);
-
-            if (result.isEmpty() || newResult.isEmpty()) {
-                LOGGER.warn("Recipe '{}' result is empty!", holder.id());
-                continue;
-            }
-
-            // set the new result back to the ender eye
-            if (RandomizerConfig.ensureCompletability && result.is(Items.ENDER_EYE)) {
-                newResult = result;
-            }
-
-//            modifyRecipeOutputs(recipe);
-//            RESULT_MAP.put(holder.id().location(), ITEM_REGISTRY.getKey(newResult.getItem()));
-//            OUTPUT_MAP.computeIfAbsent(ITEM_REGISTRY.getKey(newResult.getItem()), k -> new ArrayList<>())
-//                    .add(holder.id().location());
-
-            // if inputs are not to be randomized, move on to the next recipe
-//            if (RandomizerConfig.randomizeRecipeInputs) {
-//                modifyRecipeInputs(recipe.getIngredients(), holder.id());
-//            }
         }
     }
 
@@ -172,12 +149,6 @@ public class RecipeRandomizer {
         // if inputs are not to be randomized, move on to the next recipe
         if (RandomizerConfig.randomizeRecipeInputs) {
             modifyRecipeInputs(setter.randomizer$getIngredients(), id.location());
-        }
-    }
-
-    private static void modifyRecipeOutputs(Recipe<?> recipe) {
-        if (recipe instanceof OutputSetter setter) {
-            setter.randomizer$randomize(getMapData()::getStackFor);
         }
     }
 
@@ -242,9 +213,11 @@ public class RecipeRandomizer {
             }
 
             Advancement.Builder builder = new Advancement.Builder();
-//            for (ResourceLocation recipe : MODIFIED.get(ing)) {
-//                builder.rewards(AdvancementRewards.Builder.recipe(recipe));
-//            }
+            AdvancementRewards.Builder rewards = new AdvancementRewards.Builder();
+            for (ResourceLocation recipe : MODIFIED.get(ing)) {
+                rewards.addRecipe(ResourceKey.create(Registries.RECIPE, recipe));
+            }
+            builder.rewards(rewards);
             builder.addCriterion("has_item", InventoryChangeTrigger.TriggerInstance.hasItems(changedItems));
             String path = "%s-%s_gives_recipes".formatted(ing.getNamespace(), ing.getPath());
             AdvancementHolder toAdd = builder.build(RandomizerUtil.location(path));
