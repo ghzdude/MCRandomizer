@@ -1,10 +1,12 @@
 package com.ghzdude.randomizer;
 
 import com.ghzdude.randomizer.util.RandomizerUtil;
+import com.mojang.datafixers.util.Pair;
 import com.mojang.logging.LogUtils;
+import com.mojang.serialization.*;
 import it.unimi.dsi.fastutil.objects.Object2ObjectMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
-import net.minecraft.core.HolderLookup;
+import net.minecraft.core.HolderSet;
 import net.minecraft.core.Registry;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.registries.Registries;
@@ -18,6 +20,7 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.saveddata.SavedData;
+import net.minecraft.world.level.saveddata.SavedDataType;
 import net.minecraft.world.level.storage.DimensionDataStorage;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -32,7 +35,27 @@ import java.util.stream.Collectors;
 public class RandomizationMapData extends SavedData {
 
     public static final RandomizationMapData VANILLA = new DefaultedMapData();
+    public static final Codec<RandomizationMapData> CODEC = Codec.of(
+            new Encoder<>() {
+                @Override
+                public <T> DataResult<T> encode(RandomizationMapData randomizationMapData, DynamicOps<T> dynamicOps, T t) {
+                    CompoundTag tag = randomizationMapData.save(new CompoundTag());
+                    return CompoundTag.CODEC.encode(tag, dynamicOps, t);
+                }
+            }, new Decoder<>() {
+                @Override
+                public <T> DataResult<Pair<RandomizationMapData, T>> decode(DynamicOps<T> dynamicOps, T t) {
+                    DataResult<Pair<CompoundTag, T>> result = CompoundTag.CODEC.decode(dynamicOps, t);
+                    if (result.isSuccess()) {
+                        RandomizationMapData data = RandomizationMapData.load(result.getOrThrow().getFirst());
+                        return DataResult.success(Pair.of(data, t));
+                    }
+                    return DataResult.error(() -> "failed");
+                }
+            }
+    );
 
+    private static final Object2ObjectMap<String, SavedDataType<RandomizationMapData>> TYPE_MAP = new Object2ObjectOpenHashMap<>();
 
     private static final ResourceLocation AIR = ResourceLocation.parse("minecraft:air");
     private static final Random RNG = new Random();
@@ -56,15 +79,13 @@ public class RandomizationMapData extends SavedData {
     }
 
     public static void init(RegistryAccess access) {
-        ITEM_REGISTRY = access.registryOrThrow(Registries.ITEM);
-    }
-
-    public static Factory<RandomizationMapData> factory() {
-        return new Factory<>(RandomizationMapData::new, RandomizationMapData::load, DataFixTypes.LEVEL);
+        ITEM_REGISTRY = access.lookupOrThrow(Registries.ITEM);
     }
 
     public static RandomizationMapData get(DimensionDataStorage storage, String prefix) {
-        RandomizationMapData data = storage.computeIfAbsent(RandomizationMapData.factory(), RandomizerCore.MODID + "_" + prefix);
+        String name = RandomizerCore.MODID + "_" + prefix;
+        SavedDataType<RandomizationMapData> type = TYPE_MAP.computeIfAbsent(name, k -> new SavedDataType<>(name, RandomizationMapData::new, RandomizationMapData.CODEC, DataFixTypes.LEVEL));
+        RandomizationMapData data = storage.computeIfAbsent(type);
         if (!data.isLoaded()) {
             data.generateItemMap();
             data.generateTagMap();
@@ -86,8 +107,7 @@ public class RandomizationMapData extends SavedData {
         return AIR.equals(loc) || loc.getPath().isEmpty();
     }
 
-    @Override
-    public @NotNull CompoundTag save(CompoundTag tag, HolderLookup.@NotNull Provider provider) {
+    public @NotNull CompoundTag save(CompoundTag tag) {
         LOGGER.warn("Saving randomizations to disk!");
         CompoundTag itemMap = new CompoundTag();
         CompoundTag tagKeyMap = new CompoundTag();
@@ -107,16 +127,16 @@ public class RandomizationMapData extends SavedData {
         return tag;
     }
 
-    public static RandomizationMapData load(CompoundTag tag, HolderLookup.Provider ignored) {
+    public static RandomizationMapData load(CompoundTag tag) {
         RandomizationMapData data = new RandomizationMapData();
         LOGGER.warn("Loading from disk!");
 
-        CompoundTag itemMap = tag.getCompound("item_map");
-        CompoundTag tagMap = tag.getCompound("tag_key_map");
+        CompoundTag itemMap = tag.getCompound("item_map").orElseThrow();
+        CompoundTag tagMap = tag.getCompound("tag_key_map").orElseThrow();
 
-        for (String item : itemMap.getAllKeys()) {
+        for (String item : itemMap.keySet()) {
             ResourceLocation vanilla = ResourceLocation.parse(item);
-            ResourceLocation random = ResourceLocation.parse(itemMap.getString(item));
+            ResourceLocation random = ResourceLocation.parse(itemMap.getString(item).orElseThrow());
             if (isAir(vanilla) || isAir(random)) continue;
             data.putItem(vanilla, random);
         }
@@ -128,9 +148,9 @@ public class RandomizationMapData extends SavedData {
             logDifference(validKeys);
         }
 
-        for (String tagKey : tagMap.getAllKeys()) {
+        for (String tagKey : tagMap.keySet()) {
             ResourceLocation vanilla = ResourceLocation.parse(tagKey);
-            ResourceLocation random = ResourceLocation.parse(tagMap.getString(tagKey));
+            ResourceLocation random = ResourceLocation.parse(tagMap.getString(tagKey).orElseThrow());
             if (isAir(vanilla) || isAir(random)) continue;
             data.putTag(vanilla, random);
         }
@@ -139,7 +159,8 @@ public class RandomizationMapData extends SavedData {
                 .forEach(RandomizationMapData::logMatchingKey);
 
         loadedKeys = data.TAGKEY_MAP.keySet();
-        validKeys = ITEM_REGISTRY.getTagNames().map(TagKey::location).collect(Collectors.toSet());
+        validKeys = ITEM_REGISTRY.getTags().map(HolderSet.Named::key)
+                .map(TagKey::location).collect(Collectors.toSet());
         validKeys.removeIf(loadedKeys::contains);
         if (!validKeys.isEmpty()) {
             logDifference(validKeys);
@@ -155,7 +176,8 @@ public class RandomizationMapData extends SavedData {
     }
 
     private void generateTagMap() {
-        List<ResourceLocation> vanilla = ITEM_REGISTRY.getTagNames().map(TagKey::location).collect(Collectors.toList());
+        List<ResourceLocation> vanilla = ITEM_REGISTRY.getTags()
+                .map(HolderSet.Named::key).map(TagKey::location).collect(Collectors.toList());
 
         ResourceLocation key, value, tail = vanilla.get(RNG.nextInt(1, vanilla.size()));
 
@@ -167,7 +189,8 @@ public class RandomizationMapData extends SavedData {
         }
 
         Set<ResourceLocation> loadedKeys = TAGKEY_MAP.keySet();
-        Set<ResourceLocation> validKeys = ITEM_REGISTRY.getTagNames().map(TagKey::location).collect(Collectors.toSet());
+        Set<ResourceLocation> validKeys = ITEM_REGISTRY.getTags()
+                .map(HolderSet.Named::key).map(TagKey::location).collect(Collectors.toSet());
         validKeys.removeIf(loadedKeys::contains);
         if (!validKeys.isEmpty()) {
             logDifference(validKeys);
@@ -235,7 +258,7 @@ public class RandomizationMapData extends SavedData {
     public Item getItemFor(Item item) {
         ResourceLocation vanilla = Objects.requireNonNull(ITEM_REGISTRY.getKey(item));
         ResourceLocation random = getItemFor(vanilla);
-        return ITEM_REGISTRY.get(random);
+        return ITEM_REGISTRY.get(random).orElseThrow().get();
     }
 
     public ResourceLocation getItemFor(ResourceLocation vanilla) {
@@ -282,7 +305,7 @@ public class RandomizationMapData extends SavedData {
         int s = rng.nextInt(ITEM_MAP.size());
         int i = 0;
         for (ResourceLocation value : ITEM_MAP.values()) {
-            if (i++ == s) return ITEM_REGISTRY.get(value);
+            if (i++ == s) return ITEM_REGISTRY.get(value).orElseThrow().get();
         }
         return null;
     }
