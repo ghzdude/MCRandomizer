@@ -4,6 +4,7 @@ import com.ghzdude.randomizer.api.AdvancementModify;
 import com.ghzdude.randomizer.api.IngredientRandomizable;
 import com.ghzdude.randomizer.api.OutputSetter;
 import com.ghzdude.randomizer.util.RandomizerUtil;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -186,23 +187,32 @@ public class RecipeRandomizer {
             if (checked.contains(ing)) continue;
             if (ing instanceof IngredientRandomizable randomizable) {
                 checked.add(ing);
-//                randomizable.randomizer$randomizeInputs(value -> {
-//                    ResourceLocation ingredient;
-//                    Ingredient.Value random;
-//                    if (value instanceof Ingredient.ItemValue(ItemStack item)) {
-//                        ItemStack stack = INSTANCE.getStackFor(item);
-//                        ingredient = ITEM_REGISTRY.getKey(stack.getItem());
-//                        if (ingredient == null) return value;
-//                        random = new Ingredient.ItemValue(stack);
-//                    } else {
-//                        Ingredient.TagValue tagValue = (Ingredient.TagValue) value;
-//                        TagKey<Item> key = INSTANCE.getTagKeyFor(tagValue.tag());
-//                        ingredient = key.location();
-//                        random = new Ingredient.TagValue(key);
-//                    }
-//                    addToMap(recipe, ingredient);
-//                    return random;
-//                });
+                randomizable.randomizer$randomizeInputs(holders -> {
+                    Optional<TagKey<Item>> tagKey = holders.unwrapKey();
+                    if (tagKey.isPresent()) {
+                        // we are a tag key
+                        TagKey<Item> key = tagKey.get();
+                        key = INSTANCE.getTagKeyFor(key);
+                        addToMap(recipe, key.location());
+                        return ITEM_REGISTRY.get(key).orElseThrow();
+                    }
+                    // this is either one item or a set of items
+                    Optional<ImmutableList<Holder<Item>>> right = holders.unwrap().mapRight(list -> {
+                        ImmutableList.Builder<Holder<Item>> builder = new ImmutableList.Builder<>();
+                        list.forEach(itemHolder -> {
+                            Item item = INSTANCE.getItemFor(itemHolder.get());
+                            addToMap(recipe, Objects.requireNonNull(ITEM_REGISTRY.getKey(item)));
+                            builder.add(ITEM_REGISTRY.wrapAsHolder(item));
+                        });
+                        return builder.build();
+                    }).right();
+
+                    if (right.isPresent()) {
+                        return HolderSet.direct(right.get());
+                    } else {
+                        return holders; // do not randomize
+                    }
+                });
             }
         }
     }
