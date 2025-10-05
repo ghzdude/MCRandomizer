@@ -11,7 +11,8 @@
     "VillagerMixin",
     "recipe.ShapedMixin",
     "recipe.ShapelessMixin",
-    "recipe.SingleItemMixin"
+    "recipe.SingleItemMixin",
+    "recipe.TransmuteMixin"
   ],
   "client": [],
   "server": [],

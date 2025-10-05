@@ -25,12 +25,15 @@ import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.RegistryOps;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.tags.TagKey;
+import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.SpawnEggItem;
 import net.minecraft.world.item.component.ItemLore;
 import net.minecraft.world.item.crafting.*;
 import net.minecraft.world.level.block.*;
@@ -124,24 +127,33 @@ public class LootRandomizer {
 
         for (Block block : BLOCK_REGISTRY) {
             if (block == Blocks.AIR) continue;
+            Optional<ResourceKey<LootTable>> lootTable = block.getLootTable();
+            if (lootTable.isEmpty()) {
+                LOGGER.debug("Block {} has no loot table", block);
+                continue;
+            }
 
-            BLOCK_MAP.put(block.getLootTable().orElseThrow().location(), BLOCK_REGISTRY.getKey(block));
+            BLOCK_MAP.put(lootTable.get().location(), BLOCK_REGISTRY.getKey(block));
         }
 
-        // todo fix spawn eggs
-//        for (EntityType<?> type : server.registryAccess().lookupOrThrow(Registries.ENTITY_TYPE)) {
-//            SpawnEggItem egg = SpawnEggItem.fromEntityType(type);
-//            if (egg == null) continue;
-//            ENTITY_EGG_MAP.put(type.getDefaultLootTable().location(), ITEM_REGISTRY.getKey(egg));
-//        }
+        for (EntityType<?> type : server.registryAccess().lookupOrThrow(Registries.ENTITY_TYPE)) {
+            SpawnEggItem egg = SpawnEggItem.byId(type);
+            if (egg == null) continue;
+            ENTITY_EGG_MAP.put(type.getDefaultLootTable().orElseThrow().location(), ITEM_REGISTRY.getKey(egg));
+        }
 
         RegistryOps<JsonElement> registryOps = RegistryOps.create(JsonOps.INSTANCE, server.registryAccess());
 
         LOGGER.info("Iterating through loot tables!");
+        List<Holder.Reference<LootTable>> lootTables = LOOT_REGISTRY.listElements().toList();
 
-        for (LootTable table : LOOT_REGISTRY.listElements().map(Holder::get).toList()) {
+        if (RandomizerConfig.enableDebug) {
+            LOGGER.debug("Found {} loot tables", lootTables.size());
+        }
+
+        for (Holder.Reference<LootTable> table : lootTables) {
             // serialize loot table into JSON for easy lookup
-            DataResult<JsonElement> result = LootTable.DIRECT_CODEC.encodeStart(registryOps, table);
+            DataResult<JsonElement> result = LootTable.DIRECT_CODEC.encodeStart(registryOps, table.get());
             if (result.isSuccess()) result.result()
                     .filter(JsonElement::isJsonObject)
                     .map(JsonElement::getAsJsonObject)
@@ -157,12 +169,12 @@ public class LootRandomizer {
         for (ResourceLocation table : LOOT_MAP.keySet()) {
             Set<LootData> lootData = LOOT_MAP.get(table);
 
-            ItemStack inputStack = ItemStack.EMPTY;
+            ItemStack inputStack;
             if (isChestLoot(table)) {
                 inputStack = new ItemStack(Items.CHEST);
             } else if (isEntityDrop(table)) {
-//                Item egg = ITEM_REGISTRY.get(getEggForEntityTable(table));
-//                inputStack = new ItemStack(Objects.requireNonNull(egg));
+                Optional<Holder.Reference<Item>> egg = ITEM_REGISTRY.get(Objects.requireNonNull(getEggForEntityTable(table)));
+                inputStack = egg.map(ItemStack::new).orElse(ItemStack.EMPTY);
             } else if (table.getPath().startsWith("gameplay/fishing")) {
                 inputStack = new ItemStack(Items.FISHING_ROD);
             } else if (table.getPath().startsWith("spawners")) {
@@ -185,8 +197,12 @@ public class LootRandomizer {
                 inputStack = new ItemStack(Items.CAT_SPAWN_EGG);
             } else if (table.getPath().equals("gameplay/sniffer_digging")) {
                 inputStack = new ItemStack(Items.SNIFFER_SPAWN_EGG);
-            } else if (table.getPath().equals("shearing/bogged")) {
+            } else if (table.getPath().startsWith("shearing/")) {
                 inputStack = new ItemStack(Items.SHEARS);
+            } else if (table.getPath().equals("gameplay/panda_sneeze")) {
+                inputStack = new ItemStack(Items.PANDA_SPAWN_EGG);
+            } else if (table.getPath().equals("gameplay/chicken_lay")) {
+                inputStack = new ItemStack(Items.EGG);
             } else {
                 if (RandomizerConfig.enableDebug)
                     LOGGER.debug("Unhandled Table: '{}'", table);
@@ -220,6 +236,10 @@ public class LootRandomizer {
 
             if (!drops.isEmpty())
                 ParsedLootTable.registerRecipe(inputStack, drops, table);
+        }
+
+        if (RandomizerConfig.enableDebug) {
+            LOGGER.debug("Parsed {} loot tables", ParsedLootTable.getKeys().size());
         }
     }
 
@@ -335,6 +355,9 @@ public class LootRandomizer {
                 .put(drop, replace);
 
         ParsedLootTable parsedLootTable = ParsedLootTable.get(table);
+        if (parsedLootTable == null) {
+            throw new NullPointerException("Parsed LootTable \"" + table + "\" does not exist!");
+        }
 
         List<ItemStack> drops = new ArrayList<>();
         for (LootData data : LOOT_MAP.get(table)) {
