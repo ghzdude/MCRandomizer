@@ -18,7 +18,6 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.chunk.ChunkGenerator;
 import net.minecraft.world.level.levelgen.feature.ConfiguredFeature;
-import net.minecraft.world.level.levelgen.feature.configurations.OreConfiguration;
 import net.minecraft.world.level.levelgen.structure.BoundingBox;
 import net.minecraft.world.level.levelgen.structure.Structure;
 import net.minecraft.world.level.levelgen.structure.StructureStart;
@@ -46,8 +45,8 @@ public class StructureRandomizer {
     private static Registry<ConfiguredFeature<?, ?>> FEATURE_REGISTRY;
 
     public static void init(RegistryAccess access) {
-        STRUCTURE_REGISTRY = access.registryOrThrow(Registries.STRUCTURE);
-        FEATURE_REGISTRY = access.registryOrThrow(Registries.CONFIGURED_FEATURE);
+        STRUCTURE_REGISTRY = access.lookupOrThrow(Registries.STRUCTURE);
+        FEATURE_REGISTRY = access.lookupOrThrow(Registries.CONFIGURED_FEATURE);
 
         // stronghold is causing log spam
         // Structures
@@ -182,6 +181,7 @@ public class StructureRandomizer {
 
         ChunkGenerator chunkgenerator = serverLevel.getChunkSource().getGenerator();
         StructureStart structurestart = structure.generate(
+                STRUCTURE_REGISTRY.wrapAsHolder(structure), serverLevel.dimension(),
                 serverLevel.registryAccess(), chunkgenerator, chunkgenerator.getBiomeSource(),
                 serverLevel.getChunkSource().randomState(), serverLevel.getStructureManager(),
                 serverLevel.getSeed(), new ChunkPos(blockPos), 0, serverLevel, biomes -> true
@@ -198,8 +198,8 @@ public class StructureRandomizer {
         List<ChunkPos> toCheck = ChunkPos.rangeClosed(minpos, maxpos).toList();
         for (ChunkPos chunkPos : toCheck) {
             BoundingBox bb = new BoundingBox(
-                    chunkPos.getMinBlockX(), serverLevel.getMinBuildHeight(), chunkPos.getMinBlockZ(),
-                    chunkPos.getMaxBlockX(), serverLevel.getMaxBuildHeight(), chunkPos.getMaxBlockZ()
+                    chunkPos.getMinBlockX(), serverLevel.getMinY(), chunkPos.getMinBlockZ(),
+                    chunkPos.getMaxBlockX(), serverLevel.getMaxY(), chunkPos.getMaxBlockZ()
             );
 
             // todo maybe place blocks here?
@@ -215,9 +215,9 @@ public class StructureRandomizer {
         var feature = RandomizerUtil.getOrThrow(FEATURE_REGISTRY, location);
 
         LOGGER.warn("Placing feature \"{}\"", location);
-        if (feature.config() instanceof OreConfiguration oreConfiguration) {
+//        if (feature.config() instanceof OreConfiguration oreConfiguration) {
             // todo special handling of ore features?
-        }
+//        }
         var optional = BlockPos.findClosestMatch(blockPos, 8, 32, featurePredicate(serverLevel, feature));
         if (optional.isEmpty()) return false;
 

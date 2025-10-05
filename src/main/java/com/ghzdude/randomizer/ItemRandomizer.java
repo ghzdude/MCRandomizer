@@ -5,6 +5,7 @@ import com.ghzdude.randomizer.special.item.SpecialItems;
 import com.ghzdude.randomizer.util.RandomizerUtil;
 import it.unimi.dsi.fastutil.objects.Object2IntMap;
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
+import net.minecraft.core.Holder;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
@@ -42,7 +43,7 @@ public class ItemRandomizer {
         BLACKLISTED_ITEMS.clear();
         VALID_ITEMS.clear();
 
-        REGISTRY = server.registryAccess().registryOrThrow(Registries.ITEM);
+        REGISTRY = server.registryAccess().lookupOrThrow(Registries.ITEM);
         ENABLED = server.getWorldData().enabledFeatures();
         SpecialItems.init(REGISTRY::getKey);
 
@@ -116,7 +117,7 @@ public class ItemRandomizer {
         do {
             toReturn = RandomizerUtil.getRandom(ITEM_LIST, rng);
         } while (getPointValue(toReturn) > points);
-        return REGISTRY.get(toReturn);
+        return REGISTRY.get(toReturn).orElseThrow().get();
     }
 
     public static Item getRandomItem(int points) {
@@ -125,11 +126,13 @@ public class ItemRandomizer {
 
     public static ItemStack getRandomItemStack(Random rng) {
         var item = RandomizerUtil.getRandom(ITEM_LIST, rng);
-        return RandomizerUtil.itemToStack(INSTANCE.getItemFor(REGISTRY.get(item)));
+        return RandomizerUtil.itemToStack(INSTANCE.getItemFor(REGISTRY.get(item).orElseThrow().get()));
     }
 
     public static Stream<Item> getValidItems() {
-        return getKeys().map(REGISTRY::get);
+        return getKeys().map(REGISTRY::get)
+                .map(Optional::orElseThrow)
+                .map(Holder::get);
     }
 
     public static Stream<ResourceLocation> getKeys() {
