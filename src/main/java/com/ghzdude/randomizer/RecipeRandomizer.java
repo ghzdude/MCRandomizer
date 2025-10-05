@@ -5,13 +5,16 @@ import com.ghzdude.randomizer.api.IngredientRandomizable;
 import com.ghzdude.randomizer.api.OutputSetter;
 import com.ghzdude.randomizer.util.RandomizerUtil;
 import com.google.common.collect.ImmutableMap;
+import com.google.gson.JsonElement;
 import com.mojang.logging.LogUtils;
+import com.mojang.serialization.DataResult;
+import com.mojang.serialization.JsonOps;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import net.minecraft.advancements.Advancement;
 import net.minecraft.advancements.AdvancementHolder;
-import net.minecraft.advancements.AdvancementRewards;
 import net.minecraft.advancements.critereon.InventoryChangeTrigger;
 import net.minecraft.core.Holder;
+import net.minecraft.core.HolderSet;
 import net.minecraft.core.Registry;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.registries.Registries;
@@ -66,7 +69,7 @@ public class RecipeRandomizer {
     // todo look into RecipesUpdatedEvent
     public static void init(MinecraftServer server) {
         if (RandomizerConfig.randomizeRecipes) {
-            ITEM_REGISTRY = server.registryAccess().registryOrThrow(Registries.ITEM);
+            ITEM_REGISTRY = server.registryAccess().lookupOrThrow(Registries.ITEM);
             INSTANCE = RandomizationMapData.get(server, "recipes");
 
             LOGGER.warn("Recipe Randomizer Running!");
@@ -104,9 +107,9 @@ public class RecipeRandomizer {
 
     public static List<Ingredient> getIngredients(ResourceLocation loc) {
         RecipeHolder<?> holder = CACHED_RECIPES.get(loc);
-        if (holder != null) {
-            return holder.value().getIngredients();
-        }
+//        if (holder != null) {
+//            return holder.value().getIngredients();
+//        }
         return Collections.emptyList();
     }
 
@@ -118,10 +121,11 @@ public class RecipeRandomizer {
 
     public static void randomizeRecipes(RecipeManager manager, RegistryAccess access) {
         for (RecipeHolder<?> holder : manager.getRecipes()) {
-            CACHED_RECIPES.put(holder.id(), holder);
+            CACHED_RECIPES.put(holder.id().location(), holder);
             Recipe<?> recipe = holder.value();
             if (recipe.isSpecial()) continue;
-            ItemStack result = recipe.getResultItem(access);
+            ItemStack result = ItemStack.EMPTY;
+            DataResult<JsonElement> encoded = Recipe.CODEC.encodeStart(JsonOps.INSTANCE, recipe);
             ItemStack newResult = INSTANCE.getStackFor(result);
 
             if (result.isEmpty() || newResult.isEmpty()) {
@@ -135,14 +139,14 @@ public class RecipeRandomizer {
             }
 
             modifyRecipeOutputs(recipe, newResult);
-            RESULT_MAP.put(holder.id(), ITEM_REGISTRY.getKey(newResult.getItem()));
+            RESULT_MAP.put(holder.id().location(), ITEM_REGISTRY.getKey(newResult.getItem()));
             OUTPUT_MAP.computeIfAbsent(ITEM_REGISTRY.getKey(newResult.getItem()), k -> new ArrayList<>())
-                    .add(holder.id());
+                    .add(holder.id().location());
 
             // if inputs are not to be randomized, move on to the next recipe
-            if (RandomizerConfig.randomizeRecipeInputs) {
-                modifyRecipeInputs(recipe.getIngredients(), holder.id());
-            }
+//            if (RandomizerConfig.randomizeRecipeInputs) {
+//                modifyRecipeInputs(recipe.getIngredients(), holder.id());
+//            }
         }
     }
 
@@ -158,23 +162,23 @@ public class RecipeRandomizer {
             if (checked.contains(ing)) continue;
             if (ing instanceof IngredientRandomizable randomizable) {
                 checked.add(ing);
-                randomizable.randomizer$randomizeInputs(value -> {
-                    ResourceLocation ingredient;
-                    Ingredient.Value random;
-                    if (value instanceof Ingredient.ItemValue(ItemStack item)) {
-                        ItemStack stack = INSTANCE.getStackFor(item);
-                        ingredient = ITEM_REGISTRY.getKey(stack.getItem());
-                        if (ingredient == null) return value;
-                        random = new Ingredient.ItemValue(stack);
-                    } else {
-                        Ingredient.TagValue tagValue = (Ingredient.TagValue) value;
-                        TagKey<Item> key = INSTANCE.getTagKeyFor(tagValue.tag());
-                        ingredient = key.location();
-                        random = new Ingredient.TagValue(key);
-                    }
-                    addToMap(recipe, ingredient);
-                    return random;
-                });
+//                randomizable.randomizer$randomizeInputs(value -> {
+//                    ResourceLocation ingredient;
+//                    Ingredient.Value random;
+//                    if (value instanceof Ingredient.ItemValue(ItemStack item)) {
+//                        ItemStack stack = INSTANCE.getStackFor(item);
+//                        ingredient = ITEM_REGISTRY.getKey(stack.getItem());
+//                        if (ingredient == null) return value;
+//                        random = new Ingredient.ItemValue(stack);
+//                    } else {
+//                        Ingredient.TagValue tagValue = (Ingredient.TagValue) value;
+//                        TagKey<Item> key = INSTANCE.getTagKeyFor(tagValue.tag());
+//                        ingredient = key.location();
+//                        random = new Ingredient.TagValue(key);
+//                    }
+//                    addToMap(recipe, ingredient);
+//                    return random;
+//                });
             }
         }
     }
@@ -188,14 +192,15 @@ public class RecipeRandomizer {
         for (var ing : MODIFIED.keySet()) {
             Item[] changedItems;
             Optional<Item> item = ITEM_REGISTRY.getOptional(ing);
-            var tag = ITEM_REGISTRY.getTagNames()
+            var tag = ITEM_REGISTRY.getTags()
+                    .map(HolderSet.Named::key)
                     .filter(key -> key.location().equals(ing))
                     .findFirst();
 
             if (item.isPresent()) {
                 changedItems = new Item[]{ item.get() };
             } else if (tag.isPresent()) {
-                changedItems = ITEM_REGISTRY.getTag(tag.get()).orElseThrow()
+                changedItems = ITEM_REGISTRY.get(tag.get()).orElseThrow()
                         .stream().map(Holder::get).toArray(Item[]::new);
             } else {
                 LOGGER.warn("{} is not a valid item or tag!", ing);
@@ -203,9 +208,9 @@ public class RecipeRandomizer {
             }
 
             Advancement.Builder builder = new Advancement.Builder();
-            for (ResourceLocation recipe : MODIFIED.get(ing)) {
-                builder.rewards(AdvancementRewards.Builder.recipe(recipe));
-            }
+//            for (ResourceLocation recipe : MODIFIED.get(ing)) {
+//                builder.rewards(AdvancementRewards.Builder.recipe(recipe));
+//            }
             builder.addCriterion("has_item", InventoryChangeTrigger.TriggerInstance.hasItems(changedItems));
             String path = "%s-%s_gives_recipes".formatted(ing.getNamespace(), ing.getPath());
             AdvancementHolder toAdd = builder.build(RandomizerUtil.location(path));
