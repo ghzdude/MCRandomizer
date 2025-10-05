@@ -78,19 +78,19 @@ public class MobRandomizer {
         }
     }
 
-    public static void onEntityJoin(EntityJoinLevelEvent event) {
+    public static boolean onEntityJoin(EntityJoinLevelEvent event) {
         if (event.getLevel().isClientSide || VALID_TYPES.isEmpty()) {
-            return;
+            return false;
         }
 
         Entity mob = event.getEntity();
-        if (!VALID_TYPES.contains(mob.getType())) return;
+        if (!VALID_TYPES.contains(mob.getType())) return false;
 
         if (RandomizerConfig.randomizeMobs) {
             var randomized = mob.getPersistentData().contains("randomized");
             if (!randomized && !event.loadedFromDisk()) {
                 randomizeMobSpawn(mob);
-//                event.setCanceled(true);
+                return true;
             }
         }
 
@@ -99,19 +99,20 @@ public class MobRandomizer {
         if (RandomizerConfig.randomizeMobAttributes && mob instanceof LivingEntity livingEntity) {
             final double offset = 40d;
 
-//            for (var att : VALID_ATTRIBUTES) {
-//                if (mob.getRandom().nextBoolean()) continue;
-//                var h = ATTRIBUTE_REGISTRY.getHolder(att);
-//                if (h.isEmpty()) continue;
-//                var inst = livingEntity.getAttribute(h.get());
-//                if (inst == null) continue;
-//                double sanitizedMin = inst.getAttribute().get().sanitizeValue(offset / -2);
-//                inst.addOrUpdateTransientModifier(createModifier(sanitizedMin, sanitizedMin + offset));
-//            }
+            for (var att : VALID_ATTRIBUTES) {
+                if (mob.getRandom().nextBoolean()) continue;
+                var h = ATTRIBUTE_REGISTRY.get(att);
+                if (h.isEmpty()) continue;
+                var inst = livingEntity.getAttribute(h.get());
+                if (inst == null) continue;
+                double sanitizedMin = inst.getAttribute().get().sanitizeValue(offset / -2);
+                inst.addOrUpdateTransientModifier(createModifier(sanitizedMin, sanitizedMin + offset));
+            }
         }
+        return false;
     }
 
-    private AttributeModifier createModifier(double min, double max) {
+    private static AttributeModifier createModifier(double min, double max) {
         var loc = ResourceLocation.fromNamespaceAndPath(RandomizerCore.MODID, "attribute");
         return new AttributeModifier(loc, RandomizerCore.unseededRNG.nextDouble(min, max), AttributeModifier.Operation.ADD_VALUE);
     }

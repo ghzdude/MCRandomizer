@@ -6,6 +6,7 @@ import com.ghzdude.randomizer.api.OutputSetter;
 import com.ghzdude.randomizer.util.RandomizerUtil;
 import com.google.common.collect.ImmutableMap;
 import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 import com.mojang.logging.LogUtils;
 import com.mojang.serialization.DataResult;
 import com.mojang.serialization.JsonOps;
@@ -18,6 +19,7 @@ import net.minecraft.core.HolderLookup;
 import net.minecraft.core.HolderSet;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.ServerAdvancementManager;
@@ -124,8 +126,11 @@ public class RecipeRandomizer {
             CACHED_RECIPES.put(holder.id().location(), holder);
             Recipe<?> recipe = holder.value();
             if (recipe.isSpecial()) continue;
-            ItemStack result = ItemStack.EMPTY;
             DataResult<JsonElement> encoded = Recipe.CODEC.encodeStart(JsonOps.INSTANCE, recipe);
+            encoded.map(JsonElement::getAsJsonObject).ifSuccess(object -> handleRecipe(object, recipe, holder.id()));
+            if (true) continue;
+
+            ItemStack result = ItemStack.EMPTY;
             ItemStack newResult = INSTANCE.getStackFor(result);
 
             if (result.isEmpty() || newResult.isEmpty()) {
@@ -138,7 +143,7 @@ public class RecipeRandomizer {
                 newResult = result;
             }
 
-            modifyRecipeOutputs(recipe, newResult);
+            modifyRecipeOutputs(recipe);
             RESULT_MAP.put(holder.id().location(), ITEM_REGISTRY.getKey(newResult.getItem()));
             OUTPUT_MAP.computeIfAbsent(ITEM_REGISTRY.getKey(newResult.getItem()), k -> new ArrayList<>())
                     .add(holder.id().location());
@@ -150,9 +155,26 @@ public class RecipeRandomizer {
         }
     }
 
-    private static void modifyRecipeOutputs(Recipe<?> recipe, ItemStack newResult) {
+    private static void handleRecipe(JsonObject object, Recipe<?> recipe, ResourceKey<Recipe<?>> id) {
+        if (!(recipe instanceof OutputSetter setter)) {
+            LOGGER.debug("Recipe \"{}\" cannot be randomized!", id);
+            return;
+        }
+
+        setter.randomizer$randomize(getMapData()::getStackFor);
+        ItemStack newResult = setter.randomizer$getResult();
+        RESULT_MAP.put(id.location(), ITEM_REGISTRY.getKey(newResult.getItem()));
+        OUTPUT_MAP.computeIfAbsent(ITEM_REGISTRY.getKey(newResult.getItem()), k -> new ArrayList<>())
+                .add(id.location());
+        // if inputs are not to be randomized, move on to the next recipe
+        if (RandomizerConfig.randomizeRecipeInputs) {
+            modifyRecipeInputs(setter.randomizer$getIngredients(), id.location());
+        }
+    }
+
+    private static void modifyRecipeOutputs(Recipe<?> recipe) {
         if (recipe instanceof OutputSetter setter) {
-            setter.randomizer$setResult(newResult);
+            setter.randomizer$randomize(getMapData()::getStackFor);
         }
     }
 
