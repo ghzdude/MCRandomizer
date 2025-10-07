@@ -9,6 +9,7 @@
     "IngredientMixin",
     "RandomizeLootMixin",
     "VillagerMixin",
+    "recipe.RecipeManagerMixin",
     "recipe.ShapedMixin",
     "recipe.ShapelessMixin",
     "recipe.SingleItemMixin",

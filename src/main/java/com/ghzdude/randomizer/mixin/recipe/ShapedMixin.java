@@ -20,7 +20,8 @@ public class ShapedMixin implements OutputSetter {
     @Shadow
     ItemStack result;
 
-    @Shadow @Final private ShapedRecipePattern pattern;
+    @Shadow @Final
+    ShapedRecipePattern pattern;
 
     @Override
     public void randomizer$randomize(UnaryOperator<ItemStack> stack) {

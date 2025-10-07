@@ -8,6 +8,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.mojang.datafixers.util.Pair;
 import com.mojang.logging.LogUtils;
 import com.mojang.serialization.DataResult;
 import com.mojang.serialization.JsonOps;
@@ -28,11 +29,7 @@ import net.minecraft.server.ServerAdvancementManager;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
-import net.minecraft.world.item.crafting.Ingredient;
-import net.minecraft.world.item.crafting.Recipe;
-import net.minecraft.world.item.crafting.RecipeHolder;
-import net.minecraft.world.item.crafting.RecipeManager;
+import net.minecraft.world.item.crafting.*;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 
@@ -69,10 +66,12 @@ public class RecipeRandomizer {
 
     private static RandomizationMapData INSTANCE = null;
     private static Registry<Item> ITEM_REGISTRY;
+    private static boolean init = false;
 
-    // todo look into RecipesUpdatedEvent
     public static void init(MinecraftServer server) {
         if (RandomizerConfig.randomizeRecipes) {
+            if (init) return;
+
             ITEM_REGISTRY = server.registryAccess().lookupOrThrow(Registries.ITEM);
             INSTANCE = RandomizationMapData.get(server, "recipes");
 
@@ -111,9 +110,9 @@ public class RecipeRandomizer {
 
     public static List<Ingredient> getIngredients(ResourceLocation loc) {
         RecipeHolder<?> holder = CACHED_RECIPES.get(loc);
-//        if (holder != null) {
-//            return holder.value().getIngredients();
-//        }
+        if (holder != null && holder.value() instanceof OutputSetter setter) {
+            return setter.randomizer$getIngredients();
+        }
         return Collections.emptyList();
     }
 
@@ -124,32 +123,87 @@ public class RecipeRandomizer {
     }
 
     public static void randomizeRecipes(RecipeManager manager, HolderLookup.Provider access) {
+        if (false)
         for (RecipeHolder<?> holder : manager.getRecipes()) {
             CACHED_RECIPES.put(holder.id().location(), holder);
             Recipe<?> recipe = holder.value();
             if (recipe.isSpecial()) continue;
             DataResult<JsonElement> encoded = Recipe.CODEC.encodeStart(JsonOps.INSTANCE, recipe);
-            encoded.map(JsonElement::getAsJsonObject).ifSuccess(object -> handleRecipe(object, recipe, holder.id()));
+            encoded.map(JsonElement::getAsJsonObject).ifSuccess(RecipeRandomizer::handleRecipe);
         }
     }
 
-    private static void handleRecipe(JsonObject object, Recipe<?> recipe, ResourceKey<Recipe<?>> id) {
-        if (!(recipe instanceof OutputSetter setter)) {
-            LOGGER.debug("Recipe \"{}\" cannot be randomized!", id);
-            return;
+    public static RecipeMap randomizeRecipeMap(RecipeMap original) {
+        if (!RandomizerConfig.randomizeRecipes) return original;
+        List<RecipeHolder<?>> randomized = new ArrayList<>(original.values().size());
+        for (RecipeHolder<?> recipeHolder : original.values()) {
+            randomized.add(randomizeRecipe(recipeHolder));
+        }
+        return RecipeMap.create(randomized);
+    }
+
+    private static RecipeHolder<?> randomizeRecipe(RecipeHolder<?> recipeHolder) {
+        DataResult<JsonElement> encoded = Recipe.CODEC.encodeStart(JsonOps.INSTANCE, recipeHolder.value());
+        Optional<RecipeHolder<?>> optional = encoded.map(JsonElement::getAsJsonObject)
+                .map(RecipeRandomizer::handleRecipe)
+                .map(object -> Recipe.CODEC.decode(JsonOps.INSTANCE, object))
+                .result()
+                .filter(DataResult::isSuccess)
+                .map(DataResult::result)
+                .filter(Optional::isPresent)
+                .map(Optional::get)
+                .map(Pair::getFirst)
+                .map(r -> new RecipeHolder<>(recipeHolder.id(), r));
+        return optional.isPresent() ? optional.get() : recipeHolder;
+
+    }
+
+    private static JsonObject handleRecipe(JsonObject object) {
+        if (true) {
+            if (RandomizerConfig.randomizeRecipeInputs) {
+                JsonObject inputs = object.getAsJsonObject("key");
+                for (String key : inputs.keySet()) {
+                    ResourceLocation input = ResourceLocation.parse(inputs.get(key).getAsString());
+                    Optional<Holder.Reference<Item>> itemReference = ITEM_REGISTRY.get(input);
+                    if (itemReference.isEmpty()) {
+                        continue;
+                    }
+                    Item stackFor = INSTANCE.getItemFor(itemReference.get().get());
+                    inputs.addProperty(key, Objects.requireNonNull(ITEM_REGISTRY.getKey(stackFor)).toString());
+                }
+            }
+
+            JsonObject result = object.getAsJsonObject("result");
+            ItemStack.CODEC.decode(JsonOps.INSTANCE, result)
+                    .map(Pair::getFirst)
+                    .result()
+                    .map(INSTANCE::getStackFor)
+                    .map(stack -> ItemStack.CODEC.encodeStart(JsonOps.INSTANCE, stack))
+                    .map(DataResult::result)
+                    .filter(Optional::isPresent)
+                    .map(Optional::get)
+                    .ifPresent(element -> object.add("result", element));
+
+            return object;
         }
 
-        if (!RandomizerConfig.ensureCompletability || !setter.randomizer$getResult().is(Items.ENDER_EYE)) {
-            setter.randomizer$randomize(getMapData()::getStackFor);
-        }
-        ItemStack newResult = setter.randomizer$getResult();
-        RESULT_MAP.put(id.location(), ITEM_REGISTRY.getKey(newResult.getItem()));
-        OUTPUT_MAP.computeIfAbsent(ITEM_REGISTRY.getKey(newResult.getItem()), k -> new ArrayList<>())
-                .add(id.location());
-        // if inputs are not to be randomized, move on to the next recipe
-        if (RandomizerConfig.randomizeRecipeInputs) {
-            modifyRecipeInputs(setter.randomizer$getIngredients(), id.location());
-        }
+//        if (!(recipe instanceof OutputSetter setter)) {
+//            LOGGER.debug("Recipe \"{}\" cannot be randomized!", id);
+//            return object;
+//        }
+//
+//        if (!RandomizerConfig.ensureCompletability || !setter.randomizer$getResult().is(Items.ENDER_EYE)) {
+//            setter.randomizer$randomize(getMapData()::getStackFor);
+//        }
+//        ItemStack newResult = setter.randomizer$getResult();
+//        RESULT_MAP.put(id.location(), ITEM_REGISTRY.getKey(newResult.getItem()));
+//        OUTPUT_MAP.computeIfAbsent(ITEM_REGISTRY.getKey(newResult.getItem()), k -> new ArrayList<>())
+//                .add(id.location());
+//        // if inputs are not to be randomized, move on to the next recipe
+//        if (RandomizerConfig.randomizeRecipeInputs) {
+//            modifyRecipeInputs(setter.randomizer$getIngredients(), id.location());
+//        }
+        return object;
     }
 
     private static void modifyRecipeInputs(List<Ingredient> ingredients, ResourceLocation recipe) {
