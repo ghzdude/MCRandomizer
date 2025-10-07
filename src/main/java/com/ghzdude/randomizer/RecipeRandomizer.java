@@ -3,9 +3,11 @@ package com.ghzdude.randomizer;
 import com.ghzdude.randomizer.api.AdvancementModify;
 import com.ghzdude.randomizer.api.IngredientRandomizable;
 import com.ghzdude.randomizer.api.OutputSetter;
+import com.ghzdude.randomizer.api.Randomizable;
 import com.ghzdude.randomizer.util.RandomizerUtil;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.mojang.datafixers.util.Pair;
@@ -75,10 +77,13 @@ public class RecipeRandomizer {
             ITEM_REGISTRY = server.registryAccess().lookupOrThrow(Registries.ITEM);
             INSTANCE = RandomizationMapData.get(server, "recipes");
 
-            LOGGER.warn("Recipe Randomizer Running!");
-            randomizeRecipes(server.getRecipeManager(), server.registryAccess());
+            if (server.getRecipeManager() instanceof Randomizable randomizable) {
+                LOGGER.warn("Recipe Randomizer Running!");
+                randomizable.randomizer$randomize();
+            }
 
             setAdvancements(server.getAdvancements());
+            init = true;
         }
     }
 
@@ -158,10 +163,10 @@ public class RecipeRandomizer {
 
     }
 
-    private static JsonObject handleRecipe(JsonObject object) {
-        if (true) {
-            if (RandomizerConfig.randomizeRecipeInputs) {
-                JsonObject inputs = object.getAsJsonObject("key");
+    private static JsonObject handleRecipe(JsonObject recipe) {
+        if (RandomizerConfig.randomizeRecipeInputs) {
+            if (isType(recipe, "minecraft:crafting_shaped")) {
+                JsonObject inputs = recipe.getAsJsonObject("key");
                 for (String key : inputs.keySet()) {
                     ResourceLocation input = ResourceLocation.parse(inputs.get(key).getAsString());
                     Optional<Holder.Reference<Item>> itemReference = ITEM_REGISTRY.get(input);
@@ -171,39 +176,44 @@ public class RecipeRandomizer {
                     Item stackFor = INSTANCE.getItemFor(itemReference.get().get());
                     inputs.addProperty(key, Objects.requireNonNull(ITEM_REGISTRY.getKey(stackFor)).toString());
                 }
+            } else if (isType(recipe, "minecraft:crafting_shapeless")) {
+                JsonArray inputs = recipe.getAsJsonArray("ingredients");
+                JsonArray randomized = new JsonArray();
+
+                inputs.asList().stream()
+                        .map(element -> ResourceLocation.parse(element.getAsString()))
+                        .map(ITEM_REGISTRY::get)
+                        .filter(Optional::isPresent)
+                        .map(Optional::get)
+                        .map(Holder::get)
+                        .map(INSTANCE::getItemFor)
+                        .map(ITEM_REGISTRY::getKey)
+                        .filter(Objects::nonNull)
+                        .map(ResourceLocation::toString)
+                        .forEach(randomized::add);
+
+                recipe.add("ingredients", randomized);
+            } else {
+                LOGGER.debug("unhandled object: {}", recipe);
             }
-
-            JsonObject result = object.getAsJsonObject("result");
-            ItemStack.CODEC.decode(JsonOps.INSTANCE, result)
-                    .map(Pair::getFirst)
-                    .result()
-                    .map(INSTANCE::getStackFor)
-                    .map(stack -> ItemStack.CODEC.encodeStart(JsonOps.INSTANCE, stack))
-                    .map(DataResult::result)
-                    .filter(Optional::isPresent)
-                    .map(Optional::get)
-                    .ifPresent(element -> object.add("result", element));
-
-            return object;
         }
 
-//        if (!(recipe instanceof OutputSetter setter)) {
-//            LOGGER.debug("Recipe \"{}\" cannot be randomized!", id);
-//            return object;
-//        }
-//
-//        if (!RandomizerConfig.ensureCompletability || !setter.randomizer$getResult().is(Items.ENDER_EYE)) {
-//            setter.randomizer$randomize(getMapData()::getStackFor);
-//        }
-//        ItemStack newResult = setter.randomizer$getResult();
-//        RESULT_MAP.put(id.location(), ITEM_REGISTRY.getKey(newResult.getItem()));
-//        OUTPUT_MAP.computeIfAbsent(ITEM_REGISTRY.getKey(newResult.getItem()), k -> new ArrayList<>())
-//                .add(id.location());
-//        // if inputs are not to be randomized, move on to the next recipe
-//        if (RandomizerConfig.randomizeRecipeInputs) {
-//            modifyRecipeInputs(setter.randomizer$getIngredients(), id.location());
-//        }
-        return object;
+        JsonObject result = recipe.getAsJsonObject("result");
+        ItemStack.CODEC.decode(JsonOps.INSTANCE, result)
+                .map(Pair::getFirst)
+                .result()
+                .map(INSTANCE::getStackFor)
+                .map(stack -> ItemStack.CODEC.encodeStart(JsonOps.INSTANCE, stack))
+                .map(DataResult::result)
+                .filter(Optional::isPresent)
+                .map(Optional::get)
+                .ifPresent(element -> recipe.add("result", element));
+
+        return recipe;
+    }
+
+    private static boolean isType(JsonObject recipe, String type) {
+        return recipe.get("type").getAsString().equals(type);
     }
 
     private static void modifyRecipeInputs(List<Ingredient> ingredients, ResourceLocation recipe) {

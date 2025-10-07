@@ -33,7 +33,7 @@ public class RandomizerCore
     // Define mod id in a common place for everything to reference
     public static final String MODID = "randomizer";
     // Directly reference a slf4j logger
-    private static final Logger LOGGER = LogUtils.getLogger();
+    public static final Logger LOGGER = LogUtils.getLogger();
     private static final String POINT_KEY = "points";
     private static final String POINT_MAX_KEY = "point_max";
     private static final String CYCLE_KEY = "cycle";
@@ -97,6 +97,7 @@ public class RandomizerCore
 
     @SubscribeEvent
     public void reload(AddReloadListenerEvent event) {
+//        RecipeRandomizer.init(event.getRegistries(), );
         if (!serverStarted) return;
         HolderLookup.Provider access = event.getRegistries();
         RecipeManager recipeManager = event.getServerResources().getRecipeManager();
