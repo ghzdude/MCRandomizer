@@ -1,11 +1,8 @@
 package com.ghzdude.randomizer;
 
 import com.ghzdude.randomizer.api.AdvancementModify;
-import com.ghzdude.randomizer.api.IngredientRandomizable;
-import com.ghzdude.randomizer.api.OutputSetter;
 import com.ghzdude.randomizer.api.Randomizable;
 import com.ghzdude.randomizer.util.RandomizerUtil;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -22,7 +19,6 @@ import net.minecraft.advancements.AdvancementHolder;
 import net.minecraft.advancements.AdvancementRewards;
 import net.minecraft.advancements.critereon.InventoryChangeTrigger;
 import net.minecraft.core.Holder;
-import net.minecraft.core.HolderLookup;
 import net.minecraft.core.HolderSet;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.Registries;
@@ -71,6 +67,7 @@ public class RecipeRandomizer {
 
     private static RandomizationMapData INSTANCE = null;
     private static Registry<Item> ITEM_REGISTRY;
+    private static Runnable onReload = () -> {};
     private static boolean init = false;
 
     public static void init(MinecraftServer server) {
@@ -80,15 +77,29 @@ public class RecipeRandomizer {
             ITEM_REGISTRY = server.registryAccess().lookupOrThrow(Registries.ITEM);
             INSTANCE = RandomizationMapData.get(server, "recipes");
 
-            if (server.getRecipeManager() instanceof Randomizable randomizable) {
-                LOGGER.warn("Recipe Randomizer Running!");
-                randomizable.randomizer$randomize(RegistryOps.create(JsonOps.INSTANCE, server.registryAccess()));
-                server.getRecipeManager().finalizeRecipeLoading(server.getWorldData().enabledFeatures());
-            }
+            onReload = () -> {
+                RecipeManager manager = server.getRecipeManager();
+                if (!(manager instanceof Randomizable randomizable))
+                    return;
 
-//            setAdvancements(server.getAdvancements());
+                final var ops = server.registryAccess().createSerializationContext(JsonOps.INSTANCE);
+                if (RandomizerConfig.randomizeRecipes) {
+                    LOGGER.warn("Recipe Randomizer Running!");
+                    randomizable.randomizer$randomize(ops);
+                    manager.finalizeRecipeLoading(server.getWorldData().enabledFeatures());
+
+                    if (RandomizerConfig.randomizeRecipeInputs)
+                        setAdvancements(server.getAdvancements());
+                }
+            };
+            onReload.run();
+
             init = true;
         }
+    }
+
+    public static void reload() {
+        if (init) onReload.run();
     }
 
     public static void dispose() {
@@ -118,27 +129,17 @@ public class RecipeRandomizer {
     }
 
     public static List<Ingredient> getIngredients(ResourceLocation loc) {
-        RecipeHolder<?> holder = CACHED_RECIPES.get(loc);
-        if (holder != null && holder.value() instanceof OutputSetter setter) {
-            return setter.randomizer$getIngredients();
-        }
+//        RecipeHolder<?> holder = CACHED_RECIPES.get(loc);
+//        if (holder != null && holder.value() instanceof OutputSetter setter) {
+//            return setter.randomizer$getIngredients();
+//        }
         return Collections.emptyList();
     }
 
     public static void setAdvancements(ServerAdvancementManager manager) {
         if (manager instanceof AdvancementModify modify) {
+            LOGGER.warn("Modifying advancements!");
             modify.randomizer$randomizeRecipeAdvancements();
-        }
-    }
-
-    public static void randomizeRecipes(RecipeManager manager, HolderLookup.Provider access) {
-        if (false)
-        for (RecipeHolder<?> holder : manager.getRecipes()) {
-            CACHED_RECIPES.put(holder.id().location(), holder);
-            Recipe<?> recipe = holder.value();
-            if (recipe.isSpecial()) continue;
-//            DataResult<JsonElement> encoded = Recipe.CODEC.encodeStart(JsonOps.INSTANCE, recipe);
-//            encoded.map(JsonElement::getAsJsonObject).ifSuccess(recipe1 -> handleRecipe(recipe1, ops));
         }
     }
 
@@ -152,8 +153,11 @@ public class RecipeRandomizer {
         return RecipeMap.create(randomized);
     }
 
+    private static ResourceLocation activeRecipe;
+
     private static RecipeHolder<Recipe<?>> randomizeRecipe(RecipeHolder<Recipe<?>> recipeHolder, DynamicOps<JsonElement> ops) {
         DataResult<JsonElement> encoded = Recipe.CODEC.encodeStart(ops, recipeHolder.value());
+        activeRecipe = recipeHolder.id().location();
         return encoded.map(JsonElement::getAsJsonObject)
                 .ifError(e -> error(recipeHolder, e.message()))
                 // handling recipes in this way means tagkeys are expanded into items
@@ -178,24 +182,24 @@ public class RecipeRandomizer {
         if (RandomizerConfig.randomizeRecipeInputs) {
             if (isType(recipe, "minecraft:crafting_shaped")) {
                 JsonObject inputs = recipe.getAsJsonObject("key");
-                Set.copyOf(inputs.keySet()).forEach(key -> inputs.add(key, modifyElement(inputs.get(key))));
+                Set.copyOf(inputs.keySet()).forEach(key -> inputs.add(key, randomizeOutput(inputs.get(key))));
             } else if (isType(recipe, "minecraft:crafting_shapeless")) {
                 JsonArray inputs = recipe.getAsJsonArray("ingredients");
                 JsonArray randomized = new JsonArray();
 
                 inputs.asList().stream()
-                        .map(RecipeRandomizer::modifyElement)
+                        .map(RecipeRandomizer::randomizeOutput)
                         .forEach(randomized::add);
 
                 recipe.add("ingredients", randomized);
             } else if (recipe.has("ingredient")) {
-                modifiy(recipe, "ingredient");
+                modifyOutput(recipe, "ingredient");
             } else if (isType(recipe, "minecraft:crafting_transmute")) {
-                modifiy(recipe, "input");
+                modifyOutput(recipe, "input");
             } else if (isType(recipe, "minecraft:smithing_trim") || isType(recipe, "minecraft:smithing_transform")) {
-                modifiy(recipe, "template");
-                modifiy(recipe, "base");
-                modifiy(recipe, "addition");
+                modifyOutput(recipe, "template");
+                modifyOutput(recipe, "base");
+                modifyOutput(recipe, "addition");
             } else {
                 LOGGER.debug("unhandled object: {}", recipe);
             }
@@ -206,7 +210,11 @@ public class RecipeRandomizer {
             ItemStack.CODEC.decode(ops, result)
                     .ifError(e -> LOGGER.debug("failed to decode \"{}\"\n{}", result, e.message()))
                     .result().map(Pair::getFirst)
-                    .map(INSTANCE::getStackFor)
+                    .map(vanilla -> {
+                        ItemStack stack = getMapData().getStackFor(vanilla);
+                        RESULT_MAP.put(activeRecipe, ITEM_REGISTRY.getKey(stack.getItem()));
+                        return stack;
+                    })
                     .flatMap(stack -> ItemStack.CODEC.encodeStart(ops, stack)
                             .ifError(e -> LOGGER.debug("failed to encode \"{}\"\n{}", stack, e.message()))
                             .result())
@@ -216,71 +224,40 @@ public class RecipeRandomizer {
         return recipe;
     }
 
-    private static void modifiy(JsonObject recipe, String key) {
-        recipe.add(key, modifyElement(recipe.get(key)));
+    private static void modifyOutput(JsonObject recipe, String key) {
+        recipe.add(key, randomizeOutput(recipe.get(key)));
     }
 
-    private static JsonElement modifyElement(JsonElement element) {
-        if (element.isJsonArray()) {
+    private static JsonElement randomizeOutput(JsonElement output) {
+        if (output.isJsonArray()) {
             JsonArray inner = new JsonArray();
-            element.getAsJsonArray().asList().stream()
+            output.getAsJsonArray().asList().stream()
                     .map(JsonElement::getAsString)
                     .map(ResourceLocation::tryParse)
-                    .map(INSTANCE::getItemFor)
-                    .map(ResourceLocation::toString)
+                    .map(getMapData()::getItemFor)
+                    .map(loc -> {
+                        addToMap(activeRecipe, loc);
+                        return loc.toString();
+                    })
                     .forEach(inner::add);
             return inner;
         } else {
-            String vanilla = element.getAsString();
+            String vanilla = output.getAsString();
             ResourceLocation location;
             if (vanilla.startsWith("#")) {
                 location = ResourceLocation.parse(vanilla.substring(1));
-                return new JsonPrimitive("#" + INSTANCE.getTagKeyFor(location).toString());
+                addToMap(activeRecipe, location);
+                return new JsonPrimitive("#" + getMapData().getTagKeyFor(location).toString());
             } else {
                 location = ResourceLocation.parse(vanilla);
-                return new JsonPrimitive(INSTANCE.getItemFor(location).toString());
+                addToMap(activeRecipe, location);
+                return new JsonPrimitive(getMapData().getItemFor(location).toString());
             }
         }
     }
 
     private static boolean isType(JsonObject recipe, String type) {
         return recipe.get("type").getAsString().equals(type);
-    }
-
-    private static void modifyRecipeInputs(List<Ingredient> ingredients, ResourceLocation recipe) {
-        List<Ingredient> checked = new ArrayList<>();
-        for (var ing : ingredients) {
-            if (checked.contains(ing)) continue;
-            if (ing instanceof IngredientRandomizable randomizable) {
-                checked.add(ing);
-                randomizable.randomizer$randomizeInputs(holders -> {
-                    Optional<TagKey<Item>> tagKey = holders.unwrapKey();
-                    if (tagKey.isPresent()) {
-                        // we are a tag key
-                        TagKey<Item> key = tagKey.get();
-                        key = INSTANCE.getTagKeyFor(key);
-                        addToMap(recipe, key.location());
-                        return ITEM_REGISTRY.get(key).orElseThrow();
-                    }
-                    // this is either one item or a set of items
-                    Optional<ImmutableList<Holder<Item>>> right = holders.unwrap().mapRight(list -> {
-                        ImmutableList.Builder<Holder<Item>> builder = new ImmutableList.Builder<>();
-                        list.forEach(itemHolder -> {
-                            Item item = INSTANCE.getItemFor(itemHolder.get());
-                            addToMap(recipe, Objects.requireNonNull(ITEM_REGISTRY.getKey(item)));
-                            builder.add(ITEM_REGISTRY.wrapAsHolder(item));
-                        });
-                        return builder.build();
-                    }).right();
-
-                    if (right.isPresent()) {
-                        return HolderSet.direct(right.get());
-                    } else {
-                        return holders; // do not randomize
-                    }
-                });
-            }
-        }
     }
 
     public static void addToMap(@NotNull ResourceLocation recipe, @NotNull ResourceLocation ingredient) {

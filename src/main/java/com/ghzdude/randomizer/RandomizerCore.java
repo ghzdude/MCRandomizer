@@ -1,17 +1,13 @@
 package com.ghzdude.randomizer;
 
 import com.ghzdude.randomizer.loot.LootRandomizer;
-import com.ghzdude.randomizer.special.modifiers.AdvancementModifier;
-import com.ghzdude.randomizer.special.modifiers.RecipeModifier;
 import com.ghzdude.randomizer.util.RandomizerUtil;
 import com.mojang.logging.LogUtils;
-import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
-import net.minecraft.server.ServerAdvancementManager;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.packs.resources.ResourceManagerReloadListener;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.crafting.RecipeManager;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.AddReloadListenerEvent;
 import net.minecraftforge.event.TickEvent;
@@ -58,6 +54,8 @@ public class RandomizerCore
         // Register ourselves for server and other game events we are interested in
         MinecraftForge.EVENT_BUS.register(this);
         EntityJoinLevelEvent.BUS.addListener(MobRandomizer::onEntityJoin);
+        // todo improve loot randomizer with load event
+//        LootTableLoadEvent.BUS.addListener(LootRandomizer::test);
 //        MinecraftForge.EVENT_BUS.register(MobRandomizer::onEntityJoin);
     }
 
@@ -97,19 +95,7 @@ public class RandomizerCore
 
     @SubscribeEvent
     public void reload(AddReloadListenerEvent event) {
-//        RecipeRandomizer.init(event.getRegistries(), );
-        if (!serverStarted) return;
-        HolderLookup.Provider access = event.getRegistries();
-        RecipeManager recipeManager = event.getServerResources().getRecipeManager();
-        ServerAdvancementManager serverAdvancementManager = event.getServerResources().getAdvancements();
-
-        if (RandomizerConfig.randomizeRecipes) {
-            event.addListener(new RecipeModifier(access, recipeManager));
-        }
-
-        if (RandomizerConfig.randomizeRecipeInputs) {
-            event.addListener(new AdvancementModifier(serverAdvancementManager));
-        }
+        event.addListener((ResourceManagerReloadListener) resourceManager -> RecipeRandomizer.reload());
     }
 
     @SubscribeEvent

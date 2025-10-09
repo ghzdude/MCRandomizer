@@ -6,14 +6,9 @@
   "compatibilityLevel": "JAVA_8",
   "mixins": [
     "AdvancementManagerMixin",
-    "IngredientMixin",
     "RandomizeLootMixin",
     "VillagerMixin",
-    "recipe.RecipeManagerMixin",
-    "recipe.ShapedMixin",
-    "recipe.ShapelessMixin",
-    "recipe.SingleItemMixin",
-    "recipe.TransmuteMixin"
+    "recipe.RecipeManagerMixin"
   ],
   "client": [],
   "server": [],
