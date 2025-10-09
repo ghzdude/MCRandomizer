@@ -3,30 +3,29 @@ package com.ghzdude.randomizer;
 import com.ghzdude.randomizer.loot.LootRandomizer;
 import com.ghzdude.randomizer.util.RandomizerUtil;
 import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
 import com.mojang.datafixers.util.Pair;
 import com.mojang.logging.LogUtils;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.DataResult;
 import com.mojang.serialization.DynamicOps;
-import com.mojang.serialization.JsonOps;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import it.unimi.dsi.fastutil.ints.Int2ObjectArrayMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMaps;
 import it.unimi.dsi.fastutil.objects.*;
+import net.minecraft.core.Holder;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.tags.ItemTags;
 import net.minecraft.util.datafix.DataFixTypes;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.item.DyeColor;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;
-import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.saveddata.SavedData;
 import net.minecraft.world.level.saveddata.SavedDataType;
@@ -441,14 +440,14 @@ public class CompletabilityVerifier {
         ENDER_EYE = ITEM_REGISTRY.getKey(Items.ENDER_EYE);
         OBSIDIAN = ITEM_REGISTRY.getKey(Items.OBSIDIAN);
 
-//        if (data.fromDisk) {
-//            LOGGER.info("Loading saved completability data!");
-//            for (ModificationData modificationData : data.MODIFICATION_DATA) {
-//                LootRandomizer.registerSpecialDrop(modificationData.table, modificationData.original, modificationData.replacement);
-//            }
-//            LOGGER.info("Loaded {} entries!", data.MODIFICATION_DATA.size());
-//            return;
-//        }
+        if (data.fromDisk) {
+            LOGGER.info("Loading saved completability data!");
+            for (ModificationData modificationData : data.MODIFICATION_DATA) {
+                LootRandomizer.registerSpecialDrop(modificationData.table, modificationData.original, modificationData.replacement);
+            }
+            LOGGER.info("Loaded {} entries!", data.MODIFICATION_DATA.size());
+            return;
+        }
 
         for (ResourceLocation recipe : RecipeRandomizer.getKnownRecipes()) {
             ResourceLocation result = RecipeRandomizer.getResultFor(recipe);
@@ -481,31 +480,19 @@ public class CompletabilityVerifier {
         data = null;
     }
 
-    public static void addRecipe(List<Ingredient> ingredients, ResourceLocation output, ResourceLocation recipe) {
+    public static void addRecipe(Set<JsonElement> ingredients, ResourceLocation output, ResourceLocation recipe) {
         if (!RandomizerConfig.ensureCompletability) return;
 
         int i = 0;
-        for (Ingredient ing : ingredients.stream().distinct().toList()) {
-            DataResult<JsonElement> result = Ingredient.CODEC.encodeStart(JsonOps.INSTANCE, ing);
-
-            if (result.isError()) {
-                if (RandomizerConfig.enableDebug)
-                    LOGGER.debug("Failed to read ingredient '{}' in recipe '{}}'!", ing, recipe);
-                continue;
-            }
-
-            Optional<JsonElement> optional = result.result();
-            if (optional.isEmpty()) continue;
-
+        for (JsonElement ing : ingredients) {
             Set<ResourceLocation> items = new ObjectOpenHashSet<>();
 
-            JsonElement element = optional.get();
-            if (element.isJsonArray()) {
-                for (JsonElement e : element.getAsJsonArray()) {
-                    parseJson(e.getAsJsonObject(), items);
+            if (ing.isJsonArray()) {
+                for (JsonElement e : ing.getAsJsonArray()) {
+                    parseJson(e, items);
                 }
             } else {
-                parseJson(element.getAsJsonObject(), items);
+                parseJson(ing, items);
             }
 
             addIngredients(recipe, i++, items);
@@ -531,19 +518,20 @@ public class CompletabilityVerifier {
         }
     }
 
-    private static void parseJson(JsonObject object, Set<ResourceLocation> items) {
-        if (object.has("tag")) {
-            ResourceLocation tag = ResourceLocation.parse(object.get("tag").getAsString());
-//            TAG_MAP.computeIfAbsent(tag, (ResourceLocation k) -> ITEM_REGISTRY.getTag(TagKey.create(Registries.ITEM, k))
-//                    .map(holders -> holders.stream()
-//                            .map(Holder::value)
-//                            .map(ITEM_REGISTRY::getKey)
-//                            .filter(Objects::nonNull)
-//                            .collect(Collectors.toUnmodifiableSet()))
-//                    .orElse(Collections.emptySet()));
+    private static void parseJson(JsonElement element, Set<ResourceLocation> items) {
+        String s = element.getAsString();
+        if (s.startsWith("#")) {
+            ResourceLocation tag = ResourceLocation.parse(s.substring(1));
+            TAG_MAP.computeIfAbsent(tag, (ResourceLocation k) -> ITEM_REGISTRY.get(ItemTags.create(k))
+                    .map(holders -> holders.stream()
+                            .map(Holder::get)
+                            .map(ITEM_REGISTRY::getKey)
+                            .filter(Objects::nonNull)
+                            .collect(Collectors.toUnmodifiableSet()))
+                    .orElse(Collections.emptySet()));
             items.add(tag);
-        } else if (object.has("item")) {
-            items.add(ResourceLocation.parse(object.get("item").getAsString()));
+        } else{
+            items.add(ResourceLocation.parse(s));
         }
     }
 
@@ -604,7 +592,7 @@ public class CompletabilityVerifier {
     public static void ensureCompletability() {
         if (data.fromDisk) {
             // we loaded from disk, no need to check again
-//            return;
+            return;
         }
 
         PRINT_PATH.add(Component.translatable("Iterating all ender eye recipes"));

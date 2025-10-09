@@ -14,6 +14,7 @@ import com.mojang.serialization.DataResult;
 import com.mojang.serialization.DynamicOps;
 import com.mojang.serialization.JsonOps;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import net.minecraft.advancements.Advancement;
 import net.minecraft.advancements.AdvancementHolder;
 import net.minecraft.advancements.AdvancementRewards;
@@ -30,7 +31,11 @@ import net.minecraft.server.ServerAdvancementManager;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.crafting.*;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.item.crafting.Recipe;
+import net.minecraft.world.item.crafting.RecipeHolder;
+import net.minecraft.world.item.crafting.RecipeManager;
+import net.minecraft.world.item.crafting.RecipeMap;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 
@@ -56,7 +61,7 @@ public class RecipeRandomizer {
     private static final Map<ResourceLocation, List<ResourceLocation>> MODIFIED = new Object2ObjectOpenHashMap<>();
 
     // recipe id -> recipe
-    private static final Map<ResourceLocation, RecipeHolder<?>> CACHED_RECIPES = new Object2ObjectOpenHashMap<>();
+    private static final Map<ResourceLocation, Set<JsonElement>> CACHED_RECIPES = new Object2ObjectOpenHashMap<>();
 
     // recipe id -> result item
     private static final Map<ResourceLocation, ResourceLocation> RESULT_MAP = new Object2ObjectOpenHashMap<>();
@@ -128,12 +133,8 @@ public class RecipeRandomizer {
         return OUTPUT_MAP.getOrDefault(location, Collections.emptyList());
     }
 
-    public static List<Ingredient> getIngredients(ResourceLocation loc) {
-//        RecipeHolder<?> holder = CACHED_RECIPES.get(loc);
-//        if (holder != null && holder.value() instanceof OutputSetter setter) {
-//            return setter.randomizer$getIngredients();
-//        }
-        return Collections.emptyList();
+    public static Set<JsonElement> getIngredients(ResourceLocation recipe) {
+        return CACHED_RECIPES.getOrDefault(recipe, Collections.emptySet());
     }
 
     public static void setAdvancements(ServerAdvancementManager manager) {
@@ -211,6 +212,9 @@ public class RecipeRandomizer {
                     .ifError(e -> LOGGER.debug("failed to decode \"{}\"\n{}", result, e.message()))
                     .result().map(Pair::getFirst)
                     .map(vanilla -> {
+                        if (vanilla.is(Items.ENDER_EYE) && RandomizerConfig.ensureCompletability)
+                            return vanilla;
+
                         ItemStack stack = getMapData().getStackFor(vanilla);
                         RESULT_MAP.put(activeRecipe, ITEM_REGISTRY.getKey(stack.getItem()));
                         return stack;
@@ -229,6 +233,8 @@ public class RecipeRandomizer {
     }
 
     private static JsonElement randomizeOutput(JsonElement output) {
+        CACHED_RECIPES.computeIfAbsent(activeRecipe, k -> new ObjectOpenHashSet<>(9))
+                .add(output);
         if (output.isJsonArray()) {
             JsonArray inner = new JsonArray();
             output.getAsJsonArray().asList().stream()
@@ -298,7 +304,7 @@ public class RecipeRandomizer {
     }
 
     public static Set<ResourceLocation> getKnownRecipes() {
-        return CACHED_RECIPES.keySet();
+        return RESULT_MAP.keySet();
     }
 
     public static ResourceLocation getResultFor(ResourceLocation recipe) {

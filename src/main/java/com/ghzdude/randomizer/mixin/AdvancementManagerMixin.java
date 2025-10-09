@@ -1,5 +1,6 @@
 package com.ghzdude.randomizer.mixin;
 
+import com.ghzdude.randomizer.RandomizerCore;
 import com.ghzdude.randomizer.RecipeRandomizer;
 import com.ghzdude.randomizer.api.AdvancementModify;
 import com.google.common.collect.ImmutableMap;
@@ -20,9 +21,9 @@ public abstract class AdvancementManagerMixin implements AdvancementModify {
     public void randomizer$randomizeRecipeAdvancements() {
         ImmutableMap.Builder<ResourceLocation, AdvancementHolder> toKeep = ImmutableMap.builder();
         this.advancements.forEach((loc, holder) -> {
-            if (!loc.getPath().contains("recipes/")) {
-                toKeep.put(loc, holder);
-            }
+            if (loc.getNamespace().equals(RandomizerCore.MODID)) return;
+            if (loc.getPath().startsWith("recipes/")) return;
+            toKeep.put(loc, holder);
         });
 
         RecipeRandomizer.buildAdvancements(toKeep);
