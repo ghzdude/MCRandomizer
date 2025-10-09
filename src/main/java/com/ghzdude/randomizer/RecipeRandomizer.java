@@ -10,9 +10,11 @@ import com.google.common.collect.ImmutableMap;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonPrimitive;
 import com.mojang.datafixers.util.Pair;
 import com.mojang.logging.LogUtils;
 import com.mojang.serialization.DataResult;
+import com.mojang.serialization.DynamicOps;
 import com.mojang.serialization.JsonOps;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import net.minecraft.advancements.Advancement;
@@ -24,6 +26,7 @@ import net.minecraft.core.HolderLookup;
 import net.minecraft.core.HolderSet;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.RegistryOps;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
@@ -79,10 +82,11 @@ public class RecipeRandomizer {
 
             if (server.getRecipeManager() instanceof Randomizable randomizable) {
                 LOGGER.warn("Recipe Randomizer Running!");
-                randomizable.randomizer$randomize();
+                randomizable.randomizer$randomize(RegistryOps.create(JsonOps.INSTANCE, server.registryAccess()));
+                server.getRecipeManager().finalizeRecipeLoading(server.getWorldData().enabledFeatures());
             }
 
-            setAdvancements(server.getAdvancements());
+//            setAdvancements(server.getAdvancements());
             init = true;
         }
     }
@@ -133,83 +137,110 @@ public class RecipeRandomizer {
             CACHED_RECIPES.put(holder.id().location(), holder);
             Recipe<?> recipe = holder.value();
             if (recipe.isSpecial()) continue;
-            DataResult<JsonElement> encoded = Recipe.CODEC.encodeStart(JsonOps.INSTANCE, recipe);
-            encoded.map(JsonElement::getAsJsonObject).ifSuccess(RecipeRandomizer::handleRecipe);
+//            DataResult<JsonElement> encoded = Recipe.CODEC.encodeStart(JsonOps.INSTANCE, recipe);
+//            encoded.map(JsonElement::getAsJsonObject).ifSuccess(recipe1 -> handleRecipe(recipe1, ops));
         }
     }
 
-    public static RecipeMap randomizeRecipeMap(RecipeMap original) {
+    public static RecipeMap randomizeRecipeMap(RecipeMap original, RegistryOps<JsonElement> ops) {
         if (!RandomizerConfig.randomizeRecipes) return original;
         List<RecipeHolder<?>> randomized = new ArrayList<>(original.values().size());
         for (RecipeHolder<?> recipeHolder : original.values()) {
-            randomized.add(randomizeRecipe(recipeHolder));
+            //noinspection unchecked
+            randomized.add(randomizeRecipe((RecipeHolder<Recipe<?>>) recipeHolder, ops));
         }
         return RecipeMap.create(randomized);
     }
 
-    private static RecipeHolder<?> randomizeRecipe(RecipeHolder<?> recipeHolder) {
-        DataResult<JsonElement> encoded = Recipe.CODEC.encodeStart(JsonOps.INSTANCE, recipeHolder.value());
-        Optional<RecipeHolder<?>> optional = encoded.map(JsonElement::getAsJsonObject)
-                .map(RecipeRandomizer::handleRecipe)
-                .map(object -> Recipe.CODEC.decode(JsonOps.INSTANCE, object))
+    private static RecipeHolder<Recipe<?>> randomizeRecipe(RecipeHolder<Recipe<?>> recipeHolder, DynamicOps<JsonElement> ops) {
+        DataResult<JsonElement> encoded = Recipe.CODEC.encodeStart(ops, recipeHolder.value());
+        return encoded.map(JsonElement::getAsJsonObject)
+                .ifError(e -> error(recipeHolder, e.message()))
+                // handling recipes in this way means tagkeys are expanded into items
+                .map(recipe -> handleRecipe(recipe, ops))
+                .map(object -> Recipe.CODEC.decode(ops, object)
+                        .ifError(e -> error(recipeHolder, e.message())))
                 .result()
-                .filter(DataResult::isSuccess)
-                .map(DataResult::result)
-                .filter(Optional::isPresent)
-                .map(Optional::get)
+                .filter(DataResult::isSuccess).map(DataResult::result)
+                .filter(Optional::isPresent).map(Optional::get)
                 .map(Pair::getFirst)
-                .map(r -> new RecipeHolder<>(recipeHolder.id(), r));
-        return optional.isPresent() ? optional.get() : recipeHolder;
+                .map(r -> new RecipeHolder<Recipe<?>>(recipeHolder.id(), r))
+                .orElse(recipeHolder);
 
     }
 
-    private static JsonObject handleRecipe(JsonObject recipe) {
+    private static void error(RecipeHolder<?> recipeHolder, String message) {
+        LOGGER.debug("failed to randomize: {}", recipeHolder.id());
+        LOGGER.debug(message);
+    }
+
+    private static JsonObject handleRecipe(JsonObject recipe, DynamicOps<JsonElement> ops) {
         if (RandomizerConfig.randomizeRecipeInputs) {
             if (isType(recipe, "minecraft:crafting_shaped")) {
                 JsonObject inputs = recipe.getAsJsonObject("key");
-                for (String key : inputs.keySet()) {
-                    ResourceLocation input = ResourceLocation.parse(inputs.get(key).getAsString());
-                    Optional<Holder.Reference<Item>> itemReference = ITEM_REGISTRY.get(input);
-                    if (itemReference.isEmpty()) {
-                        continue;
-                    }
-                    Item stackFor = INSTANCE.getItemFor(itemReference.get().get());
-                    inputs.addProperty(key, Objects.requireNonNull(ITEM_REGISTRY.getKey(stackFor)).toString());
-                }
+                Set.copyOf(inputs.keySet()).forEach(key -> inputs.add(key, modifyElement(inputs.get(key))));
             } else if (isType(recipe, "minecraft:crafting_shapeless")) {
                 JsonArray inputs = recipe.getAsJsonArray("ingredients");
                 JsonArray randomized = new JsonArray();
 
                 inputs.asList().stream()
-                        .map(element -> ResourceLocation.parse(element.getAsString()))
-                        .map(ITEM_REGISTRY::get)
-                        .filter(Optional::isPresent)
-                        .map(Optional::get)
-                        .map(Holder::get)
-                        .map(INSTANCE::getItemFor)
-                        .map(ITEM_REGISTRY::getKey)
-                        .filter(Objects::nonNull)
-                        .map(ResourceLocation::toString)
+                        .map(RecipeRandomizer::modifyElement)
                         .forEach(randomized::add);
 
                 recipe.add("ingredients", randomized);
+            } else if (recipe.has("ingredient")) {
+                modifiy(recipe, "ingredient");
+            } else if (isType(recipe, "minecraft:crafting_transmute")) {
+                modifiy(recipe, "input");
+            } else if (isType(recipe, "minecraft:smithing_trim") || isType(recipe, "minecraft:smithing_transform")) {
+                modifiy(recipe, "template");
+                modifiy(recipe, "base");
+                modifiy(recipe, "addition");
             } else {
                 LOGGER.debug("unhandled object: {}", recipe);
             }
         }
 
-        JsonObject result = recipe.getAsJsonObject("result");
-        ItemStack.CODEC.decode(JsonOps.INSTANCE, result)
-                .map(Pair::getFirst)
-                .result()
-                .map(INSTANCE::getStackFor)
-                .map(stack -> ItemStack.CODEC.encodeStart(JsonOps.INSTANCE, stack))
-                .map(DataResult::result)
-                .filter(Optional::isPresent)
-                .map(Optional::get)
-                .ifPresent(element -> recipe.add("result", element));
+        if (recipe.has("result")) {
+            JsonObject result = recipe.getAsJsonObject("result");
+            ItemStack.CODEC.decode(ops, result)
+                    .ifError(e -> LOGGER.debug("failed to decode \"{}\"\n{}", result, e.message()))
+                    .result().map(Pair::getFirst)
+                    .map(INSTANCE::getStackFor)
+                    .flatMap(stack -> ItemStack.CODEC.encodeStart(ops, stack)
+                            .ifError(e -> LOGGER.debug("failed to encode \"{}\"\n{}", stack, e.message()))
+                            .result())
+                    .ifPresent(element -> recipe.add("result", element));
+        }
 
         return recipe;
+    }
+
+    private static void modifiy(JsonObject recipe, String key) {
+        recipe.add(key, modifyElement(recipe.get(key)));
+    }
+
+    private static JsonElement modifyElement(JsonElement element) {
+        if (element.isJsonArray()) {
+            JsonArray inner = new JsonArray();
+            element.getAsJsonArray().asList().stream()
+                    .map(JsonElement::getAsString)
+                    .map(ResourceLocation::tryParse)
+                    .map(INSTANCE::getItemFor)
+                    .map(ResourceLocation::toString)
+                    .forEach(inner::add);
+            return inner;
+        } else {
+            String vanilla = element.getAsString();
+            ResourceLocation location;
+            if (vanilla.startsWith("#")) {
+                location = ResourceLocation.parse(vanilla.substring(1));
+                return new JsonPrimitive("#" + INSTANCE.getTagKeyFor(location).toString());
+            } else {
+                location = ResourceLocation.parse(vanilla);
+                return new JsonPrimitive(INSTANCE.getItemFor(location).toString());
+            }
+        }
     }
 
     private static boolean isType(JsonObject recipe, String type) {
