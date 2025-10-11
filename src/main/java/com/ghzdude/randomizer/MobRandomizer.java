@@ -7,6 +7,7 @@ import net.minecraft.core.Holder;
 import net.minecraft.core.Registry;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.*;
@@ -31,6 +32,7 @@ public class MobRandomizer {
     private static final List<ResourceLocation> BLACKLISTED_ATTRIBUTES = new ArrayList<>();
     private static final List<ResourceLocation> VALID_ATTRIBUTES = new ArrayList<>();
     private static final List<EntityType<?>> VALID_TYPES = new ArrayList<>();
+    private static final List<EntitySpawnReason> VALID_REASONS = new ArrayList<>();
 
     private static final int MAGIC_NUMBER = 289;
     private static Registry<Attribute> ATTRIBUTE_REGISTRY;
@@ -82,13 +84,11 @@ public class MobRandomizer {
             if (BLACKLISTED_ATTRIBUTES.contains(att)) continue;
             VALID_ATTRIBUTES.add(att);
         }
-    }
 
-    static boolean randomizeSpawn(MobSpawnEvent.FinalizeSpawn event) {
-        boolean cancel = false;
+
 
         // todo make configurable
-        List<EntitySpawnReason> validReasons = List.of(
+        VALID_REASONS.addAll(List.of(
                 EntitySpawnReason.SPAWNER,
                 EntitySpawnReason.BREEDING,
                 EntitySpawnReason.CHUNK_GENERATION,
@@ -99,35 +99,40 @@ public class MobRandomizer {
                 EntitySpawnReason.STRUCTURE,
                 EntitySpawnReason.BUCKET,
                 EntitySpawnReason.CONVERSION
-        );
+        ));
+    }
+
+    static boolean randomizeSpawn(MobSpawnEvent.FinalizeSpawn event) {
+        boolean cancel = false;
 
         Mob entity = event.getEntity();
+        CompoundTag data = entity.getPersistentData();
 
         if (RandomizerConfig.randomizeMobs) {
             EntitySpawnReason spawnReason = event.getSpawnReason();
-            if (validReasons.contains(spawnReason) && !entity.getPersistentData().contains("randomized")) {
+            if (VALID_REASONS.contains(spawnReason) && !data.contains("randomized")) {
                 entity = randomizeMobSpawn(entity, spawnReason);
                 cancel = true;
             }
         }
 
         // randomize attributes
-        // todo should this be a permanent modifier?
-        if (RandomizerConfig.randomizeMobAttributes) {
-            final double offset = 1d;
+        if (RandomizerConfig.randomizeMobAttributes &&
+                !data.contains("added_attribute") &&
+                RandomizerCore.seededRNG.nextInt(100) < 30) {
 
-            if (RandomizerCore.seededRNG.nextInt(100) < 30) {
-                // todo calculate a count instead of random boolean
-                for (var att : VALID_ATTRIBUTES) {
-                    if (RandomizerCore.seededRNG.nextBoolean()) continue;
-                    ATTRIBUTE_REGISTRY.get(att)
-                            .map(entity::getAttribute)
-                            .ifPresent(inst -> {
-                                double sanitizedMin = inst.getAttribute().get().sanitizeValue(offset / -2);
-                                inst.addOrUpdateTransientModifier(createModifier(sanitizedMin, sanitizedMin + offset, att));
-                            });
-                }
+            final double offset = 1d;
+            int amt = RandomizerCore.seededRNG.nextInt(3);
+            for (int i = 0; i < amt; i++) {
+                var att = RandomizerUtil.getRandom(VALID_ATTRIBUTES, RandomizerCore.seededRNG);
+                ATTRIBUTE_REGISTRY.get(att).map(entity::getAttribute)
+                        .ifPresent(inst -> {
+                            double sanitizedMin = inst.getAttribute().get().sanitizeValue(offset / -2);
+                            inst.addOrReplacePermanentModifier(createModifier(sanitizedMin, sanitizedMin + offset, att));
+                        });
+
             }
+            data.putBoolean("added_attribute", true);
         }
 
         return cancel;
