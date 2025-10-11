@@ -1,6 +1,9 @@
 package com.ghzdude.randomizer.util;
 
-import com.ghzdude.randomizer.*;
+import com.ghzdude.randomizer.ItemRandomizer;
+import com.ghzdude.randomizer.RandomizerCore;
+import com.ghzdude.randomizer.RecipeRandomizer;
+import com.ghzdude.randomizer.StructureRandomizer;
 import com.ghzdude.randomizer.special.generators.*;
 import com.mojang.logging.LogUtils;
 import net.minecraft.core.Registry;
@@ -29,7 +32,6 @@ public class RandomizerUtil {
         StructureRandomizer.init(access);
         EnchantmentGenerator.init(access);
         PotionGenerator.init(access);
-        MobRandomizer.init(access);
         init = true;
     }
 

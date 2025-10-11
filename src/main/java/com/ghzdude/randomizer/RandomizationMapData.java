@@ -78,7 +78,7 @@ public class RandomizationMapData extends SavedData {
         TAGKEY_MAP_REVERSE.defaultReturnValue(AIR);
     }
 
-    public static void init(RegistryAccess access) {
+    static void init(RegistryAccess access) {
         ITEM_REGISTRY = access.lookupOrThrow(Registries.ITEM);
     }
 

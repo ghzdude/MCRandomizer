@@ -73,7 +73,7 @@ public class RecipeRandomizer {
     private static Runnable onReload = () -> {};
     private static boolean init = false;
 
-    public static void init(MinecraftServer server) {
+    static void init(MinecraftServer server) {
         if (RandomizerConfig.randomizeRecipes) {
             if (init) return;
 
@@ -100,7 +100,7 @@ public class RecipeRandomizer {
         }
     }
 
-    public static void reload() {
+    static void reload() {
         if (init) onReload.run();
     }
 

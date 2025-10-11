@@ -430,7 +430,7 @@ public class CompletabilityVerifier {
             EntityType.MAGMA_CUBE.getDefaultLootTable().orElseThrow()
     ).map(ResourceKey::location).toList();
 
-    public static void init(MinecraftServer server) {
+    static void init(MinecraftServer server) {
         ITEM_REGISTRY = server.registryAccess().lookupOrThrow(Registries.ITEM);
         RESULT_MAP.defaultReturnValue(Collections.emptySet());
         INGREDIENT_MAP.defaultReturnValue(Int2ObjectMaps.emptyMap());
@@ -589,7 +589,7 @@ public class CompletabilityVerifier {
             data.setDirty(true);
     }
 
-    public static void ensureCompletability() {
+    static void ensureCompletability() {
         if (data.fromDisk) {
             // we loaded from disk, no need to check again
             return;

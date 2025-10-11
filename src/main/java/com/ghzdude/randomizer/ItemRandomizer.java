@@ -53,7 +53,7 @@ public class ItemRandomizer {
     private static int OFFSET = 0;
     private static final int COUNTER_MAX = 50;
 
-    public static void init(MinecraftServer server) {
+    static void init(MinecraftServer server) {
         ITEM_LIST.clear();
         BLACKLISTED_ITEMS.clear();
         VALID_ITEMS.clear();
@@ -162,7 +162,7 @@ public class ItemRandomizer {
         return BLACKLISTED_ITEMS.contains(item);
     }
 
-    public static void playerTickPre(TickEvent.PlayerTickEvent.Pre event) {
+    static void playerTickPre(TickEvent.PlayerTickEvent.Pre event) {
         if (!shouldTick(event)) return;
 
         var player = (ServerPlayer) event.player;

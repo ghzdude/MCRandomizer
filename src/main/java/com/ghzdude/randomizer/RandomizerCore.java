@@ -9,7 +9,7 @@ import com.mojang.serialization.JsonOps;
 import net.minecraft.server.packs.resources.ResourceManagerReloadListener;
 import net.minecraftforge.event.AddReloadListenerEvent;
 import net.minecraftforge.event.TickEvent;
-import net.minecraftforge.event.entity.EntityJoinLevelEvent;
+import net.minecraftforge.event.entity.living.MobSpawnEvent;
 import net.minecraftforge.event.server.ServerStartedEvent;
 import net.minecraftforge.event.server.ServerStartingEvent;
 import net.minecraftforge.event.server.ServerStoppingEvent;
@@ -37,7 +37,7 @@ public class RandomizerCore
     public RandomizerCore(FMLJavaModLoadingContext context) {
         context.registerConfig(ModConfig.Type.COMMON, RandomizerConfig.Holder.getSpec());
 
-        EntityJoinLevelEvent.BUS.addListener(MobRandomizer::onEntityJoin);
+        MobSpawnEvent.FinalizeSpawn.BUS.addListener(MobRandomizer::randomizeSpawn);
         // todo improve loot randomizer with load event
 //        LootTableLoadEvent.BUS.addListener(LootRandomizer::test);
         ServerStartingEvent.BUS.addListener(event -> {
@@ -52,12 +52,13 @@ public class RandomizerCore
         AddReloadListenerEvent.BUS.addListener(event -> event.addListener(simple(RecipeRandomizer::reload)));
     }
 
-    public static void onStart(ServerStartedEvent event) {
+    static void onStart(ServerStartedEvent event) {
         final var server = event.getServer();
         RandomizationMapData.init(server.registryAccess());
         ItemRandomizer.init(server);
         RecipeRandomizer.init(server);
         LootRandomizer.init(server);
+        MobRandomizer.init(server.registryAccess());
         RandomizerUtil.init(server.registryAccess());
         if (RandomizerConfig.ensureCompletability) {
             CompletabilityVerifier.init(server);
@@ -67,7 +68,7 @@ public class RandomizerCore
         serverStarted = true;
     }
 
-    public static void onStop(ServerStoppingEvent event) {
+    static void onStop(ServerStoppingEvent event) {
         RandomizerUtil.dispose();
         LootRandomizer.dispose();
         CompletabilityVerifier.dispose();

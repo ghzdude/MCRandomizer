@@ -14,8 +14,7 @@ import net.minecraft.world.entity.ai.attributes.Attribute;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.level.Level;
-import net.minecraftforge.event.entity.EntityJoinLevelEvent;
-import org.jetbrains.annotations.NotNull;
+import net.minecraftforge.event.entity.living.MobSpawnEvent;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -38,7 +37,7 @@ public class MobRandomizer {
     private static Registry<EntityType<?>> TYPE_REGISTRY;
 
     // todo utilize SpawnPlacementCheck, PositionCheck, and FinalizeSpawn somehow
-    public static void init(RegistryAccess access) {
+    static void init(RegistryAccess access) {
         ATTRIBUTE_REGISTRY = access.lookupOrThrow(Registries.ATTRIBUTE);
         TYPE_REGISTRY = access.lookupOrThrow(Registries.ENTITY_TYPE);
 
@@ -57,6 +56,13 @@ public class MobRandomizer {
             BLACKLISTED_ATTRIBUTES.addAll(ConfigIO.read("blacklisted_attributes", Stream.of(
                     Attributes.SCALE,
                     Attributes.GRAVITY,
+                    Attributes.LUCK,
+                    Attributes.SWEEPING_DAMAGE_RATIO,
+                    Attributes.WAYPOINT_RECEIVE_RANGE,
+                    Attributes.TEMPT_RANGE,
+                    Attributes.BLOCK_INTERACTION_RANGE,
+                    Attributes.BLOCK_BREAK_SPEED,
+                    Attributes.CAMERA_DISTANCE,
                     Attributes.BURNING_TIME)
                     .map(Holder::get)
                     .map(ATTRIBUTE_REGISTRY::getKey)
@@ -67,9 +73,9 @@ public class MobRandomizer {
         // todo add configuration
         for (var type : TYPE_REGISTRY.keySet()) {
             if (BLACKLISTED_ENTITIES.contains(type)) continue;
-            var value = TYPE_REGISTRY.get(type);
-            if (value.isEmpty() || BLACKLISTED_CATEGORIES.contains(value.get().get().getCategory())) continue;
-            VALID_TYPES.add(value.get().get());
+            TYPE_REGISTRY.get(type).map(Holder::get)
+                    .filter(e -> !BLACKLISTED_CATEGORIES.contains(e.getCategory()))
+                    .ifPresent(VALID_TYPES::add);
         }
 
         for (var att : ATTRIBUTE_REGISTRY.keySet()) {
@@ -78,54 +84,68 @@ public class MobRandomizer {
         }
     }
 
-    public static boolean onEntityJoin(EntityJoinLevelEvent event) {
-        if (event.getLevel().isClientSide || VALID_TYPES.isEmpty()) {
-            return false;
-        }
+    static boolean randomizeSpawn(MobSpawnEvent.FinalizeSpawn event) {
+        boolean cancel = false;
 
-        Entity mob = event.getEntity();
-        if (!VALID_TYPES.contains(mob.getType())) return false;
-        // todo need spawn reason
+        // todo make configurable
+        List<EntitySpawnReason> validReasons = List.of(
+                EntitySpawnReason.SPAWNER,
+                EntitySpawnReason.BREEDING,
+                EntitySpawnReason.CHUNK_GENERATION,
+                EntitySpawnReason.TRIAL_SPAWNER,
+                EntitySpawnReason.PATROL,
+                EntitySpawnReason.NATURAL,
+                EntitySpawnReason.JOCKEY,
+                EntitySpawnReason.STRUCTURE,
+                EntitySpawnReason.BUCKET,
+                EntitySpawnReason.CONVERSION
+        );
+
+        Mob entity = event.getEntity();
 
         if (RandomizerConfig.randomizeMobs) {
-            var randomized = mob.getPersistentData().contains("randomized");
-            if (!randomized && !event.loadedFromDisk()) {
-                randomizeMobSpawn(mob);
-                return true;
+            EntitySpawnReason spawnReason = event.getSpawnReason();
+            if (validReasons.contains(spawnReason) && !entity.getPersistentData().contains("randomized")) {
+                entity = randomizeMobSpawn(entity, spawnReason);
+                cancel = true;
             }
         }
 
         // randomize attributes
         // todo should this be a permanent modifier?
-        if (RandomizerConfig.randomizeMobAttributes && mob instanceof LivingEntity livingEntity) {
-            final double offset = 40d;
+        if (RandomizerConfig.randomizeMobAttributes) {
+            final double offset = 1d;
 
-            for (var att : VALID_ATTRIBUTES) {
-                if (mob.getRandom().nextBoolean()) continue;
-                var h = ATTRIBUTE_REGISTRY.get(att);
-                if (h.isEmpty()) continue;
-                var inst = livingEntity.getAttribute(h.get());
-                if (inst == null) continue;
-                double sanitizedMin = inst.getAttribute().get().sanitizeValue(offset / -2);
-                inst.addOrUpdateTransientModifier(createModifier(sanitizedMin, sanitizedMin + offset));
+            if (RandomizerCore.seededRNG.nextInt(100) < 30) {
+                // todo calculate a count instead of random boolean
+                for (var att : VALID_ATTRIBUTES) {
+                    if (RandomizerCore.seededRNG.nextBoolean()) continue;
+                    ATTRIBUTE_REGISTRY.get(att)
+                            .map(entity::getAttribute)
+                            .ifPresent(inst -> {
+                                double sanitizedMin = inst.getAttribute().get().sanitizeValue(offset / -2);
+                                inst.addOrUpdateTransientModifier(createModifier(sanitizedMin, sanitizedMin + offset, att));
+                            });
+                }
             }
         }
-        return false;
+
+        return cancel;
     }
 
-    private static AttributeModifier createModifier(double min, double max) {
-        var loc = ResourceLocation.fromNamespaceAndPath(RandomizerCore.MODID, "attribute");
-        return new AttributeModifier(loc, RandomizerCore.unseededRNG.nextDouble(min, max), AttributeModifier.Operation.ADD_VALUE);
+    private static AttributeModifier createModifier(double min, double max, ResourceLocation location) {
+        return new AttributeModifier(location,
+                RandomizerCore.unseededRNG.nextDouble(min, max),
+                AttributeModifier.Operation.ADD_MULTIPLIED_BASE);
     }
 
-    @NotNull
-    private static Entity getRandomMob(Level level) {
-        Entity mob;
-        do {
-            EntityType<?> entityType = RandomizerUtil.getRandom(VALID_TYPES, RandomizerCore.unseededRNG);
-            mob = entityType.create(level, EntitySpawnReason.COMMAND);
-        } while (mob == null);
-        return mob;
+    private static Mob getRandomMob(Level level, EntitySpawnReason reason) {
+        EntityType<?> entityType = RandomizerUtil.getRandom(VALID_TYPES, RandomizerCore.unseededRNG);
+        Entity mob = entityType.create(level, reason);
+        if (!(mob instanceof Mob)) {
+            throw new IllegalStateException("mob failed to create for some reason!");
+        }
+        return (Mob) mob;
     }
 
     private static void spawnMob(ServerLevel level, Entity mob, Entity reference) {
@@ -145,10 +165,11 @@ public class MobRandomizer {
         }
     }
 
-    private static void randomizeMobSpawn(Entity toSpawn) {
+    private static Mob randomizeMobSpawn(Entity toSpawn, EntitySpawnReason reason) {
         ServerLevel level = (ServerLevel) toSpawn.level();
 
-        Entity mob = getRandomMob(level);
+        Mob mob = getRandomMob(level, reason);
         spawnMob(level, mob, toSpawn);
+        return mob;
     }
 }
