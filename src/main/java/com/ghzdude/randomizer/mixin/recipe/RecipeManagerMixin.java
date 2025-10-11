@@ -3,8 +3,6 @@ package com.ghzdude.randomizer.mixin.recipe;
 import com.ghzdude.randomizer.RandomizerConfig;
 import com.ghzdude.randomizer.RecipeRandomizer;
 import com.ghzdude.randomizer.api.Randomizable;
-import com.google.gson.JsonElement;
-import net.minecraft.resources.RegistryOps;
 import net.minecraft.server.packs.resources.SimplePreparableReloadListener;
 import net.minecraft.world.item.crafting.RecipeManager;
 import net.minecraft.world.item.crafting.RecipeMap;
@@ -17,9 +15,9 @@ public abstract class RecipeManagerMixin extends SimplePreparableReloadListener<
     @Shadow private RecipeMap recipes;
 
     @Override
-    public void randomizer$randomize(RegistryOps<JsonElement> ops) {
+    public void randomizer$randomize() {
         if (RandomizerConfig.randomizeRecipes) {
-            this.recipes = RecipeRandomizer.randomizeRecipeMap(this.recipes, ops);
+            this.recipes = RecipeRandomizer.randomizeRecipeMap(this.recipes);
         }
     }
 }

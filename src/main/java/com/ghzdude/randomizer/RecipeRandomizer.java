@@ -12,7 +12,6 @@ import com.mojang.datafixers.util.Pair;
 import com.mojang.logging.LogUtils;
 import com.mojang.serialization.DataResult;
 import com.mojang.serialization.DynamicOps;
-import com.mojang.serialization.JsonOps;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import net.minecraft.advancements.Advancement;
@@ -23,7 +22,6 @@ import net.minecraft.core.Holder;
 import net.minecraft.core.HolderSet;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.Registries;
-import net.minecraft.resources.RegistryOps;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
@@ -87,10 +85,9 @@ public class RecipeRandomizer {
                 if (!(manager instanceof Randomizable randomizable))
                     return;
 
-                final var ops = server.registryAccess().createSerializationContext(JsonOps.INSTANCE);
                 if (RandomizerConfig.randomizeRecipes) {
                     LOGGER.warn("Recipe Randomizer Running!");
-                    randomizable.randomizer$randomize(ops);
+                    randomizable.randomizer$randomize();
                     manager.finalizeRecipeLoading(server.getWorldData().enabledFeatures());
 
                     if (RandomizerConfig.randomizeRecipeInputs)
@@ -144,14 +141,17 @@ public class RecipeRandomizer {
         }
     }
 
-    public static RecipeMap randomizeRecipeMap(RecipeMap original, RegistryOps<JsonElement> ops) {
+    public static RecipeMap randomizeRecipeMap(RecipeMap original) {
         if (!RandomizerConfig.randomizeRecipes) return original;
-        List<RecipeHolder<?>> randomized = new ArrayList<>(original.values().size());
-        for (RecipeHolder<?> recipeHolder : original.values()) {
-            //noinspection unchecked
-            randomized.add(randomizeRecipe((RecipeHolder<Recipe<?>>) recipeHolder, ops));
-        }
-        return RecipeMap.create(randomized);
+        return RandomizerCore.getOps().map(ops -> {
+            List<RecipeHolder<?>> randomized = new ArrayList<>(original.values().size());
+            for (RecipeHolder<?> recipeHolder : original.values()) {
+                //noinspection unchecked
+                randomized.add(randomizeRecipe((RecipeHolder<Recipe<?>>) recipeHolder, ops));
+            }
+            activeRecipe = null;
+            return RecipeMap.create(randomized);
+        }).orElse(original);
     }
 
     private static ResourceLocation activeRecipe;

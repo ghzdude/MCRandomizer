@@ -2,7 +2,10 @@ package com.ghzdude.randomizer;
 
 import com.ghzdude.randomizer.loot.LootRandomizer;
 import com.ghzdude.randomizer.util.RandomizerUtil;
+import com.google.gson.JsonElement;
 import com.mojang.logging.LogUtils;
+import com.mojang.serialization.DynamicOps;
+import com.mojang.serialization.JsonOps;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
@@ -13,6 +16,7 @@ import net.minecraftforge.event.AddReloadListenerEvent;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.entity.EntityJoinLevelEvent;
 import net.minecraftforge.event.server.ServerStartedEvent;
+import net.minecraftforge.event.server.ServerStartingEvent;
 import net.minecraftforge.event.server.ServerStoppingEvent;
 import net.minecraftforge.eventbus.api.listener.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
@@ -20,6 +24,7 @@ import net.minecraftforge.fml.config.ModConfig;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 import org.slf4j.Logger;
 
+import java.util.Optional;
 import java.util.Random;
 
 // The value here should match an entry in the META-INF/mods.toml file
@@ -41,22 +46,22 @@ public class RandomizerCore
 
     private int OFFSET = 0;
     private static final int COUNTER_MAX = 50;
+    private static DynamicOps<JsonElement> OPS;
 
     public RandomizerCore(FMLJavaModLoadingContext context) {
-//        var modEventBus = context.getModBusGroup();
-
         context.registerConfig(ModConfig.Type.COMMON, RandomizerConfig.Holder.getSpec());
-
-        // Register the commonSetup method for modloading
-//        modEventBus.addListener(this::commonSetup);
-//        MinecraftForge.EVENT_BUS
 
         // Register ourselves for server and other game events we are interested in
         MinecraftForge.EVENT_BUS.register(this);
         EntityJoinLevelEvent.BUS.addListener(MobRandomizer::onEntityJoin);
         // todo improve loot randomizer with load event
 //        LootTableLoadEvent.BUS.addListener(LootRandomizer::test);
-//        MinecraftForge.EVENT_BUS.register(MobRandomizer::onEntityJoin);
+        ServerStartingEvent.BUS.addListener(event -> {
+            final var server = event.getServer();
+            OPS = server.registryAccess().createSerializationContext(JsonOps.INSTANCE);
+            seededRNG = new Random(server.getWorldData().worldGenOptions().seed());
+            unseededRNG = new Random();
+        });
     }
 
     public static void incrementAmtItemsGiven(Player player) {
@@ -70,8 +75,6 @@ public class RandomizerCore
     @SubscribeEvent
     public void onStart(ServerStartedEvent event) {
         final var server = event.getServer();
-        seededRNG = new Random(server.getWorldData().worldGenOptions().seed());
-        unseededRNG = new Random();
         RandomizationMapData.init(server.registryAccess());
         ItemRandomizer.init(server);
         RecipeRandomizer.init(server);
@@ -83,6 +86,10 @@ public class RandomizerCore
         }
         RandomizerConfig.update();
         serverStarted = true;
+    }
+
+    public static Optional<DynamicOps<JsonElement>> getOps() {
+        return Optional.ofNullable(OPS);
     }
 
     @SubscribeEvent
