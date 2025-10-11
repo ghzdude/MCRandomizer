@@ -42,6 +42,10 @@ public class PotionGenerator {
         initPotions(access.lookupOrThrow(Registries.POTION));
     }
 
+    public static boolean canHaveEffect(ItemStack stack) {
+        return stack.has(DataComponents.POTION_CONTENTS) || stack.has(DataComponents.SUSPICIOUS_STEW_EFFECTS);
+    }
+
     private static void initPotions(Registry<Potion> potions) {
         potions.stream()
                 .filter(potion -> !BLACKLISTED_POTIONS.contains(potion))

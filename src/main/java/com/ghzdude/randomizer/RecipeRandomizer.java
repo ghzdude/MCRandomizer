@@ -109,6 +109,7 @@ public class RecipeRandomizer {
         CACHED_RECIPES.clear();
         OUTPUT_MAP.clear();
         RESULT_MAP.clear();
+        init = false;
     }
 
     public static RandomizationMapData getMapData() {

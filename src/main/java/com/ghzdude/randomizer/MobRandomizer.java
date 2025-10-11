@@ -85,6 +85,7 @@ public class MobRandomizer {
 
         Entity mob = event.getEntity();
         if (!VALID_TYPES.contains(mob.getType())) return false;
+        // todo need spawn reason
 
         if (RandomizerConfig.randomizeMobs) {
             var randomized = mob.getPersistentData().contains("randomized");

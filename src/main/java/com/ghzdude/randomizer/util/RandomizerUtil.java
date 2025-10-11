@@ -2,7 +2,6 @@ package com.ghzdude.randomizer.util;
 
 import com.ghzdude.randomizer.*;
 import com.ghzdude.randomizer.special.generators.*;
-import com.ghzdude.randomizer.special.item.SpecialItems;
 import com.mojang.logging.LogUtils;
 import net.minecraft.core.Registry;
 import net.minecraft.core.RegistryAccess;
@@ -58,22 +57,6 @@ public class RandomizerUtil {
         return pointsToUse;
     }
 
-    public static boolean canHaveEffect(ItemStack stack) {
-        return canHaveEffect(stack.getItem());
-    }
-
-    public static boolean canEnchant(ItemStack stack) {
-        return canEnchant(stack.getItem());
-    }
-
-    public static boolean canHaveEffect(Item item) {
-        return SpecialItems.EFFECT_ITEMS.contains(item);
-    }
-
-    public static boolean canEnchant(Item item) {
-        return SpecialItems.ENCHANTABLE.contains(item);
-    }
-
     public static void addStackToPlayer(ItemStack stack, Inventory inventory) {
         LOGGER.warn("Given {} to {}.", stack.copy(), inventory.player.getName().getString());
         if (!inventory.add(stack)) {
@@ -109,9 +92,9 @@ public class RandomizerUtil {
 
         if (!init) return stack;
 
-        if (canEnchant(stack)) {
+        if (EnchantmentGenerator.canEnchant(stack)) {
             EnchantmentGenerator.applyEnchantment(stack);
-        } else if (canHaveEffect(stack)) {
+        } else if (PotionGenerator.canHaveEffect(stack)) {
             PotionGenerator.applyEffect(stack);
         } else if (item == Items.WRITTEN_BOOK) {
             BookGenerator.applyPassages(stack);

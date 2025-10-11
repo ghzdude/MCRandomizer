@@ -3,6 +3,7 @@ package com.ghzdude.randomizer.special.generators;
 import com.ghzdude.randomizer.RandomizerCore;
 import net.minecraft.core.Holder;
 import net.minecraft.core.RegistryAccess;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -22,6 +23,10 @@ public class EnchantmentGenerator {
         enchantments.stream()
                 .map(enchantments::wrapAsHolder)
                 .forEach(VALID_ENCHANTS::add);
+    }
+
+    public static boolean canEnchant(ItemStack stack) {
+        return stack.is(Items.ENCHANTED_BOOK) || stack.has(DataComponents.ENCHANTABLE) && stack.getMaxStackSize() == 1;
     }
 
     public static void applyEnchantment(ItemStack stack) {

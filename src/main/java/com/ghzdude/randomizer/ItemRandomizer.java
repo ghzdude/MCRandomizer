@@ -1,6 +1,8 @@
 package com.ghzdude.randomizer;
 
 import com.ghzdude.randomizer.io.ConfigIO;
+import com.ghzdude.randomizer.special.generators.EnchantmentGenerator;
+import com.ghzdude.randomizer.special.generators.PotionGenerator;
 import com.ghzdude.randomizer.special.item.SpecialItems;
 import com.ghzdude.randomizer.util.RandomizerUtil;
 import it.unimi.dsi.fastutil.objects.Object2IntMap;
@@ -87,10 +89,10 @@ public class ItemRandomizer {
         }
 
         for (ResourceLocation loc : VALID_ITEMS.keySet()) {
-            var item = RandomizerUtil.getOrThrow(REGISTRY, loc);
-            if (!RandomizerUtil.canEnchant(item) && !RandomizerUtil.canHaveEffect(item)) {
-                SIMPLE_ITEMS.put(loc, VALID_ITEMS.getInt(item));
-            }
+            REGISTRY.get(loc).map(ItemStack::new)
+                    .filter(stack -> !EnchantmentGenerator.canEnchant(stack) && !PotionGenerator.canHaveEffect(stack))
+                    .map(ItemStack::getItem)
+                    .ifPresent(stack -> SIMPLE_ITEMS.put(loc, VALID_ITEMS.getInt(stack)));
         }
         ITEM_LIST.addAll(VALID_ITEMS.keySet());
 
