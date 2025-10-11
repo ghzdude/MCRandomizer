@@ -8,14 +8,18 @@ import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 import net.minecraft.core.Holder;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.flag.FeatureFlagSet;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraftforge.event.TickEvent;
 
 import java.util.*;
 import java.util.stream.Stream;
@@ -37,6 +41,15 @@ public class ItemRandomizer {
     private static RandomizationMapData INSTANCE;
     private static Registry<Item> REGISTRY;
     private static FeatureFlagSet ENABLED;
+
+    private static final String POINT_KEY = "points";
+    private static final String POINT_MAX_KEY = "point_max";
+    private static final String CYCLE_KEY = "cycle";
+    private static final String CYCLE_COUNTER_KEY = "cycle_counter";
+    private static final String AMOUNT_KEY = "amount_items_given";
+
+    private static int OFFSET = 0;
+    private static final int COUNTER_MAX = 50;
 
     public static void init(MinecraftServer server) {
         ITEM_LIST.clear();
@@ -145,5 +158,75 @@ public class ItemRandomizer {
 
     public static boolean isBlacklisted(ResourceLocation item) {
         return BLACKLISTED_ITEMS.contains(item);
+    }
+
+    public static void playerTickPre(TickEvent.PlayerTickEvent.Pre event) {
+        if (!shouldTick(event)) return;
+
+        var player = (ServerPlayer) event.player;
+        var data = player.getPersistentData();
+
+        if (shouldUsePoints(player)) {
+
+            int pointMax = data.getInt(POINT_MAX_KEY).orElseGet(() -> {
+                data.putInt(POINT_MAX_KEY, 1);
+                return 1;
+            });
+
+            int points = RandomizerConfig.pointsCarryover ?
+                    data.getIntOr(POINT_KEY, 0) + pointMax : pointMax;
+
+            int pointsToUse = RandomizerCore.seededRNG.nextInt(points) + 1;
+            int remaining = pointsToUse;
+
+            if (RandomizerConfig.generateStructures && RandomizerCore.seededRNG.nextInt(100) < RandomizerConfig.structureProbability) {
+                remaining = StructureRandomizer.tryPlace(pointsToUse, player.level(), player);
+            } else if (RandomizerConfig.giveRandomItems) {
+                remaining = ItemRandomizer.giveRandomItem(pointsToUse, player.getInventory());
+            }
+
+            // we used points, so something succeeded
+            if (remaining < pointsToUse) {
+                increaseCycle(player, data);
+            }
+
+            data.putInt(POINT_KEY, remaining);
+        }
+    }
+
+    private static boolean shouldUsePoints(ServerPlayer player) {
+        return player.gameMode.isSurvival();
+    }
+
+    private static boolean shouldTick(TickEvent.PlayerTickEvent.Pre event) {
+        if (event.side.isClient()) return false;
+        if (OFFSET < 0) OFFSET = 0;
+        return ++OFFSET % RandomizerConfig.itemCooldown == 0;
+    }
+
+    private static void increaseCycle(Player player, CompoundTag data) {
+        int pointMax = data.getIntOr(POINT_MAX_KEY, 1);
+        int cycle = data.getIntOr(CYCLE_KEY, 0) + 1;
+        int cycleCounter = data.getIntOr(CYCLE_COUNTER_KEY, RandomizerConfig.cycleBase);
+
+        if (cycle % cycleCounter == 0) {
+            cycle = 0;
+            int i = (cycleCounter / 2) + 1;
+            cycleCounter = Math.min(cycleCounter + i, COUNTER_MAX);
+            pointMax++;
+            player.displayClientMessage(Component.translatable("randomizer.player.point_max.increased", pointMax), false);
+        }
+
+        data.putInt(POINT_MAX_KEY, pointMax);
+        data.putInt(CYCLE_KEY, cycle);
+        data.putInt(CYCLE_COUNTER_KEY, cycleCounter);
+    }
+
+    public static void incrementAmtItemsGiven(Player player) {
+        incrementAmtItemsGiven(player.getPersistentData());
+    }
+
+    public static void incrementAmtItemsGiven(CompoundTag data) {
+        data.putInt(AMOUNT_KEY, data.getIntOr(AMOUNT_KEY, 0) + 1);
     }
 }

@@ -79,7 +79,7 @@ public class RandomizerUtil {
         if (!inventory.add(stack)) {
             inventory.player.drop(stack, false);
         }
-        RandomizerCore.incrementAmtItemsGiven(inventory.player);
+        ItemRandomizer.incrementAmtItemsGiven(inventory.player);
     }
 
     public static <T> T getRandom(List<T> list, Random rng) {
