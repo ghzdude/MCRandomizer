@@ -38,7 +38,8 @@ public class RandomizerCore
         context.registerConfig(ModConfig.Type.COMMON, RandomizerConfig.Holder.getSpec());
 
         MobSpawnEvent.FinalizeSpawn.BUS.addListener(MobRandomizer::randomizeSpawn);
-        // todo improve loot randomizer with load event
+        // improve loot randomizer with load event
+        // this loads too early for me to randomize it
 //        LootTableLoadEvent.BUS.addListener(LootRandomizer::test);
         ServerStartingEvent.BUS.addListener(event -> {
             final var server = event.getServer();
@@ -72,6 +73,7 @@ public class RandomizerCore
         RandomizerUtil.dispose();
         LootRandomizer.dispose();
         CompletabilityVerifier.dispose();
+        OPS = null;
         serverStarted = false;
     }
 

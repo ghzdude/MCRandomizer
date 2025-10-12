@@ -166,8 +166,8 @@ public class MobRandomizer {
                 instance.addOrReplacePermanentModifier(modifier);
                 added.add("%s(x%f.2)".formatted(modifier.id().getPath(), modifier.amount()));
             }
-            if (!added.isEmpty()) {
-                entity.setCustomName(Component.literal("Bearer of %s".formatted(added)));
+            if (!added.isEmpty() && RandomizerConfig.enableDebug) {
+                entity.setCustomName(Component.literal("%s".formatted(added)));
             }
             data.putBoolean("added_attribute", true);
         }
