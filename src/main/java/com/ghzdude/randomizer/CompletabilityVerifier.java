@@ -8,7 +8,6 @@ import com.mojang.logging.LogUtils;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.DataResult;
 import com.mojang.serialization.DynamicOps;
-import com.mojang.serialization.codecs.RecordCodecBuilder;
 import it.unimi.dsi.fastutil.ints.Int2ObjectArrayMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMaps;
@@ -16,6 +15,9 @@ import it.unimi.dsi.fastutil.objects.*;
 import net.minecraft.core.Holder;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
@@ -442,10 +444,10 @@ public class CompletabilityVerifier {
 
         if (data.fromDisk) {
             LOGGER.info("Loading saved completability data!");
-            for (ModificationData modificationData : data.MODIFICATION_DATA) {
+            for (ModificationData modificationData : data.modificationData) {
                 LootRandomizer.registerSpecialDrop(modificationData.table, modificationData.original, modificationData.replacement);
             }
-            LOGGER.info("Loaded {} entries!", data.MODIFICATION_DATA.size());
+            LOGGER.info("Loaded {} entries!", data.modificationData.size());
             return;
         }
 
@@ -918,16 +920,13 @@ public class CompletabilityVerifier {
         public static final Codec<VerifierSaveData> CODEC = new Codec<>() {
             @Override
             public <T> DataResult<T> encode(VerifierSaveData saveData, DynamicOps<T> dynamicOps, T t) {
-                return ModificationData.DATA_CODEC.listOf().encode(saveData.MODIFICATION_DATA, dynamicOps, t);
+                return CompoundTag.CODEC.encode(data.save(), dynamicOps, t);
             }
 
             @Override
             public <T> DataResult<Pair<VerifierSaveData, T>> decode(DynamicOps<T> dynamicOps, T t) {
-                VerifierSaveData data = new VerifierSaveData();
-                ModificationData.DATA_CODEC.listOf().decode(dynamicOps, t)
-                        .ifSuccess(pair -> data.MODIFICATION_DATA.addAll(pair.getFirst()));
-                data.fromDisk = true;
-                return DataResult.success(Pair.of(data, t));
+                return CompoundTag.CODEC.decode(dynamicOps, t)
+                        .map(p -> p.mapFirst(VerifierSaveData::load));
             }
         };
 
@@ -942,7 +941,7 @@ public class CompletabilityVerifier {
         /**
          * Maps a loot table id to a map of a recipe to a set of its ingredients that needs to be modified
          */
-        private final List<ModificationData> MODIFICATION_DATA = new ArrayList<>();
+        private final List<ModificationData> modificationData = new ArrayList<>();
 
         public boolean fromDisk = false;
 
@@ -951,21 +950,66 @@ public class CompletabilityVerifier {
         }
 
         private void addEntry(ModificationData data) {
-            if (!MODIFICATION_DATA.contains(data))
-                MODIFICATION_DATA.add(data);
+            if (!modificationData.contains(data))
+                modificationData.add(data);
+        }
+
+        public @NotNull CompoundTag save() {
+            return save(new CompoundTag());
+        }
+
+        public @NotNull CompoundTag save(@NotNull CompoundTag tag) {
+            ListTag data = new ListTag();
+            LOGGER.info("Saving Verification Data!");
+            for (ModificationData table : modificationData) {
+                data.add(table.toNBT());
+            }
+            LOGGER.info("Wrote {} entries!", modificationData.size());
+            tag.put("data", data);
+            return tag;
+        }
+
+        public static VerifierSaveData load(CompoundTag tag) {
+            VerifierSaveData data = new VerifierSaveData();
+            tag.getList("data")
+                    .map(ListTag::stream)
+                    .ifPresent(stream -> stream
+                            .map(Tag::asCompound)
+                            .filter(Optional::isPresent)
+                            .map(Optional::get)
+                            .map(ModificationData::fromNBT)
+                            .filter(data1 -> LootRandomizer.getKnownTables().contains(data1.table()))
+                            .forEach(data::addEntry));
+
+            if (!data.modificationData.isEmpty())
+                data.fromDisk = true;
+
+            return data;
         }
     }
 
-    private record ModificationData(
-            ResourceLocation table,
-            ResourceLocation original,
-            ResourceLocation replacement
-    ) {
+    private record ModificationData(ResourceLocation table, ResourceLocation original, ResourceLocation replacement) {
 
-        public static final Codec<ModificationData> DATA_CODEC = RecordCodecBuilder.create(builder -> builder.group(
-                ResourceLocation.CODEC.fieldOf("original").forGetter(ModificationData::original),
-                ResourceLocation.CODEC.fieldOf("table").forGetter(ModificationData::table),
-                ResourceLocation.CODEC.fieldOf("replacement").forGetter(ModificationData::replacement)
-        ).apply(builder, ModificationData::new));
+        public CompoundTag toNBT() {
+            return CompoundTag.builder()
+                    .put("id", table.toString())
+                    .put("original", original.toString())
+                    .put("replacement", replacement.toString())
+                    .build();
+        }
+
+        public static ModificationData fromNBT(CompoundTag tag) {
+            return new ModificationData(
+                    ResourceLocation.parse(tag.getString("id").orElseThrow()),
+                    ResourceLocation.parse(tag.getString("original").orElseThrow()),
+                    ResourceLocation.parse(tag.getString("replacement").orElseThrow())
+            );
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            return obj instanceof ModificationData modificationData &&
+                    this.table().equals(modificationData.table());
+        }
     }
 }
