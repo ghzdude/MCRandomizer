@@ -6,6 +6,7 @@ import com.mojang.logging.LogUtils;
 import com.mojang.serialization.*;
 import it.unimi.dsi.fastutil.objects.Object2ObjectMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
+import net.minecraft.core.Holder;
 import net.minecraft.core.HolderSet;
 import net.minecraft.core.Registry;
 import net.minecraft.core.RegistryAccess;
@@ -26,10 +27,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 
-import java.util.List;
-import java.util.Objects;
-import java.util.Random;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 public class RandomizationMapData extends SavedData {
@@ -131,14 +129,14 @@ public class RandomizationMapData extends SavedData {
         RandomizationMapData data = new RandomizationMapData();
         LOGGER.warn("Loading from disk!");
 
-        CompoundTag itemMap = tag.getCompound("item_map").orElseThrow();
-        CompoundTag tagMap = tag.getCompound("tag_key_map").orElseThrow();
+        CompoundTag itemMap = tag.getCompoundOrEmpty("item_map");
+        CompoundTag tagMap = tag.getCompoundOrEmpty("tag_key_map");
 
         for (String item : itemMap.keySet()) {
             ResourceLocation vanilla = ResourceLocation.parse(item);
-            ResourceLocation random = ResourceLocation.parse(itemMap.getString(item).orElseThrow());
-            if (isAir(vanilla) || isAir(random)) continue;
-            data.putItem(vanilla, random);
+            Optional<ResourceLocation> random = itemMap.getString(item).map(ResourceLocation::tryParse);
+            if (random.isEmpty() || isAir(vanilla) || isAir(random.get())) continue;
+            data.putItem(vanilla, random.get());
         }
 
         Set<ResourceLocation> loadedKeys = data.ITEM_MAP.keySet();
@@ -150,24 +148,24 @@ public class RandomizationMapData extends SavedData {
 
         for (String tagKey : tagMap.keySet()) {
             ResourceLocation vanilla = ResourceLocation.parse(tagKey);
-            ResourceLocation random = ResourceLocation.parse(tagMap.getString(tagKey).orElseThrow());
-            if (isAir(vanilla) || isAir(random)) continue;
-            data.putTag(vanilla, random);
+            Optional<ResourceLocation> random = tagMap.getString(tagKey).map(ResourceLocation::tryParse);
+            if (random.isEmpty() || isAir(vanilla) || isAir(random.get())) continue;
+            data.putTag(vanilla, random.get());
         }
 
         data.getItems().stream().filter(l -> l.equals(data.getItemFor(l)))
                 .forEach(RandomizationMapData::logMatchingKey);
 
-        loadedKeys = data.TAGKEY_MAP.keySet();
-        validKeys = ITEM_REGISTRY.getTags().map(HolderSet.Named::key)
-                .map(TagKey::location).collect(Collectors.toSet());
-        validKeys.removeIf(loadedKeys::contains);
-        if (!validKeys.isEmpty()) {
-            logDifference(validKeys);
-        }
+            loadedKeys = data.TAGKEY_MAP.keySet();
+            validKeys = ITEM_REGISTRY.getTags().map(HolderSet.Named::key)
+                    .map(TagKey::location).collect(Collectors.toSet());
+            validKeys.removeIf(loadedKeys::contains);
+            if (!validKeys.isEmpty()) {
+                logDifference(validKeys);
+            }
 
-        data.getTags().stream().filter(l -> l.equals(data.getTagKeyFor(l)))
-                .forEach(RandomizationMapData::logMatchingKey);
+            data.getTags().stream().filter(l -> l.equals(data.getTagKeyFor(l)))
+                    .forEach(RandomizationMapData::logMatchingKey);
 
         data.setDirty();
         data.isLoaded = true;
@@ -258,7 +256,10 @@ public class RandomizationMapData extends SavedData {
     public Item getItemFor(Item item) {
         ResourceLocation vanilla = Objects.requireNonNull(ITEM_REGISTRY.getKey(item));
         ResourceLocation random = getItemFor(vanilla);
-        return ITEM_REGISTRY.get(random).orElseThrow().get();
+        return ITEM_REGISTRY.get(random).map(Holder::get).orElseGet(() -> {
+            LOGGER.warn("failed to get item for {}", item);
+            return item;
+        });
     }
 
     public ResourceLocation getItemFor(ResourceLocation vanilla) {

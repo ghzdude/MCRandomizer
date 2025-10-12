@@ -543,7 +543,9 @@ public class LootRandomizer {
             return mapData.getItemFor(vanilla);
         if (mapData.getTags().contains(vanilla))
             return mapData.getTagKeyFor(vanilla);
-        throw new IllegalArgumentException("'%s' must be an item or tag!".formatted(vanilla));
+
+        LOGGER.warn("'{}' must be an item or tag!", vanilla);
+        return vanilla;
     }
 
     private static boolean hasCondition(JsonObject object, String type) {
