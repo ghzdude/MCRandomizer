@@ -920,7 +920,7 @@ public class CompletabilityVerifier {
         public static final Codec<VerifierSaveData> CODEC = new Codec<>() {
             @Override
             public <T> DataResult<T> encode(VerifierSaveData saveData, DynamicOps<T> dynamicOps, T t) {
-                return CompoundTag.CODEC.encode(data.save(), dynamicOps, t);
+                return CompoundTag.CODEC.encode(saveData.save(), dynamicOps, t);
             }
 
             @Override
