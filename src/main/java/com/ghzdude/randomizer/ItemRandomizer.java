@@ -165,7 +165,7 @@ public class ItemRandomizer {
     static void playerTickPre(TickEvent.PlayerTickEvent.Pre event) {
         if (!shouldTick(event)) return;
 
-        var player = (ServerPlayer) event.player;
+        var player = (ServerPlayer) event.player();
         var data = player.getPersistentData();
 
         if (shouldUsePoints(player)) {
@@ -201,7 +201,7 @@ public class ItemRandomizer {
     }
 
     private static boolean shouldTick(TickEvent.PlayerTickEvent.Pre event) {
-        if (event.side.isClient()) return false;
+        if (event.side().isClient()) return false;
         if (OFFSET < 0) OFFSET = 0;
         return ++OFFSET % RandomizerConfig.itemCooldown == 0;
     }
