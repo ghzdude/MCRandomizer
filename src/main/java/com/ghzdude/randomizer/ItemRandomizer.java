@@ -73,6 +73,8 @@ public class ItemRandomizer {
                         Items.STRUCTURE_VOID,
                         Items.KNOWLEDGE_BOOK,
                         Items.JIGSAW,
+                        Items.TEST_BLOCK,
+                        Items.TEST_INSTANCE_BLOCK,
                         Items.DEBUG_STICK)
                 .map(REGISTRY::getKey)
                 .filter(Objects::nonNull)

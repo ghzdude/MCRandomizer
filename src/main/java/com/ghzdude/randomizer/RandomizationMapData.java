@@ -1,6 +1,7 @@
 package com.ghzdude.randomizer;
 
 import com.ghzdude.randomizer.util.RandomizerUtil;
+import com.google.common.collect.Sets;
 import com.mojang.datafixers.util.Pair;
 import com.mojang.logging.LogUtils;
 import com.mojang.serialization.*;
@@ -28,6 +29,7 @@ import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 
 import java.util.*;
+import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
 
 public class RandomizationMapData extends SavedData {
@@ -138,12 +140,18 @@ public class RandomizationMapData extends SavedData {
             if (random.isEmpty() || isAir(vanilla) || isAir(random.get())) continue;
             data.putItem(vanilla, random.get());
         }
+        Set<ResourceLocation> loadedKeys;
+        Set<ResourceLocation> validKeys;
+        Sets.SetView<ResourceLocation> difference;
 
-        Set<ResourceLocation> loadedKeys = data.ITEM_MAP.keySet();
-        Set<ResourceLocation> validKeys = ItemRandomizer.getKeys().collect(Collectors.toSet());
-        validKeys.removeIf(loadedKeys::contains);
-        if (!validKeys.isEmpty()) {
-            logDifference(validKeys);
+        loadedKeys = data.ITEM_MAP.keySet();
+        validKeys = ItemRandomizer.getKeys().collect(Collectors.toSet());
+        difference = Sets.difference(validKeys, loadedKeys);
+
+        if (!difference.isEmpty()) {
+            // randomize missing keys
+            generateMap(difference, data::putItem);
+            logDifference(difference);
         }
 
         for (String tagKey : tagMap.keySet()) {
@@ -159,9 +167,11 @@ public class RandomizationMapData extends SavedData {
             loadedKeys = data.TAGKEY_MAP.keySet();
             validKeys = ITEM_REGISTRY.getTags().map(HolderSet.Named::key)
                     .map(TagKey::location).collect(Collectors.toSet());
-            validKeys.removeIf(loadedKeys::contains);
-            if (!validKeys.isEmpty()) {
-                logDifference(validKeys);
+            difference = Sets.difference(validKeys, loadedKeys);
+
+            if (!difference.isEmpty()) {
+                generateMap(difference, data::putTag);
+                logDifference(difference);
             }
 
             data.getTags().stream().filter(l -> l.equals(data.getTagKeyFor(l)))
@@ -173,18 +183,15 @@ public class RandomizationMapData extends SavedData {
         return data;
     }
 
+    private static void generateMap(Set<ResourceLocation> vanilla, BiConsumer<ResourceLocation, ResourceLocation> putItem) {
+        generateMap(new ArrayList<>(vanilla), putItem);
+    }
+
     private void generateTagMap() {
         List<ResourceLocation> vanilla = ITEM_REGISTRY.getTags()
                 .map(HolderSet.Named::key).map(TagKey::location).collect(Collectors.toList());
 
-        ResourceLocation key, value, tail = vanilla.get(RNG.nextInt(1, vanilla.size()));
-
-        while (!vanilla.isEmpty()) {
-            key = vanilla.removeFirst();
-            value = vanilla.isEmpty() ? tail : RandomizerUtil.getRandom(vanilla, RNG);
-
-            putTag(key, value);
-        }
+        generateMap(vanilla, this::putTag);
 
         Set<ResourceLocation> loadedKeys = TAGKEY_MAP.keySet();
         Set<ResourceLocation> validKeys = ITEM_REGISTRY.getTags()
@@ -201,14 +208,7 @@ public class RandomizationMapData extends SavedData {
     private void generateItemMap() {
         List<ResourceLocation> vanilla = ItemRandomizer.getKeys().collect(Collectors.toList());
 
-        ResourceLocation key, value, tail = vanilla.get(RNG.nextInt(1, vanilla.size()));
-
-        while (!vanilla.isEmpty()) {
-            key = vanilla.removeFirst();
-            value = vanilla.isEmpty() ? tail : RandomizerUtil.getRandom(vanilla, RNG);
-
-            putItem(key, value);
-        }
+        generateMap(vanilla, this::putItem);
 
         Set<ResourceLocation> loadedKeys = ITEM_MAP.keySet();
         Set<ResourceLocation> validKeys = ItemRandomizer.getKeys().collect(Collectors.toSet());
@@ -219,6 +219,17 @@ public class RandomizationMapData extends SavedData {
 
         ITEM_MAP.keySet().stream().filter(l -> l.equals(ITEM_MAP.get(l)))
                 .forEach(RandomizationMapData::logMatchingKey);
+    }
+
+    private static void generateMap(List<ResourceLocation> vanilla, BiConsumer<ResourceLocation, ResourceLocation> biConsumer) {
+        ResourceLocation key, value, tail = vanilla.get(RNG.nextInt(1, vanilla.size()));
+
+        while (!vanilla.isEmpty()) {
+            key = vanilla.removeFirst();
+            value = vanilla.isEmpty() ? tail : RandomizerUtil.getRandom(vanilla, RNG);
+
+            biConsumer.accept(key, value);
+        }
     }
 
     private void putItem(ResourceLocation vanilla, ResourceLocation random) {
@@ -324,7 +335,8 @@ public class RandomizationMapData extends SavedData {
     }
 
     private static void logDifference(Set<ResourceLocation> difference) {
-        LOGGER.warn("Not all keys were associated with a random item/tag! Usually this means I suck at randomizing!");
+        if (difference.isEmpty()) return;
+        LOGGER.warn("Not all keys were associated with a random item/tag!");
         LOGGER.warn("Missed keys: {}", difference);
     }
 

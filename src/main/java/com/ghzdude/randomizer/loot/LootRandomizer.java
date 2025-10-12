@@ -129,7 +129,8 @@ public class LootRandomizer {
             if (block == Blocks.AIR) continue;
             Optional<ResourceKey<LootTable>> lootTable = block.getLootTable();
             if (lootTable.isEmpty()) {
-                LOGGER.debug("Block {} has no loot table", block);
+                if (RandomizerConfig.enableDebug)
+                    LOGGER.debug("Block {} has no loot table", block);
                 continue;
             }
 
