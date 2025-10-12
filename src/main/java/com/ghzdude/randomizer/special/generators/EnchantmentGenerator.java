@@ -42,8 +42,7 @@ public class EnchantmentGenerator {
         int numOfEnchants = rng.nextInt(applicable.size()) + 1;
         for (int i = 0; i < numOfEnchants; i++) {
             int id = rng.nextInt(applicable.size());
-            Holder<Enchantment> toApply = applicable.get(id);
-            applicable.remove(id);
+            Holder<Enchantment> toApply = applicable.remove(id);
 
             // todo handle max enchant level not translating properly
             stack.enchant(toApply, rng.nextInt(15));

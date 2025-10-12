@@ -3,23 +3,27 @@ package com.ghzdude.randomizer;
 
 import com.ghzdude.randomizer.io.ConfigIO;
 import com.ghzdude.randomizer.util.RandomizerUtil;
+import com.mojang.logging.LogUtils;
+import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import net.minecraft.core.Holder;
 import net.minecraft.core.Registry;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.*;
 import net.minecraft.world.entity.ai.attributes.Attribute;
+import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.level.Level;
 import net.minecraftforge.event.entity.living.MobSpawnEvent;
+import org.slf4j.Logger;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 import java.util.stream.Stream;
 
 /* Mob Spawn Randomizer description
@@ -31,14 +35,29 @@ public class MobRandomizer {
     private static final List<MobCategory> BLACKLISTED_CATEGORIES = List.of(MobCategory.MISC);
     private static final List<ResourceLocation> BLACKLISTED_ATTRIBUTES = new ArrayList<>();
     private static final List<ResourceLocation> VALID_ATTRIBUTES = new ArrayList<>();
+    private static final List<AttributeInfo> SPECIAL_ATTRIBUTES = List.of(
+            AttributeInfo.of(Attributes.SCALE, 0.1d, 32d),
+            AttributeInfo.of(Attributes.MOVEMENT_SPEED, 0.5d, 4d),
+            AttributeInfo.of(Attributes.FLYING_SPEED, 0.5d, 4d),
+            AttributeInfo.of(Attributes.ARMOR, 0d, 32d, Op.ADD),
+            AttributeInfo.of(Attributes.ATTACK_DAMAGE, 0d, 32d, Op.ADD),
+            AttributeInfo.of(Attributes.ATTACK_KNOCKBACK, 0d, 32d, Op.ADD),
+            AttributeInfo.of(Attributes.ATTACK_SPEED, 0.5d, 4d),
+            AttributeInfo.of(Attributes.ARMOR_TOUGHNESS, 0d, 32d, Op.ADD),
+            AttributeInfo.of(Attributes.WAYPOINT_TRANSMIT_RANGE, 4d, 4096d, Op.ADD),
+            AttributeInfo.of(Attributes.GRAVITY, 0.5d, 2d),
+            AttributeInfo.of(Attributes.STEP_HEIGHT, 0.5d, 16d),
+            AttributeInfo.of(Attributes.MAX_HEALTH, 0d, 1024d, Op.ADD),
+            AttributeInfo.of(Attributes.MAX_ABSORPTION, 0d, 1024d, Op.ADD)
+    );
     private static final List<EntityType<?>> VALID_TYPES = new ArrayList<>();
     private static final List<EntitySpawnReason> VALID_REASONS = new ArrayList<>();
 
     private static final int MAGIC_NUMBER = 289;
     private static Registry<Attribute> ATTRIBUTE_REGISTRY;
     private static Registry<EntityType<?>> TYPE_REGISTRY;
+    private static final Logger LOGGER = LogUtils.getLogger();
 
-    // todo utilize SpawnPlacementCheck, PositionCheck, and FinalizeSpawn somehow
     static void init(RegistryAccess access) {
         ATTRIBUTE_REGISTRY = access.lookupOrThrow(Registries.ATTRIBUTE);
         TYPE_REGISTRY = access.lookupOrThrow(Registries.ENTITY_TYPE);
@@ -85,8 +104,6 @@ public class MobRandomizer {
             VALID_ATTRIBUTES.add(att);
         }
 
-
-
         // todo make configurable
         VALID_REASONS.addAll(List.of(
                 EntitySpawnReason.SPAWNER,
@@ -119,18 +136,38 @@ public class MobRandomizer {
         // randomize attributes
         if (RandomizerConfig.randomizeMobAttributes &&
                 !data.contains("added_attribute") &&
+                // todo configurable frequency
                 RandomizerCore.seededRNG.nextInt(100) < 30) {
 
-            final double offset = 1d;
-            int amt = RandomizerCore.seededRNG.nextInt(3);
-            for (int i = 0; i < amt; i++) {
-                var att = RandomizerUtil.getRandom(VALID_ATTRIBUTES, RandomizerCore.seededRNG);
-                ATTRIBUTE_REGISTRY.get(att).map(entity::getAttribute)
-                        .ifPresent(inst -> {
-                            double sanitizedMin = inst.getAttribute().get().sanitizeValue(offset / -2);
-                            inst.addOrReplacePermanentModifier(createModifier(sanitizedMin, sanitizedMin + offset, att));
-                        });
+            List<AttributeInstance> applicable = VALID_ATTRIBUTES.stream()
+                    .map(ATTRIBUTE_REGISTRY::get)
+                    .filter(Optional::isPresent)
+                    .map(Optional::get)
+                    .map(entity::getAttribute)
+                    .filter(Objects::nonNull)
+                    .toList();
 
+            final double offset = 1d;
+            int amt = 1 + RandomizerCore.seededRNG.nextInt(3);
+            List<String> added = new ArrayList<>(amt);
+            for (int i = 0; i < amt; i++) {
+                AttributeInstance instance = RandomizerUtil.getRandom(applicable, RandomizerCore.seededRNG);
+                Attribute attribute = instance.getAttribute().get();
+                ResourceLocation att = ATTRIBUTE_REGISTRY.getKey(attribute);
+                Optional<AttributeInfo> info = AttributeInfo.fromLocation(att);
+
+                AttributeModifier modifier;
+                if (info.isPresent()) {
+                    modifier = info.get().toModifier();
+                } else {
+                    double sanitizedMin = attribute.sanitizeValue(offset / -2);
+                    modifier = createModifier(sanitizedMin, sanitizedMin + offset, att);
+                }
+                instance.addOrReplacePermanentModifier(modifier);
+                added.add("%s(x%f.2)".formatted(modifier.id().getPath(), modifier.amount()));
+            }
+            if (!added.isEmpty()) {
+                entity.setCustomName(Component.literal("Bearer of %s".formatted(added)));
             }
             data.putBoolean("added_attribute", true);
         }
@@ -176,5 +213,47 @@ public class MobRandomizer {
         Mob mob = getRandomMob(level, reason);
         spawnMob(level, mob, toSpawn);
         return mob;
+    }
+
+    record AttributeInfo(ResourceLocation loc, double min, double max, Op op) {
+
+        static Map<ResourceLocation, AttributeInfo> MAP = new Object2ObjectOpenHashMap<>();
+
+        public static AttributeInfo of(Holder<Attribute> holder, double min, double max) {
+            return of(holder, min, max, Op.ADD_M_BASE);
+        }
+
+        public static AttributeInfo of(Holder<Attribute> holder, double min, double max, Op op) {
+            return holder.unwrapKey().map(ResourceKey::location).map(location -> {
+                AttributeInfo info = new AttributeInfo(location, min, max, op);
+                MAP.put(location, info);
+                return info;
+            }).orElseThrow();
+        }
+
+        public static Optional<AttributeInfo> fromLocation(ResourceLocation loc) {
+            return Optional.ofNullable(MAP.get(loc));
+        }
+
+        public AttributeModifier toModifier() {
+            double d = RandomizerCore.unseededRNG.nextDouble(min(), max());
+            return new AttributeModifier(loc(), d, op().getOperation());
+        }
+    }
+
+    enum Op {
+        ADD(AttributeModifier.Operation.ADD_VALUE),
+        ADD_M_BASE(AttributeModifier.Operation.ADD_MULTIPLIED_BASE),
+        ADD_M_TOTAL(AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL);
+
+        private final AttributeModifier.Operation operation;
+
+        Op(AttributeModifier.Operation operation) {
+            this.operation = operation;
+        }
+
+        public AttributeModifier.Operation getOperation() {
+            return operation;
+        }
     }
 }

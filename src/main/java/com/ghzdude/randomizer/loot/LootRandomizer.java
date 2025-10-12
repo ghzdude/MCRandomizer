@@ -358,13 +358,14 @@ public class LootRandomizer {
     }
 
     public static void registerSpecialDrop(ResourceLocation table, ResourceLocation drop, ResourceLocation replace) {
-        SPECIAL_MAP.computeIfAbsent(table, k -> new Object2ObjectOpenHashMap<>())
-                .put(drop, replace);
-
         ParsedLootTable parsedLootTable = ParsedLootTable.get(table);
         if (parsedLootTable == null) {
-            throw new NullPointerException("Parsed LootTable \"" + table + "\" does not exist!");
+            LOGGER.warn("Parsed LootTable \"{}\" does not exist!", table);
+            return;
         }
+
+        SPECIAL_MAP.computeIfAbsent(table, k -> new Object2ObjectOpenHashMap<>())
+                .put(drop, replace);
 
         List<ItemStack> drops = new ArrayList<>();
         for (LootData data : LOOT_MAP.get(table)) {
