@@ -38,8 +38,12 @@ public class PotionGenerator {
     private static Registry<MobEffect> EFFECT_REGISTRY;
 
     public static void init(RegistryAccess access) {
-        initEffects(access.registryOrThrow(Registries.MOB_EFFECT));
-        initPotions(access.registryOrThrow(Registries.POTION));
+        initEffects(access.lookupOrThrow(Registries.MOB_EFFECT));
+        initPotions(access.lookupOrThrow(Registries.POTION));
+    }
+
+    public static boolean canHaveEffect(ItemStack stack) {
+        return stack.has(DataComponents.POTION_CONTENTS) || stack.has(DataComponents.SUSPICIOUS_STEW_EFFECTS);
     }
 
     private static void initPotions(Registry<Potion> potions) {
@@ -85,8 +89,7 @@ public class PotionGenerator {
 
         var effects = list.stream()
                 .map(EFFECT_REGISTRY::get)
-                .filter(Objects::nonNull)
-                .map(EFFECT_REGISTRY::wrapAsHolder)
+                .map(Optional::orElseThrow)
                 .map(holder -> new SuspiciousStewEffects.Entry(holder, rng.nextInt(100, 2001)))
                 .toList();
 
@@ -104,7 +107,8 @@ public class PotionGenerator {
                 .toList();
 
         int color = rng.nextInt(0x00FFFFFF);
-        stack.set(DataComponents.POTION_CONTENTS, new PotionContents(Optional.of(Potions.WATER), Optional.of(color), effects));
+        stack.set(DataComponents.POTION_CONTENTS, new PotionContents(Optional.of(Potions.WATER),
+                Optional.of(color), effects, Optional.empty()));
 
         Component itemType = Component.translatable(stack.getItem().getDescriptionId());
         stack.set(DataComponents.CUSTOM_NAME, Component.translatable("randomizer.potion_title", itemType));

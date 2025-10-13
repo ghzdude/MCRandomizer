@@ -1,8 +1,10 @@
 package com.ghzdude.randomizer.util;
 
-import com.ghzdude.randomizer.*;
+import com.ghzdude.randomizer.ItemRandomizer;
+import com.ghzdude.randomizer.RandomizerCore;
+import com.ghzdude.randomizer.RecipeRandomizer;
+import com.ghzdude.randomizer.StructureRandomizer;
 import com.ghzdude.randomizer.special.generators.*;
-import com.ghzdude.randomizer.special.item.SpecialItems;
 import com.mojang.logging.LogUtils;
 import net.minecraft.core.Registry;
 import net.minecraft.core.RegistryAccess;
@@ -16,7 +18,10 @@ import net.minecraft.world.item.Items;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import java.util.Random;
 
 public class RandomizerUtil {
 
@@ -27,7 +32,7 @@ public class RandomizerUtil {
         StructureRandomizer.init(access);
         EnchantmentGenerator.init(access);
         PotionGenerator.init(access);
-        MobRandomizer.init(access);
+        GoatHornGenerator.init(access);
         init = true;
     }
 
@@ -55,28 +60,12 @@ public class RandomizerUtil {
         return pointsToUse;
     }
 
-    public static boolean canHaveEffect(ItemStack stack) {
-        return canHaveEffect(stack.getItem());
-    }
-
-    public static boolean canEnchant(ItemStack stack) {
-        return canEnchant(stack.getItem());
-    }
-
-    public static boolean canHaveEffect(Item item) {
-        return SpecialItems.EFFECT_ITEMS.contains(item);
-    }
-
-    public static boolean canEnchant(Item item) {
-        return SpecialItems.ENCHANTABLE.contains(item);
-    }
-
     public static void addStackToPlayer(ItemStack stack, Inventory inventory) {
         LOGGER.warn("Given {} to {}.", stack.copy(), inventory.player.getName().getString());
         if (!inventory.add(stack)) {
             inventory.player.drop(stack, false);
         }
-        RandomizerCore.incrementAmtItemsGiven(inventory.player);
+        ItemRandomizer.incrementAmtItemsGiven(inventory.player);
     }
 
     public static <T> T getRandom(List<T> list, Random rng) {
@@ -88,7 +77,7 @@ public class RandomizerUtil {
     }
 
     public static <T> @NotNull T getOrThrow(Registry<T> registry, ResourceLocation location) {
-        return Objects.requireNonNull(registry.get(location), "%s does not exist in %s".formatted(location, registry.key()));
+        return registry.get(location).orElseThrow().get();
     }
 
     public static ItemStack specialItemToStack(Item item, int points) {
@@ -106,9 +95,9 @@ public class RandomizerUtil {
 
         if (!init) return stack;
 
-        if (canEnchant(stack)) {
+        if (EnchantmentGenerator.canEnchant(stack)) {
             EnchantmentGenerator.applyEnchantment(stack);
-        } else if (canHaveEffect(stack)) {
+        } else if (PotionGenerator.canHaveEffect(stack)) {
             PotionGenerator.applyEffect(stack);
         } else if (item == Items.WRITTEN_BOOK) {
             BookGenerator.applyPassages(stack);

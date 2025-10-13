@@ -1,7 +1,6 @@
 package com.ghzdude.randomizer.compat.jei;
 
 import com.ghzdude.randomizer.util.RandomizerUtil;
-import mezz.jei.api.constants.VanillaTypes;
 import mezz.jei.api.gui.builder.IRecipeLayoutBuilder;
 import mezz.jei.api.gui.builder.IRecipeSlotBuilder;
 import mezz.jei.api.gui.drawable.IDrawable;
@@ -9,8 +8,8 @@ import mezz.jei.api.gui.ingredient.IRecipeSlotsView;
 import mezz.jei.api.helpers.IGuiHelper;
 import mezz.jei.api.recipe.IFocusGroup;
 import mezz.jei.api.recipe.RecipeIngredientRole;
-import mezz.jei.api.recipe.RecipeType;
 import mezz.jei.api.recipe.category.IRecipeCategory;
+import mezz.jei.api.recipe.types.IRecipeType;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.core.component.DataComponents;
@@ -27,7 +26,7 @@ import java.util.List;
 public class LootTableCategory implements IRecipeCategory<ParsedLootTable> {
 
     public static final ResourceLocation UID = RandomizerUtil.location("block_drop_category");
-    public static final RecipeType<ParsedLootTable> TYPE = new RecipeType<>(UID, ParsedLootTable.class);
+    public static final IRecipeType<ParsedLootTable> TYPE = IRecipeType.create(UID, ParsedLootTable.class);
     private final IDrawable ICON;
     private final Component TITLE = Component.translatable("randomizer.compat.jei.block_drop_category");
     private final IGuiHelper helper;
@@ -38,7 +37,7 @@ public class LootTableCategory implements IRecipeCategory<ParsedLootTable> {
     }
 
     @Override
-    public @NotNull RecipeType<ParsedLootTable> getRecipeType() {
+    public @NotNull IRecipeType<ParsedLootTable> getRecipeType() {
         return TYPE;
     }
 
@@ -69,7 +68,7 @@ public class LootTableCategory implements IRecipeCategory<ParsedLootTable> {
 
         builder.addSlot(RecipeIngredientRole.INPUT, startX - 20, starty)
                 .setStandardSlotBackground()
-                .addIngredient(VanillaTypes.ITEM_STACK, recipe.input());
+                .add(recipe.input());
 
         starty += 18 + 2;
 
@@ -91,12 +90,12 @@ public class LootTableCategory implements IRecipeCategory<ParsedLootTable> {
                 lines.add(Component.translatable("randomizer.compat.jei.block_drop.cannot_fit")
                         .withStyle(ChatFormatting.BOLD, ChatFormatting.RED));
                 drop.set(DataComponents.LORE, new ItemLore(lines));
-                slot.addIngredient(VanillaTypes.ITEM_STACK, drop);
+                slot.add(drop);
                 break;
             }
 
             if (!drop.isEmpty())
-                slot.addIngredient(VanillaTypes.ITEM_STACK, drop);
+                slot.add(drop);
         }
     }
 

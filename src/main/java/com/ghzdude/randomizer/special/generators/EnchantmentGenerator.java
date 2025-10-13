@@ -3,6 +3,7 @@ package com.ghzdude.randomizer.special.generators;
 import com.ghzdude.randomizer.RandomizerCore;
 import net.minecraft.core.Holder;
 import net.minecraft.core.RegistryAccess;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -18,10 +19,14 @@ public class EnchantmentGenerator {
     private static final ArrayList<Holder<Enchantment>> VALID_ENCHANTS = new ArrayList<>();
 
     public static void init(RegistryAccess access) {
-        var enchantments = access.registryOrThrow(Registries.ENCHANTMENT);
+        var enchantments = access.lookupOrThrow(Registries.ENCHANTMENT);
         enchantments.stream()
                 .map(enchantments::wrapAsHolder)
                 .forEach(VALID_ENCHANTS::add);
+    }
+
+    public static boolean canEnchant(ItemStack stack) {
+        return stack.is(Items.ENCHANTED_BOOK) || stack.has(DataComponents.ENCHANTABLE) && stack.getMaxStackSize() == 1;
     }
 
     public static void applyEnchantment(ItemStack stack) {
@@ -30,15 +35,14 @@ public class EnchantmentGenerator {
         if (shouldEnchant < 80 && !stack.is(Items.ENCHANTED_BOOK)) return;
 
         List<Holder<Enchantment>> applicable = VALID_ENCHANTS.stream()
-                .filter(enchant -> stack.canApplyAtEnchantingTable(enchant.get()))
+                .filter(stack::canApplyAtEnchantingTable)
                 .collect(Collectors.toList());
 
         if (applicable.isEmpty()) return;
         int numOfEnchants = rng.nextInt(applicable.size()) + 1;
         for (int i = 0; i < numOfEnchants; i++) {
             int id = rng.nextInt(applicable.size());
-            Holder<Enchantment> toApply = applicable.get(id);
-            applicable.remove(id);
+            Holder<Enchantment> toApply = applicable.remove(id);
 
             // todo handle max enchant level not translating properly
             stack.enchant(toApply, rng.nextInt(15));

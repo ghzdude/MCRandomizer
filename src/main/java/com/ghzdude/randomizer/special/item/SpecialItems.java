@@ -147,6 +147,7 @@ public class SpecialItems {
         addItem(Items.LINGERING_POTION, 6);
         addItem(Items.TIPPED_ARROW, 6);
         addItem(Items.SUSPICIOUS_STEW, 4);
+        addItem(Items.ENCHANTED_BOOK, 4);
 
         // misc
         addItem(Items.NETHER_STAR, 15);
@@ -184,6 +185,7 @@ public class SpecialItems {
     }
 
     private static boolean canEnchant(Item item) {
+        if (item == Items.ENCHANTED_BOOK) return true;
         return item.components().has(DataComponents.MAX_DAMAGE) && item.getDefaultMaxStackSize() == 1;
     }
 }

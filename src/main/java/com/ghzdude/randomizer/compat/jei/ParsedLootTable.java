@@ -8,6 +8,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 
 import java.util.List;
@@ -39,6 +40,7 @@ public record ParsedLootTable(ItemStack input, List<ItemStack> drops, ResourceLo
         return ImmutableList.copyOf(REGISTRY.keySet());
     }
 
+    @Nullable
     public static ParsedLootTable get(ResourceLocation location) {
         return REGISTRY.get(location);
     }
