@@ -103,8 +103,8 @@ public class RandomizationMapData extends SavedData {
         return get(serverLevel.getServer(), prefix);
     }
 
-    private static boolean isAir(ResourceLocation loc) {
-        return AIR.equals(loc) || loc.getPath().isEmpty();
+    private static boolean isInvalid(ResourceLocation loc) {
+        return ItemRandomizer.isBlacklisted(loc) || loc.getPath().isEmpty();
     }
 
     public @NotNull CompoundTag save(CompoundTag tag) {
@@ -113,12 +113,12 @@ public class RandomizationMapData extends SavedData {
         CompoundTag tagKeyMap = new CompoundTag();
 
         ITEM_MAP.forEach((vanilla, random) -> {
-            if (isAir(vanilla) || isAir(random)) return;
+            if (isInvalid(vanilla) || isInvalid(random)) return;
             itemMap.putString(vanilla.toString(), random.toString());
         });
 
         TAGKEY_MAP.forEach((vanilla, random) -> {
-            if (isAir(vanilla) || isAir(random)) return;
+            if (isInvalid(vanilla) || isInvalid(random)) return;
             tagKeyMap.putString(vanilla.toString(), random.toString());
         });
 
@@ -134,15 +134,16 @@ public class RandomizationMapData extends SavedData {
         CompoundTag itemMap = tag.getCompoundOrEmpty("item_map");
         CompoundTag tagMap = tag.getCompoundOrEmpty("tag_key_map");
 
-        for (String item : itemMap.keySet()) {
-            ResourceLocation vanilla = ResourceLocation.parse(item);
-            Optional<ResourceLocation> random = itemMap.getString(item).map(ResourceLocation::tryParse);
-            if (random.isEmpty() || isAir(vanilla) || isAir(random.get())) continue;
-            data.putItem(vanilla, random.get());
-        }
         Set<ResourceLocation> loadedKeys;
         Set<ResourceLocation> validKeys;
         Sets.SetView<ResourceLocation> difference;
+
+        for (String item : itemMap.keySet()) {
+            ResourceLocation vanilla = ResourceLocation.parse(item);
+            Optional<ResourceLocation> random = itemMap.getString(item).map(ResourceLocation::tryParse);
+            if (random.isEmpty() || isInvalid(vanilla) || isInvalid(random.get())) continue;
+            data.putItem(vanilla, random.get());
+        }
 
         loadedKeys = data.ITEM_MAP.keySet();
         validKeys = ItemRandomizer.getKeys().collect(Collectors.toSet());
@@ -157,7 +158,7 @@ public class RandomizationMapData extends SavedData {
         for (String tagKey : tagMap.keySet()) {
             ResourceLocation vanilla = ResourceLocation.parse(tagKey);
             Optional<ResourceLocation> random = tagMap.getString(tagKey).map(ResourceLocation::tryParse);
-            if (random.isEmpty() || isAir(vanilla) || isAir(random.get())) continue;
+            if (random.isEmpty() || isInvalid(vanilla) || isInvalid(random.get())) continue;
             data.putTag(vanilla, random.get());
         }
 
@@ -222,6 +223,10 @@ public class RandomizationMapData extends SavedData {
     }
 
     private static void generateMap(List<ResourceLocation> vanilla, BiConsumer<ResourceLocation, ResourceLocation> biConsumer) {
+        if (vanilla.size() == 1) {
+            // need to inject single element somehow
+            return;
+        }
         ResourceLocation key, value, tail = vanilla.get(RNG.nextInt(1, vanilla.size()));
 
         while (!vanilla.isEmpty()) {
@@ -233,15 +238,16 @@ public class RandomizationMapData extends SavedData {
     }
 
     private void putItem(ResourceLocation vanilla, ResourceLocation random) {
-        if (isAir(vanilla) || isAir(random)) {
-            throw new IllegalArgumentException("Items cannot be air!");
+        if (isInvalid(vanilla) || isInvalid(random)) {
+            LOGGER.warn("Invalid mapping: [{}:{}]", vanilla, random);
+            return;
         }
         ITEM_MAP.put(vanilla, random);
         ITEM_MAP_REVERSE.put(random, vanilla);
     }
 
     private void putTag(ResourceLocation vanilla, ResourceLocation random) {
-        if (isAir(vanilla) || isAir(random)) {
+        if (isInvalid(vanilla) || isInvalid(random)) {
             throw new IllegalArgumentException("Tags cannot be air!");
         }
         TAGKEY_MAP.put(vanilla, random);
@@ -274,7 +280,7 @@ public class RandomizationMapData extends SavedData {
     }
 
     public ResourceLocation getItemFor(ResourceLocation vanilla) {
-        if (isAir(vanilla)) throw new IllegalArgumentException("Cannot randomize Air!");
+        if (isInvalid(vanilla)) throw new IllegalArgumentException("Cannot randomize Air!");
         if (!ITEM_MAP.containsKey(vanilla)) {
             LOGGER.warn("Item '{}' is not mapped to a random item!", vanilla);
             return vanilla;
