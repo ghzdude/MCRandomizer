@@ -32,6 +32,7 @@ public class RandomizerUtil {
         StructureRandomizer.init(access);
         EnchantmentGenerator.init(access);
         PotionGenerator.init(access);
+        GoatHornGenerator.init(access);
         init = true;
     }
 
