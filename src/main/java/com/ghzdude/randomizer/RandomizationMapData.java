@@ -2,9 +2,8 @@ package com.ghzdude.randomizer;
 
 import com.ghzdude.randomizer.util.RandomizerUtil;
 import com.google.common.collect.Sets;
-import com.mojang.datafixers.util.Pair;
 import com.mojang.logging.LogUtils;
-import com.mojang.serialization.*;
+import com.mojang.serialization.Codec;
 import it.unimi.dsi.fastutil.objects.Object2ObjectMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import net.minecraft.core.Holder;
@@ -35,25 +34,8 @@ import java.util.stream.Collectors;
 public class RandomizationMapData extends SavedData {
 
     public static final RandomizationMapData VANILLA = new DefaultedMapData();
-    public static final Codec<RandomizationMapData> CODEC = Codec.of(
-            new Encoder<>() {
-                @Override
-                public <T> DataResult<T> encode(RandomizationMapData randomizationMapData, DynamicOps<T> dynamicOps, T t) {
-                    CompoundTag tag = randomizationMapData.save(new CompoundTag());
-                    return CompoundTag.CODEC.encode(tag, dynamicOps, t);
-                }
-            }, new Decoder<>() {
-                @Override
-                public <T> DataResult<Pair<RandomizationMapData, T>> decode(DynamicOps<T> dynamicOps, T t) {
-                    DataResult<Pair<CompoundTag, T>> result = CompoundTag.CODEC.decode(dynamicOps, t);
-                    if (result.isSuccess()) {
-                        RandomizationMapData data = RandomizationMapData.load(result.getOrThrow().getFirst());
-                        return DataResult.success(Pair.of(data, t));
-                    }
-                    return DataResult.error(() -> "failed");
-                }
-            }
-    );
+    public static final Codec<RandomizationMapData> CODEC = CompoundTag.CODEC
+            .xmap(RandomizationMapData::load, RandomizationMapData::save);
 
     private static final Object2ObjectMap<String, SavedDataType<RandomizationMapData>> TYPE_MAP = new Object2ObjectOpenHashMap<>();
 
@@ -84,7 +66,8 @@ public class RandomizationMapData extends SavedData {
 
     public static RandomizationMapData get(DimensionDataStorage storage, String prefix) {
         String name = RandomizerCore.MODID + "_" + prefix;
-        SavedDataType<RandomizationMapData> type = TYPE_MAP.computeIfAbsent(name, k -> new SavedDataType<>(name, RandomizationMapData::new, RandomizationMapData.CODEC, DataFixTypes.LEVEL));
+        SavedDataType<RandomizationMapData> type = TYPE_MAP.computeIfAbsent(name, (String k) -> new SavedDataType<>(k, RandomizationMapData::new,
+                RandomizationMapData.CODEC, DataFixTypes.LEVEL));
         RandomizationMapData data = storage.computeIfAbsent(type);
         if (!data.isLoaded()) {
             data.generateItemMap();
@@ -105,6 +88,10 @@ public class RandomizationMapData extends SavedData {
 
     private static boolean isInvalid(ResourceLocation loc) {
         return ItemRandomizer.isBlacklisted(loc) || loc.getPath().isEmpty();
+    }
+
+    public @NotNull CompoundTag save() {
+        return save(new CompoundTag());
     }
 
     public @NotNull CompoundTag save(CompoundTag tag) {

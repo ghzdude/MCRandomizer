@@ -3,11 +3,8 @@ package com.ghzdude.randomizer;
 import com.ghzdude.randomizer.loot.LootRandomizer;
 import com.ghzdude.randomizer.util.RandomizerUtil;
 import com.google.gson.JsonElement;
-import com.mojang.datafixers.util.Pair;
 import com.mojang.logging.LogUtils;
 import com.mojang.serialization.Codec;
-import com.mojang.serialization.DataResult;
-import com.mojang.serialization.DynamicOps;
 import it.unimi.dsi.fastutil.ints.Int2ObjectArrayMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMaps;
@@ -917,18 +914,7 @@ public class CompletabilityVerifier {
 
     private static class VerifierSaveData extends SavedData {
 
-        public static final Codec<VerifierSaveData> CODEC = new Codec<>() {
-            @Override
-            public <T> DataResult<T> encode(VerifierSaveData saveData, DynamicOps<T> dynamicOps, T t) {
-                return CompoundTag.CODEC.encode(saveData.save(), dynamicOps, t);
-            }
-
-            @Override
-            public <T> DataResult<Pair<VerifierSaveData, T>> decode(DynamicOps<T> dynamicOps, T t) {
-                return CompoundTag.CODEC.decode(dynamicOps, t)
-                        .map(p -> p.mapFirst(VerifierSaveData::load));
-            }
-        };
+        public static final Codec<VerifierSaveData> CODEC = CompoundTag.CODEC.xmap(VerifierSaveData::load, VerifierSaveData::save);
 
         public static final SavedDataType<VerifierSaveData> FACTORY = new SavedDataType<>("%s_modified_data".formatted(RandomizerCore.MODID),
                 VerifierSaveData::new, VerifierSaveData.CODEC, DataFixTypes.LEVEL);

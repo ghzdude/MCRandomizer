@@ -12,12 +12,10 @@ import mezz.jei.api.recipe.category.IRecipeCategory;
 import mezz.jei.api.recipe.types.IRecipeType;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
-import net.minecraft.world.item.component.ItemLore;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -86,10 +84,10 @@ public class LootTableCategory implements IRecipeCategory<ParsedLootTable> {
                     .setStandardSlotBackground();
 
             if (i + 1 == maxSlots && !willFit) {
-                List<Component> lines = RandomizerUtil.getOrCreateLines(drop);
-                lines.add(Component.translatable("randomizer.compat.jei.block_drop.cannot_fit")
-                        .withStyle(ChatFormatting.BOLD, ChatFormatting.RED));
-                drop.set(DataComponents.LORE, new ItemLore(lines));
+                RandomizerUtil.addLines(drop, lines -> {
+                    lines.add(Component.translatable("randomizer.compat.jei.block_drop.cannot_fit")
+                            .withStyle(ChatFormatting.BOLD, ChatFormatting.RED));
+                });
                 slot.add(drop);
                 break;
             }

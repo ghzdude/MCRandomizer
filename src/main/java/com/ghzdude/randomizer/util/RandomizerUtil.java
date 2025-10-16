@@ -15,6 +15,7 @@ import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.component.ItemLore;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 
@@ -22,6 +23,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Random;
+import java.util.function.Consumer;
 
 public class RandomizerUtil {
 
@@ -116,7 +118,15 @@ public class RandomizerUtil {
     }
 
     public static @NotNull List<Component> getOrCreateLines(ItemStack inputStack) {
-        return Optional.ofNullable(inputStack.get(DataComponents.LORE))
-                .map(itemLore -> new ArrayList<>(itemLore.lines())).orElse(new ArrayList<>());
+        List<Component> lines = new ArrayList<>();
+        Optional.ofNullable(inputStack.get(DataComponents.LORE))
+                .ifPresent(itemLore -> lines.addAll(itemLore.lines()));
+        return lines;
+    }
+
+    public static void addLines(ItemStack stack, Consumer<List<Component>> listConsumer) {
+        List<Component> lines = getOrCreateLines(stack);
+        listConsumer.accept(lines);
+        stack.set(DataComponents.LORE, new ItemLore(lines));
     }
 }

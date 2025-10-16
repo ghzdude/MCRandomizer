@@ -21,7 +21,6 @@ import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.*;
-import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
@@ -34,7 +33,6 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.SpawnEggItem;
-import net.minecraft.world.item.component.ItemLore;
 import net.minecraft.world.item.crafting.*;
 import net.minecraft.world.level.block.*;
 import net.minecraft.world.level.storage.loot.LootContext;
@@ -222,10 +220,10 @@ public class LootRandomizer {
                 return;
             }
 
-            List<Component> lines = RandomizerUtil.getOrCreateLines(inputStack);
-            lines.add(Component.translatable("randomizer.compat.jei.table.id", table)
-                    .withStyle(ChatFormatting.DARK_GRAY));
-            inputStack.set(DataComponents.LORE, new ItemLore(lines));
+            RandomizerUtil.addLines(inputStack, lines -> {
+                lines.add(Component.translatable("randomizer.compat.jei.table.id", table)
+                        .withStyle(ChatFormatting.DARK_GRAY));
+            });
 
             List<ItemStack> drops = new ArrayList<>();
             for (LootData data : lootData) {
@@ -270,9 +268,7 @@ public class LootRandomizer {
             additional.add(Component.literal("May have random enchantments!"));
         }
         if (!additional.isEmpty()) {
-            List<Component> existing = RandomizerUtil.getOrCreateLines(stack);
-            existing.addAll(additional);
-            stack.set(DataComponents.LORE, new ItemLore(existing));
+            RandomizerUtil.addLines(stack, lines -> lines.addAll(additional));
         }
     }
 

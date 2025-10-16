@@ -19,7 +19,7 @@ import net.minecraft.world.entity.ai.attributes.Attribute;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
-import net.minecraft.world.level.Level;
+import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.event.entity.living.MobSpawnEvent;
 import org.slf4j.Logger;
 
@@ -57,6 +57,7 @@ public class MobRandomizer {
     private static Registry<Attribute> ATTRIBUTE_REGISTRY;
     private static Registry<EntityType<?>> TYPE_REGISTRY;
     private static final Logger LOGGER = LogUtils.getLogger();
+    private static boolean isRandomizing = false;
 
     static void init(RegistryAccess access) {
         ATTRIBUTE_REGISTRY = access.lookupOrThrow(Registries.ATTRIBUTE);
@@ -120,6 +121,7 @@ public class MobRandomizer {
     }
 
     static boolean randomizeSpawn(MobSpawnEvent.FinalizeSpawn event) {
+        if (isRandomizing) return false; // prevent stack overflow
         boolean cancel = false;
 
         Mob entity = event.getEntity();
@@ -128,7 +130,9 @@ public class MobRandomizer {
         if (RandomizerConfig.randomizeMobs) {
             EntitySpawnReason spawnReason = event.getSpawnReason();
             if (VALID_REASONS.contains(spawnReason) && !data.contains("randomized")) {
+                isRandomizing = true;
                 entity = randomizeMobSpawn(entity, spawnReason);
+                isRandomizing = false;
                 cancel = true;
             }
         }
@@ -181,38 +185,60 @@ public class MobRandomizer {
                 AttributeModifier.Operation.ADD_MULTIPLIED_BASE);
     }
 
-    private static Mob getRandomMob(Level level, EntitySpawnReason reason) {
-        EntityType<?> entityType = RandomizerUtil.getRandom(VALID_TYPES, RandomizerCore.unseededRNG);
-        Entity mob = entityType.create(level, reason);
-        if (!(mob instanceof Mob)) {
-            throw new IllegalStateException("mob failed to create for some reason!");
-        }
-        return (Mob) mob;
+    private static EntityType<?> getRandomMob() {
+        return RandomizerUtil.getRandom(VALID_TYPES, RandomizerCore.unseededRNG);
     }
 
-    private static void spawnMob(ServerLevel level, Entity mob, Entity reference) {
+    private static Mob spawnMob(ServerLevel level, EntityType<?> type, Mob reference, EntitySpawnReason reason) {
+        // this causes the finalize event to fire again, not ideal
+        Mob mob = (Mob) type.spawn(level, reference.blockPosition(), reason);
+        if (mob == null) {
+            // this shouldn't happen i hope
+            throw new IllegalStateException();
+        }
+
         mob.setPos(reference.position());
         mob.setXRot(reference.getXRot());
         mob.setYRot(reference.getYRot());
-        mob.getSlot(EquipmentSlot.MAINHAND.getIndex()).set(ItemRandomizer.getRandomItemStack(RandomizerCore.unseededRNG));
+
+        // i could probably make this fancier
+//        List<ItemStack> stacks = SpecialItems.ENCHANTABLE.stream()
+//                .map(RandomizerUtil::itemToStack)
+//                .toList();
+
+        // properly equip the item
+//        ItemStack stack = RandomizerUtil.getRandom(stacks, RandomizerCore.unseededRNG);
+        ItemStack stack = ItemRandomizer.getRandomItemStack(RandomizerCore.unseededRNG);
+//        ItemStack stack = new ItemStack(Items.STONE_SWORD);
+
+        RandomizerUtil.addLines(stack, lines -> {
+            // todo this is just for testing
+            lines.add(Component.literal("this came from the mob randomizer"));
+        });
+
+        EquipmentSlot slot = mob.getEquipmentSlotForItem(stack);
+        mob.setItemSlot(slot, stack);
+        mob.setGuaranteedDrop(slot);
+//        mob.equipItemIfPossible(level, stack);
 
         mob.getPersistentData().putBoolean("randomized", true);
-        var state = level.getChunkSource().getLastSpawnState();
-        if (state != null) {
-            var category = mob.getType().getCategory();
-            int count = state.getMobCategoryCounts().getOrDefault(category, 0);
-            if (count <= category.getMaxInstancesPerChunk() * state.getSpawnableChunkCount() / MAGIC_NUMBER) {
-                level.addFreshEntity(mob);
-            }
-        }
+
+        return mob;
     }
 
-    private static Mob randomizeMobSpawn(Entity toSpawn, EntitySpawnReason reason) {
+    private static Mob randomizeMobSpawn(Mob toSpawn, EntitySpawnReason reason) {
         ServerLevel level = (ServerLevel) toSpawn.level();
 
-        Mob mob = getRandomMob(level, reason);
-        spawnMob(level, mob, toSpawn);
-        return mob;
+        EntityType<?> type = getRandomMob();
+        var state = level.getChunkSource().getLastSpawnState();
+        if (state != null) {
+            var category = type.getCategory();
+            int count = state.getMobCategoryCounts().getOrDefault(category, 0);
+            if (count <= category.getMaxInstancesPerChunk() * state.getSpawnableChunkCount() / MAGIC_NUMBER) {
+                return spawnMob(level, type, toSpawn, reason);
+            }
+        }
+        return toSpawn;
     }
 
     record AttributeInfo(ResourceLocation loc, double min, double max, Op op) {
