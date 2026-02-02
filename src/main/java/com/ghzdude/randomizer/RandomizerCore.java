@@ -2,6 +2,7 @@ package com.ghzdude.randomizer;
 
 import com.ghzdude.randomizer.loot.LootRandomizer;
 import com.ghzdude.randomizer.util.RandomizerUtil;
+import com.ghzdude.randomizer.util.RegistryUtil;
 import com.google.gson.JsonElement;
 import com.mojang.logging.LogUtils;
 import com.mojang.serialization.DynamicOps;
@@ -10,6 +11,7 @@ import net.minecraft.server.packs.resources.ResourceManagerReloadListener;
 import net.minecraftforge.event.AddReloadListenerEvent;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.entity.living.MobSpawnEvent;
+import net.minecraftforge.event.server.ServerAboutToStartEvent;
 import net.minecraftforge.event.server.ServerStartedEvent;
 import net.minecraftforge.event.server.ServerStartingEvent;
 import net.minecraftforge.event.server.ServerStoppingEvent;
@@ -48,12 +50,14 @@ public class RandomizerCore
             unseededRNG = new Random();
         });
         TickEvent.PlayerTickEvent.Pre.BUS.addListener(ItemRandomizer::playerTickPre);
+        ServerAboutToStartEvent.BUS.addListener(RegistryUtil::init);
+        ServerStoppingEvent.BUS.addListener(e -> RegistryUtil.dispose());
         ServerStartedEvent.BUS.addListener(RandomizerCore::onStart);
         ServerStoppingEvent.BUS.addListener(RandomizerCore::onStop);
         AddReloadListenerEvent.BUS.addListener(event -> event.addListener(simple(RecipeRandomizer::reload)));
     }
 
-    static void onStart(ServerStartedEvent event) {
+    private static void onStart(ServerStartedEvent event) {
         final var server = event.getServer();
         RandomizationMapData.init(server.registryAccess());
         ItemRandomizer.init(server);
@@ -69,7 +73,7 @@ public class RandomizerCore
         serverStarted = true;
     }
 
-    static void onStop(ServerStoppingEvent event) {
+    private static void onStop(ServerStoppingEvent event) {
         RandomizerUtil.dispose();
         LootRandomizer.dispose();
         CompletabilityVerifier.dispose();

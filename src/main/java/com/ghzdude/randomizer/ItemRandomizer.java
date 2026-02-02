@@ -5,6 +5,7 @@ import com.ghzdude.randomizer.special.generators.EnchantmentGenerator;
 import com.ghzdude.randomizer.special.generators.PotionGenerator;
 import com.ghzdude.randomizer.special.item.SpecialItems;
 import com.ghzdude.randomizer.util.RandomizerUtil;
+import com.ghzdude.randomizer.util.RegistryUtil;
 import it.unimi.dsi.fastutil.objects.Object2IntMap;
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 import net.minecraft.core.Holder;
@@ -22,6 +23,7 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraftforge.event.TickEvent;
+import net.minecraftforge.registries.ForgeRegistries;
 
 import java.util.*;
 import java.util.stream.Stream;
@@ -55,33 +57,12 @@ public class ItemRandomizer {
 
     static void init(MinecraftServer server) {
         ITEM_LIST.clear();
-        BLACKLISTED_ITEMS.clear();
         VALID_ITEMS.clear();
 
-        REGISTRY = server.registryAccess().lookupOrThrow(Registries.ITEM);
+        REGISTRY = RegistryUtil.getRegistry(Registries.ITEM);
         ENABLED = server.getWorldData().enabledFeatures();
+        getBlacklistedItems();
         SpecialItems.init(REGISTRY::getKey);
-
-        BLACKLISTED_ITEMS.addAll(ConfigIO.read("blacklisted_items", Stream.of(
-                        Items.COMMAND_BLOCK,
-                        Items.COMMAND_BLOCK_MINECART,
-                        Items.CHAIN_COMMAND_BLOCK,
-                        Items.REPEATING_COMMAND_BLOCK,
-                        Items.BARRIER,
-                        Items.LIGHT,
-                        Items.STRUCTURE_BLOCK,
-                        Items.STRUCTURE_VOID,
-                        Items.KNOWLEDGE_BOOK,
-                        Items.JIGSAW,
-                        Items.TEST_BLOCK,
-                        Items.TEST_INSTANCE_BLOCK,
-                        Items.DEBUG_STICK)
-                .map(REGISTRY::getKey)
-                .filter(Objects::nonNull)
-                .toList(), REGISTRY));
-
-        // hard code air blacklist
-        BLACKLISTED_ITEMS.add(REGISTRY.getKey(Items.AIR));
 
         ConfigIO.readValues("items", SpecialItems.CONFIGURED_ITEMS, REGISTRY)
                 .object2IntEntrySet().forEach(ItemRandomizer::putValidItem);
@@ -99,6 +80,35 @@ public class ItemRandomizer {
         ITEM_LIST.addAll(VALID_ITEMS.keySet());
 
         INSTANCE = RandomizationMapData.get(server, "item");
+    }
+
+    private static List<ResourceLocation> getBlacklistedItems() {
+        BLACKLISTED_ITEMS.clear();
+        BLACKLISTED_ITEMS.addAll(readBlacklistFile());
+
+        // hard code air blacklist
+        BLACKLISTED_ITEMS.add(ResourceLocation.withDefaultNamespace("air"));
+        return BLACKLISTED_ITEMS;
+    }
+
+    private static List<ResourceLocation> readBlacklistFile() {
+        return ConfigIO.read("blacklisted_items", Stream.of(
+                        Items.COMMAND_BLOCK,
+                        Items.COMMAND_BLOCK_MINECART,
+                        Items.CHAIN_COMMAND_BLOCK,
+                        Items.REPEATING_COMMAND_BLOCK,
+                        Items.BARRIER,
+                        Items.LIGHT,
+                        Items.STRUCTURE_BLOCK,
+                        Items.STRUCTURE_VOID,
+                        Items.KNOWLEDGE_BOOK,
+                        Items.JIGSAW,
+                        Items.TEST_BLOCK,
+                        Items.TEST_INSTANCE_BLOCK,
+                        Items.DEBUG_STICK)
+                .map(ForgeRegistries.ITEMS::getKey)
+                .filter(Objects::nonNull)
+                .toList(), REGISTRY);
     }
 
     private static void putValidItem(Map.Entry<ResourceLocation, Integer> entry) {

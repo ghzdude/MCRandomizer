@@ -14,8 +14,14 @@ import java.util.Random;
 
 public class FireworkGenerator {
 
-    private static final FireworkExplosion.Shape[] SHAPES = FireworkExplosion.Shape.values();
-    private static final DyeColor[] COLORS = DyeColor.values();
+    private static final FireworkExplosion.Shape[] SHAPES;
+    private static final DyeColor[] COLORS;
+
+    static {
+        SHAPES = FireworkExplosion.Shape.values();
+        COLORS = DyeColor.values();
+    }
+
     public static void applyFirework(ItemStack stack) {
         Random random = RandomizerCore.unseededRNG;
 
