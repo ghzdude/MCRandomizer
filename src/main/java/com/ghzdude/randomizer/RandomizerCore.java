@@ -5,14 +5,11 @@ import com.ghzdude.randomizer.util.RandomizerUtil;
 import com.google.gson.JsonElement;
 import com.mojang.logging.LogUtils;
 import com.mojang.serialization.DynamicOps;
-import com.mojang.serialization.JsonOps;
 import net.minecraft.server.packs.resources.ResourceManagerReloadListener;
-import net.minecraftforge.event.AddReloadListenerEvent;
-import net.minecraftforge.event.TickEvent;
-import net.minecraftforge.event.entity.living.MobSpawnEvent;
 import net.minecraftforge.event.server.ServerStartedEvent;
 import net.minecraftforge.event.server.ServerStartingEvent;
 import net.minecraftforge.event.server.ServerStoppingEvent;
+import net.minecraftforge.eventbus.api.EventPriority;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.config.ModConfig;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
@@ -36,21 +33,21 @@ public class RandomizerCore
 
     public RandomizerCore(FMLJavaModLoadingContext context) {
         context.registerConfig(ModConfig.Type.COMMON, RandomizerConfig.Holder.getSpec());
-
-        MobSpawnEvent.FinalizeSpawn.BUS.addListener(MobRandomizer::randomizeSpawn);
+        var BUS = context.getModEventBus();
+        BUS.addListener(MobRandomizer::randomizeSpawn);
         // improve loot randomizer with load event
         // this loads too early for me to randomize it
 //        LootTableLoadEvent.BUS.addListener(LootRandomizer::test);
-        ServerStartingEvent.BUS.addListener(event -> {
+        BUS.addListener(EventPriority.NORMAL, false, ServerStartingEvent.class, event -> {
             final var server = event.getServer();
-            OPS = server.registryAccess().createSerializationContext(JsonOps.INSTANCE);
+//            OPS = server.registryAccess().createSerializationContext(JsonOps.INSTANCE);
             seededRNG = new Random(server.getWorldData().worldGenOptions().seed());
             unseededRNG = new Random();
         });
-        TickEvent.PlayerTickEvent.Pre.BUS.addListener(ItemRandomizer::playerTickPre);
-        ServerStartedEvent.BUS.addListener(RandomizerCore::onStart);
-        ServerStoppingEvent.BUS.addListener(RandomizerCore::onStop);
-        AddReloadListenerEvent.BUS.addListener(event -> event.addListener(simple(RecipeRandomizer::reload)));
+        BUS.addListener(ItemRandomizer::playerTickPre);
+        BUS.addListener(RandomizerCore::onStart);
+        BUS.addListener(RandomizerCore::onStop);
+        BUS.addListener(event -> event.addListener(simple(RecipeRandomizer::reload)));
     }
 
     static void onStart(ServerStartedEvent event) {

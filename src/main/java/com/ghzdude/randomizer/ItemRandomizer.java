@@ -7,7 +7,6 @@ import com.ghzdude.randomizer.special.item.SpecialItems;
 import com.ghzdude.randomizer.util.RandomizerUtil;
 import it.unimi.dsi.fastutil.objects.Object2IntMap;
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
-import net.minecraft.core.Holder;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
@@ -58,7 +57,7 @@ public class ItemRandomizer {
         BLACKLISTED_ITEMS.clear();
         VALID_ITEMS.clear();
 
-        REGISTRY = server.registryAccess().lookupOrThrow(Registries.ITEM);
+        REGISTRY = server.registryAccess().registryOrThrow(Registries.ITEM);
         ENABLED = server.getWorldData().enabledFeatures();
         SpecialItems.init(REGISTRY::getKey);
 
@@ -73,8 +72,8 @@ public class ItemRandomizer {
                         Items.STRUCTURE_VOID,
                         Items.KNOWLEDGE_BOOK,
                         Items.JIGSAW,
-                        Items.TEST_BLOCK,
-                        Items.TEST_INSTANCE_BLOCK,
+//                        Items.TEST_BLOCK,
+//                        Items.TEST_INSTANCE_BLOCK,
                         Items.DEBUG_STICK)
                 .map(REGISTRY::getKey)
                 .filter(Objects::nonNull)
@@ -91,7 +90,7 @@ public class ItemRandomizer {
         }
 
         for (ResourceLocation loc : VALID_ITEMS.keySet()) {
-            REGISTRY.get(loc).map(ItemStack::new)
+            REGISTRY.getOptional(loc).map(ItemStack::new)
                     .filter(stack -> !EnchantmentGenerator.canEnchant(stack) && !PotionGenerator.canHaveEffect(stack))
                     .map(ItemStack::getItem)
                     .ifPresent(stack -> SIMPLE_ITEMS.put(loc, VALID_ITEMS.getInt(stack)));
@@ -134,7 +133,7 @@ public class ItemRandomizer {
         do {
             toReturn = RandomizerUtil.getRandom(ITEM_LIST, rng);
         } while (getPointValue(toReturn) > points);
-        return REGISTRY.get(toReturn).orElseThrow().get();
+        return REGISTRY.getOptional(toReturn).orElseThrow();
     }
 
     public static Item getRandomItem(int points) {
@@ -143,13 +142,12 @@ public class ItemRandomizer {
 
     public static ItemStack getRandomItemStack(Random rng) {
         var item = RandomizerUtil.getRandom(ITEM_LIST, rng);
-        return RandomizerUtil.itemToStack(INSTANCE.getItemFor(REGISTRY.get(item).orElseThrow().get()));
+        return RandomizerUtil.itemToStack(INSTANCE.getItemFor(REGISTRY.getOptional(item).orElseThrow()));
     }
 
     public static Stream<Item> getValidItems() {
-        return getKeys().map(REGISTRY::get)
-                .map(Optional::orElseThrow)
-                .map(Holder::get);
+        return getKeys().map(REGISTRY::getOptional)
+                .map(Optional::orElseThrow);
     }
 
     public static Stream<ResourceLocation> getKeys() {
@@ -164,27 +162,27 @@ public class ItemRandomizer {
         return BLACKLISTED_ITEMS.contains(item);
     }
 
-    static void playerTickPre(TickEvent.PlayerTickEvent.Pre event) {
+    static void playerTickPre(TickEvent.PlayerTickEvent event) {
         if (!shouldTick(event)) return;
 
-        var player = (ServerPlayer) event.player();
+        var player = (ServerPlayer) event.player;
         var data = player.getPersistentData();
 
         if (shouldUsePoints(player)) {
 
-            int pointMax = data.getInt(POINT_MAX_KEY).orElseGet(() -> {
+            if (!data.contains(POINT_MAX_KEY)) {
                 data.putInt(POINT_MAX_KEY, 1);
-                return 1;
-            });
+            }
+            int pointMax = data.getInt(POINT_MAX_KEY);
 
             int points = RandomizerConfig.pointsCarryover ?
-                    data.getIntOr(POINT_KEY, 0) + pointMax : pointMax;
+                    data.getByte(POINT_KEY) + pointMax : pointMax;
 
             int pointsToUse = RandomizerCore.seededRNG.nextInt(points) + 1;
             int remaining = pointsToUse;
 
             if (RandomizerConfig.generateStructures && RandomizerCore.seededRNG.nextInt(100) < RandomizerConfig.structureProbability) {
-                remaining = StructureRandomizer.tryPlace(pointsToUse, player.level(), player);
+                remaining = StructureRandomizer.tryPlace(pointsToUse, player.serverLevel(), player);
             } else if (RandomizerConfig.giveRandomItems) {
                 remaining = ItemRandomizer.giveRandomItem(pointsToUse, player.getInventory());
             }
@@ -202,16 +200,17 @@ public class ItemRandomizer {
         return player.gameMode.isSurvival();
     }
 
-    private static boolean shouldTick(TickEvent.PlayerTickEvent.Pre event) {
-        if (event.side().isClient()) return false;
+    private static boolean shouldTick(TickEvent.PlayerTickEvent event) {
+        if (event.side.isClient()) return false;
+        if (event.phase == TickEvent.Phase.END) return false;
         if (OFFSET < 0) OFFSET = 0;
         return ++OFFSET % RandomizerConfig.itemCooldown == 0;
     }
 
     private static void increaseCycle(Player player, CompoundTag data) {
-        int pointMax = data.getIntOr(POINT_MAX_KEY, 1);
-        int cycle = data.getIntOr(CYCLE_KEY, 0) + 1;
-        int cycleCounter = data.getIntOr(CYCLE_COUNTER_KEY, RandomizerConfig.cycleBase);
+        int pointMax = data.contains(POINT_MAX_KEY) ? data.getInt(POINT_MAX_KEY) : 1;
+        int cycle = data.getInt(CYCLE_KEY) + 1;
+        int cycleCounter = data.contains(CYCLE_COUNTER_KEY) ? data.getInt(CYCLE_COUNTER_KEY) : RandomizerConfig.cycleBase;
 
         if (cycle % cycleCounter == 0) {
             cycle = 0;
@@ -231,6 +230,6 @@ public class ItemRandomizer {
     }
 
     public static void incrementAmtItemsGiven(CompoundTag data) {
-        data.putInt(AMOUNT_KEY, data.getIntOr(AMOUNT_KEY, 0) + 1);
+        data.putInt(AMOUNT_KEY, data.getInt(AMOUNT_KEY) + 1);
     }
 }
