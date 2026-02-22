@@ -1,7 +1,7 @@
 {
   "required": true,
   "minVersion": "0.8",
-  "package": "com.ghzdude.untitled.mixin",
+  "package": "com.ghzdude.randomizer.mixins",
   "compatibilityLevel": "JAVA_8",
   "refmap": "untitled.refmap.json",
   "mixins": [
