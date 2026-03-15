@@ -12,10 +12,4 @@ findProject(':modules')?.subprojects {
     base {
         archivesName = mod_id
     }
-
-    if (!name.startsWith("common")) {
-        dependencies {
-            implementation project("modules:common")
-        }
-    }
 }
