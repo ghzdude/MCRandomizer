@@ -18,7 +18,6 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
-import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
@@ -81,13 +80,12 @@ public class CompletabilityVerifier {
     public static Identifier OBSIDIAN;
 
     private static final Deque<Identifier> RECIPE_PATH = new ArrayDeque<>();
-    private static final Deque<Component> PRINT_PATH = new ArrayDeque<>();
+    private static final Deque<String> PRINT_PATH = new ArrayDeque<>();
     private static final Deque<Identifier> COMPLETION_QUEUE = new ArrayDeque<>();
     private static final Logger LOGGER = LogUtils.getLogger();
 
     private static boolean requiresNether = false;
     private static boolean isCompletable = false;
-    private static boolean walkingBack = false;
 
     private static Registry<Item> ITEM_REGISTRY;
 
@@ -596,14 +594,14 @@ public class CompletabilityVerifier {
             return;
         }
 
-        PRINT_PATH.add(Component.translatable("Iterating all ender eye recipes"));
-        boolean validRecipe = ensureCompletability(ENDER_EYE, true);
+        PRINT_PATH.add("Iterating all ender eye recipes");
+        boolean validRecipe = ensureCompletability(ENDER_EYE);
 
         if (requiresNether) {
             RECIPE_PATH.clear();
-            PRINT_PATH.add(Component.translatable("Requires nether access, iterating obsidian recipes"));
+            PRINT_PATH.add("Requires nether access, iterating obsidian recipes");
             LOGGER.info("Nether access is required!");
-            validRecipe = ensureCompletability(OBSIDIAN, true);
+            validRecipe = ensureCompletability(OBSIDIAN);
             if (!validRecipe) {
                 LOGGER.warn("Obsidian is not obtainable!");
             }
@@ -618,8 +616,8 @@ public class CompletabilityVerifier {
             isCompletable = true;
         }
 
-        for (Component component : PRINT_PATH) {
-            LOGGER.debug(component.getString());
+        for (String line : PRINT_PATH) {
+            LOGGER.info(line);
         }
 
         if (!isCompletable) {
@@ -632,35 +630,22 @@ public class CompletabilityVerifier {
      * @return true if this ingredient is obtainable from common blocks in the overworld or nether
      */
     private static boolean ensureCompletability(Identifier ingredient) {
-        return ensureCompletability(ingredient, false);
-    }
-
-    /**
-     * @param ingredient the registry location of the item ingredient
-     * @param init if this is the first method call
-     * @return true if this ingredient is obtainable from common blocks in the overworld or nether
-     */
-    private static boolean ensureCompletability(Identifier ingredient, boolean init) {
         Set<Identifier> recipes = RESULT_MAP.get(ingredient);
 
-        if (recipes.isEmpty()) {
-            if (RandomizerConfig.enableDebug) {
-                LOGGER.debug("No recipes found for ingredient: {}!", ingredient);
-            }
-            // we should walk back later
-            return false;
-        }
-
         if (RandomizerConfig.enableDebug) {
-            LOGGER.debug("Iterating recipes that make '{}'", ingredient);
-            LOGGER.debug("{} recipes found: {}", recipes.size(), recipes);
+            if (recipes.isEmpty()) {
+                LOGGER.info("No recipes found for ingredient: {}!", ingredient);
+            } else {
+                LOGGER.info("Iterating recipes that make '{}'", ingredient);
+                LOGGER.info("{} recipes found: {}", recipes.size(), recipes);
+            }
         }
 
-        Set<Identifier> passed = iterateRecipes(recipes, false, true);
+        Set<Identifier> passed = iterateRecipes(recipes, false);
 
         if (!passed.isEmpty()) return true;
 
-        passed = iterateRecipes(recipes, true, true);
+        passed = iterateRecipes(recipes, true);
 
         // select a recipe to modify
         if (passed.isEmpty()) {
@@ -677,10 +662,12 @@ public class CompletabilityVerifier {
     }
 
     private static void print(String key, Object... args) {
-        PRINT_PATH.add(Component.translatable(key, args));
+        PRINT_PATH.add(key.formatted(args));
     }
 
-    private static Set<Identifier> iterateRecipes(Set<Identifier> recipes, boolean deep, boolean init) {
+    private static Set<Identifier> iterateRecipes(Set<Identifier> recipes, boolean deep) {
+        if (recipes.isEmpty()) return Collections.emptySet();
+
         // quick iterate
         if (!deep) {
             Set<Identifier> obtainableRecipes = recipes.stream()
@@ -771,7 +758,7 @@ public class CompletabilityVerifier {
             }
 
             // iterate recipes that give this ingredient
-            Set<Identifier> quickSearch = iterateRecipes(RESULT_MAP.get(ingredient), false, false);
+            Set<Identifier> quickSearch = iterateRecipes(RESULT_MAP.get(ingredient), false);
 
             if (!quickSearch.isEmpty()) {
                 logIngredient(ingredient, RECIPE_PATH.peekLast(), true);
@@ -887,7 +874,7 @@ public class CompletabilityVerifier {
         if (!RandomizerConfig.enableDebug) return;
         if (success) {
             LOGGER.debug("Back to recipe '{}'", RECIPE_PATH.peekLast());
-            PRINT_PATH.add(Component.translatable("Recipe %s is obtainable!", last));
+            PRINT_PATH.add(String.format("Recipe %s is obtainable!", last));
         } else {
             LOGGER.debug("Recipe '{}' is not obtainable, back to recipe '{}'", last, RECIPE_PATH.peekLast());
         }
