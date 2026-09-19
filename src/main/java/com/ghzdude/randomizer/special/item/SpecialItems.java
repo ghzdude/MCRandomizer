@@ -3,7 +3,7 @@ package com.ghzdude.randomizer.special.item;
 import it.unimi.dsi.fastutil.objects.Object2IntMap;
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 import net.minecraft.core.component.DataComponents;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;
 
@@ -19,7 +19,7 @@ public class SpecialItems {
     // enchantable items
     public static final List<Item> ENCHANTABLE = new ArrayList<>();
 
-    public static final Object2IntMap<ResourceLocation> CONFIGURED_ITEMS = new Object2IntOpenHashMap<>();
+    public static final Object2IntMap<Identifier> CONFIGURED_ITEMS = new Object2IntOpenHashMap<>();
 
     public static final List<Item> LEATHER_ARMOR = List.of(
             Items.LEATHER_HELMET,
@@ -106,26 +106,26 @@ public class SpecialItems {
 
     public static final List<Item> SHULKER_BOXES = List.of(
             Items.SHULKER_BOX,
-            Items.WHITE_SHULKER_BOX,
-            Items.LIGHT_GRAY_SHULKER_BOX,
-            Items.GRAY_SHULKER_BOX,
-            Items.BLACK_SHULKER_BOX,
-            Items.RED_SHULKER_BOX,
-            Items.ORANGE_SHULKER_BOX,
-            Items.YELLOW_SHULKER_BOX,
-            Items.GREEN_SHULKER_BOX,
-            Items.CYAN_SHULKER_BOX,
-            Items.LIGHT_BLUE_SHULKER_BOX,
-            Items.BLUE_SHULKER_BOX,
-            Items.PURPLE_SHULKER_BOX,
-            Items.BROWN_SHULKER_BOX,
-            Items.LIME_SHULKER_BOX,
-            Items.PINK_SHULKER_BOX
+            Items.DYED_SHULKER_BOX.white(),
+            Items.DYED_SHULKER_BOX.lightGray(),
+            Items.DYED_SHULKER_BOX.gray(),
+            Items.DYED_SHULKER_BOX.black(),
+            Items.DYED_SHULKER_BOX.red(),
+            Items.DYED_SHULKER_BOX.orange(),
+            Items.DYED_SHULKER_BOX.yellow(),
+            Items.DYED_SHULKER_BOX.green(),
+            Items.DYED_SHULKER_BOX.cyan(),
+            Items.DYED_SHULKER_BOX.lightBlue(),
+            Items.DYED_SHULKER_BOX.blue(),
+            Items.DYED_SHULKER_BOX.purple(),
+            Items.DYED_SHULKER_BOX.brown(),
+            Items.DYED_SHULKER_BOX.lime(),
+            Items.DYED_SHULKER_BOX.pink()
     );
 
-    private static Function<Item, ResourceLocation> converter;
+    private static Function<Item, Identifier> converter;
 
-    public static void init(Function<Item, ResourceLocation> converter) {
+    public static void init(Function<Item, Identifier> converter) {
         SpecialItems.converter = converter;
         WOODEN_TOOLS.forEach(item -> addItem(item, 1));
         STONE_TOOLS.forEach(item -> addItem(item, 2));

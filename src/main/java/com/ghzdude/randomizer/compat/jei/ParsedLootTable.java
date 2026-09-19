@@ -5,7 +5,7 @@ import com.google.common.collect.ImmutableList;
 import com.mojang.logging.LogUtils;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.ItemStack;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -15,12 +15,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-public record ParsedLootTable(ItemStack input, List<ItemStack> drops, ResourceLocation lootTable) {
+public record ParsedLootTable(ItemStack input, List<ItemStack> drops, Identifier lootTable) {
 
-    private static final Map<ResourceLocation, ParsedLootTable> REGISTRY = new Object2ObjectOpenHashMap<>();
+    private static final Map<Identifier, ParsedLootTable> REGISTRY = new Object2ObjectOpenHashMap<>();
     private static final Logger LOGGER = LogUtils.getLogger();
 
-    public static void registerRecipe(ItemStack input, List<ItemStack> drops, @NotNull ResourceLocation table) {
+    public static void registerRecipe(ItemStack input, List<ItemStack> drops, @NotNull Identifier table) {
         // todo figure out a resource key instead of table id
         ParsedLootTable existing = REGISTRY.put(table, new ParsedLootTable(input, drops, Objects.requireNonNull(table)));
         if (existing != null && RandomizerConfig.enableDebug) {
@@ -36,12 +36,12 @@ public record ParsedLootTable(ItemStack input, List<ItemStack> drops, ResourceLo
         return ImmutableList.copyOf(REGISTRY.values());
     }
 
-    public static List<ResourceLocation> getKeys() {
+    public static List<Identifier> getKeys() {
         return ImmutableList.copyOf(REGISTRY.keySet());
     }
 
     @Nullable
-    public static ParsedLootTable get(ResourceLocation location) {
+    public static ParsedLootTable get(Identifier location) {
         return REGISTRY.get(location);
     }
 

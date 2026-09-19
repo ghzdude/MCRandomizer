@@ -8,7 +8,7 @@ import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.item.ItemStack;
@@ -29,11 +29,11 @@ public class PotionGenerator {
             Potions.MUNDANE.get()
     );
 
-    public static Map<ResourceLocation, Potion> VALID_POTIONS = new HashMap<>();
-    public static List<ResourceLocation> POTION_NAMES = new ArrayList<>();
+    public static Map<Identifier, Potion> VALID_POTIONS = new HashMap<>();
+    public static List<Identifier> POTION_NAMES = new ArrayList<>();
 
-    public static final Map<ResourceLocation, MobEffect> VALID_EFFECTS = new HashMap<>();
-    public static List<ResourceLocation> EFFECT_NAMES = new ArrayList<>();
+    public static final Map<Identifier, MobEffect> VALID_EFFECTS = new HashMap<>();
+    public static List<Identifier> EFFECT_NAMES = new ArrayList<>();
 
     private static Registry<MobEffect> EFFECT_REGISTRY;
 
@@ -83,7 +83,7 @@ public class PotionGenerator {
         lore.add(Component.translatable("randomizer.stew.lore.2", numOfEffects));
         stack.set(DataComponents.LORE, new ItemLore(lore));
 
-        List<ResourceLocation> list = new ArrayList<>(numOfEffects);
+        List<Identifier> list = new ArrayList<>(numOfEffects);
 
         addEffects(list, numOfEffects);
 
@@ -97,7 +97,7 @@ public class PotionGenerator {
     }
 
     private static void makePotion(ItemStack stack, Random rng, int numOfEffects) {
-        List<ResourceLocation> list = new ArrayList<>(numOfEffects);
+        List<Identifier> list = new ArrayList<>(numOfEffects);
 
         addEffects(list, numOfEffects);
 
@@ -118,7 +118,7 @@ public class PotionGenerator {
         stack.set(DataComponents.LORE, new ItemLore(lore));
     }
 
-    private static void addEffects(List<ResourceLocation> list, int amount) {
+    private static void addEffects(List<Identifier> list, int amount) {
         for (int i = 0; i < amount; i++) {
             var loc = RandomizerUtil.getRandom(EFFECT_NAMES, RandomizerCore.unseededRNG);
             if (list.contains(loc)) {

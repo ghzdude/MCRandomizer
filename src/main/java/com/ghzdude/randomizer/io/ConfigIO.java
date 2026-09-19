@@ -6,7 +6,7 @@ import com.mojang.logging.LogUtils;
 import it.unimi.dsi.fastutil.objects.Object2IntArrayMap;
 import it.unimi.dsi.fastutil.objects.Object2IntMap;
 import net.minecraft.core.Registry;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraftforge.fml.loading.FMLPaths;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -30,13 +30,13 @@ public class ConfigIO {
     private static final Logger LOGGER = LogUtils.getLogger();
     private static final String JSON_FILE = "%s.json";
 
-    public static void writeListToFile(File file, List<ResourceLocation> list) {
+    public static void writeListToFile(File file, List<Identifier> list) {
         JsonArray stringArray = new JsonArray();
         list.forEach(loc -> stringArray.add(loc.toString()));
         tryWriteJson(stringArray, file);
     }
 
-    public static void writeValues(File valueFile, Object2IntMap<ResourceLocation> valueMap) {
+    public static void writeValues(File valueFile, Object2IntMap<Identifier> valueMap) {
         JsonObject map = new JsonObject();
         for (var location : valueMap.keySet()) {
             map.addProperty(location.toString(), valueMap.getInt(location));
@@ -57,8 +57,8 @@ public class ConfigIO {
         }
     }
 
-    public static <T> Object2IntMap<ResourceLocation> readValues(String file, Object2IntMap<ResourceLocation> defaults, Registry<T> registry) {
-        final Object2IntMap<ResourceLocation> map = new Object2IntArrayMap<>();
+    public static <T> Object2IntMap<Identifier> readValues(String file, Object2IntMap<Identifier> defaults, Registry<T> registry) {
+        final Object2IntMap<Identifier> map = new Object2IntArrayMap<>();
 
         File valueFile = VALUE_DIR.resolve(JSON_FILE.formatted(file)).toFile();
         if (!valueFile.exists() && (valueFile.getParentFile().exists() || valueFile.getParentFile().mkdirs())) {
@@ -70,7 +70,7 @@ public class ConfigIO {
             JsonObject object = JsonParser.parseString(Files.readString(valueFile.toPath())).getAsJsonObject();
 
             for (String vanilla : object.keySet()) {
-                var loc = ResourceLocation.parse(vanilla);
+                var loc = Identifier.parse(vanilla);
                 int i = object.get(vanilla).getAsInt();
                 if (registry.containsKey(loc)) {
                     map.put(loc, i);
@@ -86,8 +86,8 @@ public class ConfigIO {
         return map;
     }
 
-    public static List<ResourceLocation> read(@NotNull String file, @NotNull List< @NotNull ResourceLocation> defaults, @Nullable Registry<?> registry) {
-        List<ResourceLocation> blacklist = new ArrayList<>();
+    public static List<Identifier> read(@NotNull String file, @NotNull List< @NotNull Identifier> defaults, @Nullable Registry<?> registry) {
+        List<Identifier> blacklist = new ArrayList<>();
 
         File blacklistFile = createFileName(file);
         try {
@@ -100,7 +100,7 @@ public class ConfigIO {
             JsonArray elements = JsonParser.parseString(Files.readString(blacklistFile.toPath())).getAsJsonArray();
 
             for (JsonElement vanilla : elements) {
-                ResourceLocation location = ResourceLocation.parse(vanilla.getAsString());
+                Identifier location = Identifier.parse(vanilla.getAsString());
                 if (registry == null || registry.containsKey(location)) {
                     blacklist.add(location);
                 } else {

@@ -44,7 +44,7 @@ public class RandomizerCore
         ServerStartingEvent.BUS.addListener(event -> {
             final var server = event.getServer();
             OPS = server.registryAccess().createSerializationContext(JsonOps.INSTANCE);
-            seededRNG = new Random(server.getWorldData().worldGenOptions().seed());
+            seededRNG = new Random(server.getWorldGenSettings().options().seed());
             unseededRNG = new Random();
         });
         TickEvent.PlayerTickEvent.Pre.BUS.addListener(ItemRandomizer::playerTickPre);

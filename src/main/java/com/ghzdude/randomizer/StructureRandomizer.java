@@ -12,7 +12,7 @@ import net.minecraft.core.Registry;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.SectionPos;
 import net.minecraft.core.registries.Registries;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.ChunkPos;
@@ -32,13 +32,13 @@ import java.util.function.Predicate;
  * every so often, generate a structure at some random x, z coordinate near the player
  */
 public class StructureRandomizer {
-    private static List<ResourceLocation> BLACKLISTED_STRUCTURES = null;
-    private static final Object2IntMap<ResourceLocation> VALID_STRUCTURES = new Object2IntOpenHashMap<>();
-    private static final List<ResourceLocation> STRUCTURES = new ArrayList<>();
+    private static List<Identifier> BLACKLISTED_STRUCTURES = null;
+    private static final Object2IntMap<Identifier> VALID_STRUCTURES = new Object2IntOpenHashMap<>();
+    private static final List<Identifier> STRUCTURES = new ArrayList<>();
 
-    private static List<ResourceLocation> BLACKLISTED_FEATURES = null;
-    private static final Object2IntMap<ResourceLocation> VALID_FEATURES = new Object2IntOpenHashMap<>();
-    private static final List<ResourceLocation> FEATURES = new ArrayList<>();
+    private static List<Identifier> BLACKLISTED_FEATURES = null;
+    private static final Object2IntMap<Identifier> VALID_FEATURES = new Object2IntOpenHashMap<>();
+    private static final List<Identifier> FEATURES = new ArrayList<>();
     private static final Logger LOGGER = LogUtils.getLogger();
 
     private static Registry<Structure> STRUCTURE_REGISTRY;
@@ -52,7 +52,7 @@ public class StructureRandomizer {
         // Structures
         if (BLACKLISTED_STRUCTURES == null) {
             BLACKLISTED_STRUCTURES = ConfigIO.read("blacklisted_structures",
-                List.of(ResourceLocation.parse("namespace:structure_name_here")),
+                List.of(Identifier.parse("namespace:structure_name_here")),
                 STRUCTURE_REGISTRY);
         }
 
@@ -84,25 +84,25 @@ public class StructureRandomizer {
         FEATURES.addAll(VALID_FEATURES.keySet());
     }
 
-    private static void putValidStructure(Map.Entry<ResourceLocation, Integer> entry) {
-        if (entry instanceof Object2IntMap.Entry<ResourceLocation> intEntry)
+    private static void putValidStructure(Map.Entry<Identifier, Integer> entry) {
+        if (entry instanceof Object2IntMap.Entry<Identifier> intEntry)
             putValidStructure(entry.getKey(), intEntry.getIntValue());
         else putValidStructure(entry.getKey(), entry.getValue());
     }
 
-    private static void putValidStructure(ResourceLocation structure, int value) {
+    private static void putValidStructure(Identifier structure, int value) {
         if (BLACKLISTED_STRUCTURES.contains(structure) || VALID_STRUCTURES.containsKey(structure))
             return;
         VALID_STRUCTURES.put(structure, value);
     }
 
-    private static void putValidFeature(Map.Entry<ResourceLocation, Integer> entry) {
-        if (entry instanceof Object2IntMap.Entry<ResourceLocation> intEntry)
+    private static void putValidFeature(Map.Entry<Identifier, Integer> entry) {
+        if (entry instanceof Object2IntMap.Entry<Identifier> intEntry)
             putValidFeature(entry.getKey(), intEntry.getIntValue());
         else putValidFeature(entry.getKey(), entry.getValue());
     }
 
-    private static void putValidFeature(ResourceLocation feature, int value) {
+    private static void putValidFeature(Identifier feature, int value) {
         if (BLACKLISTED_FEATURES.contains(feature) || VALID_FEATURES.containsKey(feature))
             return;
         VALID_FEATURES.put(feature, value);
@@ -136,7 +136,7 @@ public class StructureRandomizer {
     }
 
     private static int placeFeature(int pointsToUse, ServerLevel level, ServerPlayer player) {
-        ResourceLocation feature;
+        Identifier feature;
         do {
             feature = RandomizerUtil.getRandom(FEATURES);
         } while (VALID_FEATURES.getInt(feature) > pointsToUse);
@@ -152,8 +152,8 @@ public class StructureRandomizer {
         return pointsToUse - VALID_FEATURES.getInt(feature);
     }
 
-    private static ResourceLocation selectStructure(int points) {
-        ResourceLocation structure;
+    private static Identifier selectStructure(int points) {
+        Identifier structure;
         do {
             structure = RandomizerUtil.getRandom(STRUCTURES);
         } while (VALID_STRUCTURES.getInt(structure) > points);
@@ -176,7 +176,7 @@ public class StructureRandomizer {
         return player.getOnPos().offset(offsetX, 1, offsetZ);
     }
 
-    private static boolean tryPlaceStructure(ServerLevel serverLevel, ResourceLocation resourceKey, BlockPos blockPos) {
+    private static boolean tryPlaceStructure(ServerLevel serverLevel, Identifier resourceKey, BlockPos blockPos) {
         Structure structure = RandomizerUtil.getOrThrow(STRUCTURE_REGISTRY, resourceKey);
 
         ChunkGenerator chunkgenerator = serverLevel.getChunkSource().getGenerator();
@@ -184,7 +184,7 @@ public class StructureRandomizer {
                 STRUCTURE_REGISTRY.wrapAsHolder(structure), serverLevel.dimension(),
                 serverLevel.registryAccess(), chunkgenerator, chunkgenerator.getBiomeSource(),
                 serverLevel.getChunkSource().randomState(), serverLevel.getStructureManager(),
-                serverLevel.getSeed(), new ChunkPos(blockPos), 0, serverLevel, biomes -> true
+                serverLevel.getSeed(), ChunkPos.containing(blockPos), 0, serverLevel, biomes -> true
         );
 
         if (!structurestart.isValid()) {
@@ -211,7 +211,7 @@ public class StructureRandomizer {
         return true;
     }
 
-    private static boolean tryPlaceFeature(ServerLevel serverLevel, ResourceLocation location, BlockPos blockPos) {
+    private static boolean tryPlaceFeature(ServerLevel serverLevel, Identifier location, BlockPos blockPos) {
         var feature = RandomizerUtil.getOrThrow(FEATURE_REGISTRY, location);
 
         LOGGER.warn("Placing feature \"{}\"", location);

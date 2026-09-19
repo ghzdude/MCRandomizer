@@ -24,8 +24,8 @@ import net.minecraft.core.*;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.tags.TagKey;
@@ -62,33 +62,33 @@ public class LootRandomizer {
     /**
      * Set of all the valid tables
      */
-    private static final ObjectOpenHashSet<ResourceLocation> TABLES = new ObjectOpenHashSet<>();
+    private static final ObjectOpenHashSet<Identifier> TABLES = new ObjectOpenHashSet<>();
 
     /**
      * Maps a block's loot table to the block
      */
-    private static final Object2ObjectMap<ResourceLocation, ResourceLocation> BLOCK_MAP = new Object2ObjectOpenHashMap<>();
+    private static final Object2ObjectMap<Identifier, Identifier> BLOCK_MAP = new Object2ObjectOpenHashMap<>();
 
     /**
      * Maps a loot table to its drops
      */
-    private static final Object2ObjectMap<ResourceLocation, Set<LootData>> LOOT_MAP = new Object2ObjectOpenHashMap<>();
+    private static final Object2ObjectMap<Identifier, Set<LootData>> LOOT_MAP = new Object2ObjectOpenHashMap<>();
 
     /**
      * Maps a loot table with a map of the loot table drops to a different item required for completion
      */
-    private static final Map<ResourceLocation, Map<ResourceLocation, ResourceLocation>> SPECIAL_MAP = new Object2ObjectOpenHashMap<>();
+    private static final Map<Identifier, Map<Identifier, Identifier>> SPECIAL_MAP = new Object2ObjectOpenHashMap<>();
 
-    private static final Map<ResourceLocation, ResourceLocation> ENTITY_EGG_MAP = new Object2ObjectOpenHashMap<>();
+    private static final Map<Identifier, Identifier> ENTITY_EGG_MAP = new Object2ObjectOpenHashMap<>();
 
 
-    public static ResourceLocation activeLocation;
+    public static Identifier activeLocation;
 
-    private static final Set<ResourceLocation> PICKAXE_MINABLE = new ObjectOpenHashSet<>();
-    private static final Set<ResourceLocation> SHOVEL_MINABLE = new ObjectOpenHashSet<>();
-    private static final Set<ResourceLocation> REQUIRES_STONE = new ObjectOpenHashSet<>();
-    private static final Set<ResourceLocation> REQUIRES_IRON = new ObjectOpenHashSet<>();
-    private static final Set<ResourceLocation> REQUIRES_DIAMOND = new ObjectOpenHashSet<>();
+    private static final Set<Identifier> PICKAXE_MINABLE = new ObjectOpenHashSet<>();
+    private static final Set<Identifier> SHOVEL_MINABLE = new ObjectOpenHashSet<>();
+    private static final Set<Identifier> REQUIRES_STONE = new ObjectOpenHashSet<>();
+    private static final Set<Identifier> REQUIRES_IRON = new ObjectOpenHashSet<>();
+    private static final Set<Identifier> REQUIRES_DIAMOND = new ObjectOpenHashSet<>();
     private static RecipeManager RECIPE_MANAGER;
     private static RegistryAccess ACCESS;
     private static boolean appliesToAll;
@@ -105,19 +105,19 @@ public class LootRandomizer {
         BLOCK_REGISTRY = ACCESS.lookupOrThrow(Registries.BLOCK);
         RECIPE_MANAGER = server.getRecipeManager();
 
-        TagKey<Block> pickaxeMineable = BlockTags.create(ResourceLocation.withDefaultNamespace("mineable/pickaxe"));
-        TagKey<Block> shovelMineable = BlockTags.create(ResourceLocation.withDefaultNamespace("mineable/shovel"));
+        TagKey<Block> pickaxeMineable = BlockTags.create(Identifier.withDefaultNamespace("mineable/pickaxe"));
+        TagKey<Block> shovelMineable = BlockTags.create(Identifier.withDefaultNamespace("mineable/shovel"));
 
-        TagKey<Block> needsStone = BlockTags.create(ResourceLocation.withDefaultNamespace("needs_stone_tool"));
-        TagKey<Block> needsIron = BlockTags.create(ResourceLocation.withDefaultNamespace("needs_iron_tool"));
-        TagKey<Block> needsDiamond = BlockTags.create(ResourceLocation.withDefaultNamespace("needs_diamond_tool"));
+        TagKey<Block> needsStone = BlockTags.create(Identifier.withDefaultNamespace("needs_stone_tool"));
+        TagKey<Block> needsIron = BlockTags.create(Identifier.withDefaultNamespace("needs_iron_tool"));
+        TagKey<Block> needsDiamond = BlockTags.create(Identifier.withDefaultNamespace("needs_diamond_tool"));
 
-//        TagKey<Block> notWooden = BlockTags.create(ResourceLocation.withDefaultNamespace("incorrect_for_wooden_tool"));
-//        TagKey<Block> notStone = BlockTags.create(ResourceLocation.withDefaultNamespace("incorrect_for_stone_tool"));
-//        TagKey<Block> notIron = BlockTags.create(ResourceLocation.withDefaultNamespace("incorrect_for_iron_tool"));
-//        TagKey<Block> notGold = BlockTags.create(ResourceLocation.withDefaultNamespace("incorrect_for_gold_tool"));
-//        TagKey<Block> notDiamond = BlockTags.create(ResourceLocation.withDefaultNamespace("incorrect_for_diamond_tool"));
-//        TagKey<Block> notNetherite = BlockTags.create(ResourceLocation.withDefaultNamespace("incorrect_for_netherite_tool"));
+//        TagKey<Block> notWooden = BlockTags.create(Identifier.withDefaultNamespace("incorrect_for_wooden_tool"));
+//        TagKey<Block> notStone = BlockTags.create(Identifier.withDefaultNamespace("incorrect_for_stone_tool"));
+//        TagKey<Block> notIron = BlockTags.create(Identifier.withDefaultNamespace("incorrect_for_iron_tool"));
+//        TagKey<Block> notGold = BlockTags.create(Identifier.withDefaultNamespace("incorrect_for_gold_tool"));
+//        TagKey<Block> notDiamond = BlockTags.create(Identifier.withDefaultNamespace("incorrect_for_diamond_tool"));
+//        TagKey<Block> notNetherite = BlockTags.create(Identifier.withDefaultNamespace("incorrect_for_netherite_tool"));
 
         collectFromTag(pickaxeMineable, PICKAXE_MINABLE);
         collectFromTag(shovelMineable, SHOVEL_MINABLE);
@@ -134,15 +134,13 @@ public class LootRandomizer {
                 continue;
             }
 
-            BLOCK_MAP.put(lootTable.get().location(), BLOCK_REGISTRY.getKey(block));
+            BLOCK_MAP.put(lootTable.get().identifier(), BLOCK_REGISTRY.getKey(block));
         }
 
         for (EntityType<?> type : server.registryAccess().lookupOrThrow(Registries.ENTITY_TYPE)) {
-            SpawnEggItem egg = SpawnEggItem.byId(type);
-            if (egg == null) continue;
-            type.getDefaultLootTable()
-                    .map(ResourceKey::location)
-                    .ifPresent(key -> ENTITY_EGG_MAP.put(key, ITEM_REGISTRY.getKey(egg)));
+            SpawnEggItem.byId(type).ifPresent(egg -> type.getDefaultLootTable()
+                    .map(ResourceKey::identifier)
+                    .ifPresent(key -> ENTITY_EGG_MAP.put(key, egg.unwrapKey().map(ResourceKey::identifier).orElseThrow())));
         }
 
         Optional<DynamicOps<JsonElement>> registryOps = RandomizerCore.getOps();
@@ -174,7 +172,7 @@ public class LootRandomizer {
             LOGGER.debug("loot map size: {}", LOOT_MAP.size());
         }
 
-        for (ResourceLocation table : LOOT_MAP.keySet()) {
+        for (Identifier table : LOOT_MAP.keySet()) {
             Set<LootData> lootData = LOOT_MAP.get(table);
 
             ItemStack inputStack;
@@ -251,7 +249,7 @@ public class LootRandomizer {
         }
     }
 
-    private static void configureOutputStack(ResourceLocation table, LootData data, ItemStack stack, ParsedLootTable.Type type) {
+    private static void configureOutputStack(Identifier table, LootData data, ItemStack stack, ParsedLootTable.Type type) {
         List<Component> additional = new ArrayList<>();
         if (isBlock(table)) {
             additional.add(type.getName());
@@ -276,7 +274,7 @@ public class LootRandomizer {
         }
     }
 
-    private static @Nullable Item getItemFromBlock(ResourceLocation block) {
+    private static @Nullable Item getItemFromBlock(Identifier block) {
         return switch (BLOCK_REGISTRY.get(block).orElseThrow().get()) {
             case CandleCakeBlock candleCakeBlock -> {
                 DataResult<JsonElement> result = CandleCakeBlock.CODEC.encoder().encodeStart(JsonOps.INSTANCE, candleCakeBlock);
@@ -284,7 +282,7 @@ public class LootRandomizer {
                 yield result.result()
                         .map(JsonElement::getAsJsonObject)
                         .map(object -> object.get("candle").getAsString())
-                        .map(ResourceLocation::parse)
+                        .map(Identifier::parse)
                         .map(ITEM_REGISTRY::get)
                         .filter(Optional::isPresent)
                         .map(Optional::get)
@@ -297,7 +295,7 @@ public class LootRandomizer {
                 yield result.result()
                         .map(JsonElement::getAsJsonObject)
                         .map(object -> object.get("seed").getAsString())
-                        .map(ResourceLocation::parse)
+                        .map(Identifier::parse)
                         .map(ITEM_REGISTRY::get)
                         .filter(Optional::isPresent)
                         .map(Optional::get)
@@ -315,23 +313,23 @@ public class LootRandomizer {
         };
     }
 
-    public static boolean hasTable(ResourceLocation table) {
+    public static boolean hasTable(Identifier table) {
         return LOOT_MAP.containsKey(table);
     }
 
-    public static Set<ResourceLocation> getItems(ResourceLocation table) {
+    public static Set<Identifier> getItems(Identifier table) {
         return LOOT_MAP.get(table).stream().flatMap(LootRandomizer::expandData).collect(Collectors.toUnmodifiableSet());
     }
 
     @Nullable
-    public static ResourceLocation getEggForEntityTable(ResourceLocation table) {
+    public static Identifier getEggForEntityTable(Identifier table) {
         if (!ENTITY_EGG_MAP.containsKey(table) && table.getPath().startsWith("entities/sheep/")) {
             return ITEM_REGISTRY.getKey(Items.SHEEP_SPAWN_EGG);
         }
         return ENTITY_EGG_MAP.get(table);
     }
 
-    private static Stream<ResourceLocation> expandData(LootData data) {
+    private static Stream<Identifier> expandData(LootData data) {
         if (data.tag()) {
             return ITEM_REGISTRY.get(data.makeTagKey())
                     .map(holders -> holders.stream().map(Holder::get).map(ITEM_REGISTRY::getKey))
@@ -343,22 +341,22 @@ public class LootRandomizer {
         }
     }
 
-    public static Set<ResourceLocation> getDrops(ResourceLocation table) {
+    public static Set<Identifier> getDrops(Identifier table) {
         return LOOT_MAP.get(table).stream().map(LootData::location).collect(Collectors.toUnmodifiableSet());
     }
 
-    public static Set<ResourceLocation> getKnownTables() {
+    public static Set<Identifier> getKnownTables() {
         return ImmutableSet.copyOf(LOOT_MAP.keySet());
     }
 
     @Nullable
-    public static ResourceLocation getBlockFor(ResourceLocation table) {
+    public static Identifier getBlockFor(Identifier table) {
         if (BLOCK_MAP.containsKey(table)) return BLOCK_MAP.get(table);
         LOGGER.warn("Table '{}' is not a block table!", table);
         return null;
     }
 
-    public static void registerSpecialDrop(ResourceLocation table, ResourceLocation drop, ResourceLocation replace) {
+    public static void registerSpecialDrop(Identifier table, Identifier drop, Identifier replace) {
         ParsedLootTable parsedLootTable = ParsedLootTable.get(table);
         if (parsedLootTable == null) {
             LOGGER.warn("Parsed LootTable \"{}\" does not exist!", table);
@@ -388,7 +386,7 @@ public class LootRandomizer {
             ParsedLootTable.registerRecipe(parsedLootTable.input(), drops, parsedLootTable.lootTable());
     }
 
-    private static void collectFromTag(TagKey<Block> key, Set<ResourceLocation> collection) {
+    private static void collectFromTag(TagKey<Block> key, Set<Identifier> collection) {
         BLOCK_REGISTRY.get(key).ifPresent(blocks -> blocks.stream()
                 .map(holder -> BLOCK_REGISTRY.getKey(holder.get()))
                 .forEach(collection::add));
@@ -398,7 +396,7 @@ public class LootRandomizer {
         if (!table.has("random_sequence") || !table.has("pools"))
             return;
 
-        ResourceLocation id = activeLocation = ResourceLocation.parse(table.get("random_sequence").getAsString());
+        Identifier id = activeLocation = Identifier.parse(table.get("random_sequence").getAsString());
         appliesToAll = false;
 
         if (!isBlacklisted(id)) TABLES.add(id);
@@ -456,25 +454,25 @@ public class LootRandomizer {
                 handleJsonRaw(value.getAsJsonObject(), items);
             } else {
                 // table location
-                ResourceLocation reference = ResourceLocation.parse(value.getAsString());
+                Identifier reference = Identifier.parse(value.getAsString());
                 addEntry(LootData.table(reference), items);
             }
         } else if (isType(entry, "dynamic")) {
-            ResourceLocation name = getName(entry);
-            List<ResourceLocation> list = ITEM_REGISTRY.getTags()
+            Identifier name = getName(entry);
+            List<Identifier> list = ITEM_REGISTRY.getTags()
                     // this isn't really a great solution, but it should work for sherds
                     .filter(named -> named.key().location().getPath().contains(name.getPath()))
                     .flatMap(HolderSet.ListBacked::stream)
                     .map(holder -> ITEM_REGISTRY.getKey(holder.get()))
                     .toList();
 
-            for (ResourceLocation item : list) {
+            for (Identifier item : list) {
                 addEntry(LootData.standard(getRandomized(item)), items);
             }
 
         } else if (isType(entry, "tag")) {
-            ResourceLocation vanilla = getName(entry);
-            ResourceLocation randomized = getRandomized(vanilla);
+            Identifier vanilla = getName(entry);
+            Identifier randomized = getRandomized(vanilla);
             addEntry(LootData.tag(randomized), items);
         } else if (RandomizerConfig.enableDebug) {
             LOGGER.debug("unhandled entry: {}", entry);
@@ -485,9 +483,9 @@ public class LootRandomizer {
         items.add(data);
     }
 
-    private static ResourceLocation getName(JsonObject entry) {
+    private static Identifier getName(JsonObject entry) {
         if (entry.has("name")) {
-            return ResourceLocation.parse(entry.get("name").getAsString());
+            return Identifier.parse(entry.get("name").getAsString());
         }
         throw new IllegalArgumentException(String.format("Cannot get item from Entry '%s'", entry));
     }
@@ -512,8 +510,8 @@ public class LootRandomizer {
     }
 
     private static void handleItem(JsonObject entry, Set<LootData> items) {
-        ResourceLocation vanilla = getName(entry);
-        ResourceLocation random = getRandomized(vanilla);
+        Identifier vanilla = getName(entry);
+        Identifier random = getRandomized(vanilla);
         LootData data = LootData.standard(random).pick(requiresPick).shovel(requiresShovel);
 
         if (!appliesToAll) {
@@ -526,7 +524,7 @@ public class LootRandomizer {
                         .toList();
 
                 for (JsonObject function : functions) {
-                    Optional<ResourceLocation> location = canSmelt(function, vanilla);
+                    Optional<Identifier> location = canSmelt(function, vanilla);
                     if (location.isPresent()) {
                         addEntry(LootData.standard(getRandomized(location.get())).smelt(true), items);
                         break;
@@ -538,7 +536,7 @@ public class LootRandomizer {
         addEntry(data.silk(requiresSilk).shears(requiresShears), items);
     }
 
-    private static ResourceLocation getRandomized(ResourceLocation vanilla) {
+    private static Identifier getRandomized(Identifier vanilla) {
         RandomizationMapData mapData = getMapData(activeLocation);
         if (mapData.getItems().contains(vanilla))
             return mapData.getItemFor(vanilla);
@@ -620,7 +618,7 @@ public class LootRandomizer {
         return object.get("action").getAsString().contains("shears");
     }
 
-    private static Optional<ResourceLocation> canSmelt(JsonObject function, ResourceLocation currentItem) {
+    private static Optional<Identifier> canSmelt(JsonObject function, Identifier currentItem) {
         if (function.has("function") && function.get("function").getAsString().contains("furnace_smelt")) {
             //noinspection unchecked
             List<RecipeHolder<SmeltingRecipe>> recipes = RECIPE_MANAGER.getRecipes().stream()
@@ -647,7 +645,7 @@ public class LootRandomizer {
         return Optional.empty();
     }
 
-    public static RandomizationMapData getMapData(ResourceLocation table) {
+    public static RandomizationMapData getMapData(Identifier table) {
         if (RandomizerConfig.randomizeLoot && TABLES.contains(table))
             return INSTANCE;
         return RandomizationMapData.VANILLA;
@@ -660,26 +658,26 @@ public class LootRandomizer {
         LOOT_MAP.clear();
     }
 
-    private static boolean isBlacklisted(ResourceLocation location) {
+    private static boolean isBlacklisted(Identifier location) {
         return !RandomizerConfig.randomizeBlockLoot && isBlock(location) ||
                 !RandomizerConfig.randomizeEntityLoot && isEntityDrop(location) ||
                 !RandomizerConfig.randomizeChestLoot && isChestLoot(location);
     }
 
-    public static boolean isBlock(ResourceLocation location) {
+    public static boolean isBlock(Identifier location) {
         return location.getPath().startsWith("blocks/");
     }
 
-    public static boolean isEntityDrop(ResourceLocation location) {
+    public static boolean isEntityDrop(Identifier location) {
         return location.getPath().startsWith("entities/");
     }
 
-    public static boolean isChestLoot(ResourceLocation location) {
+    public static boolean isChestLoot(Identifier location) {
         return location.getPath().startsWith("chests/");
     }
 
     public static @NotNull ObjectArrayList<ItemStack> randomizeLoot(ObjectArrayList<ItemStack> generatedLoot, LootContext context) {
-        ResourceLocation queriedLootTableId = context.getQueriedLootTableId();
+        Identifier queriedLootTableId = context.getQueriedLootTableId();
         if (!TABLES.contains(queriedLootTableId)) return generatedLoot;
 
         RandomizationMapData mapData = getMapData(queriedLootTableId);
@@ -688,13 +686,13 @@ public class LootRandomizer {
             LOGGER.debug("Table '{}' is being queried, randomizing", queriedLootTableId);
         }
 
-        Map<ResourceLocation, ResourceLocation> replacementMap = SPECIAL_MAP.getOrDefault(queriedLootTableId, Collections.emptyMap());
+        Map<Identifier, Identifier> replacementMap = SPECIAL_MAP.getOrDefault(queriedLootTableId, Collections.emptyMap());
 
         ObjectArrayList<ItemStack> ret = new ObjectArrayList<>();
         for (ItemStack stack : generatedLoot) {
             if (!stack.isEmpty()) {
                 var random = mapData.getItemFor(stack.getItem());
-                ResourceLocation key = ITEM_REGISTRY.getKey(random);
+                Identifier key = ITEM_REGISTRY.getKey(random);
                 if (replacementMap.containsKey(key)) {
                     random = ITEM_REGISTRY.get(replacementMap.get(key)).orElseThrow().get();
                 }
@@ -716,22 +714,22 @@ public class LootRandomizer {
         public static final int TAG_REFERENCE = 5;
         public static final int REQUIRES_SHOVEL = 6;
 
-        public static LootData standard(ResourceLocation item) {
+        public static LootData standard(Identifier item) {
             return new LootData(item);
         }
 
-        public static LootData tag(ResourceLocation item) {
+        public static LootData tag(Identifier item) {
             return new LootData(item).tag(true);
         }
 
-        public static LootData table(ResourceLocation item) {
+        public static LootData table(Identifier item) {
             return new LootData(item).reference(true);
         }
 
-        private final ResourceLocation location;
+        private final Identifier location;
         private final BitSet data = new BitSet();
 
-        public LootData(@NotNull ResourceLocation location) {
+        public LootData(@NotNull Identifier location) {
             this.location = Objects.requireNonNull(location);
         }
 
@@ -807,7 +805,7 @@ public class LootRandomizer {
             return TagKey.create(Registries.ITEM, this.location());
         }
 
-        public ResourceLocation location() {
+        public Identifier location() {
             return location;
         }
 

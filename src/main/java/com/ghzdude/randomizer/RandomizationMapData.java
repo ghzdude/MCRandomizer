@@ -13,7 +13,7 @@ import net.minecraft.core.Registry;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.tags.TagKey;
@@ -23,7 +23,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.saveddata.SavedData;
 import net.minecraft.world.level.saveddata.SavedDataType;
-import net.minecraft.world.level.storage.DimensionDataStorage;
+import net.minecraft.world.level.storage.SavedDataStorage;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
@@ -55,17 +55,17 @@ public class RandomizationMapData extends SavedData {
             }
     );
 
-    private static final Object2ObjectMap<String, SavedDataType<RandomizationMapData>> TYPE_MAP = new Object2ObjectOpenHashMap<>();
+    private static final Object2ObjectMap<Identifier, SavedDataType<RandomizationMapData>> TYPE_MAP = new Object2ObjectOpenHashMap<>();
 
-    private static final ResourceLocation AIR = ResourceLocation.parse("minecraft:air");
+    private static final Identifier AIR = Identifier.parse("minecraft:air");
     private static final Random RNG = new Random();
     private static final Logger LOGGER = LogUtils.getLogger();
 
-    private final Object2ObjectMap<ResourceLocation, ResourceLocation> ITEM_MAP = new Object2ObjectOpenHashMap<>();
-    private final Object2ObjectMap<ResourceLocation, ResourceLocation> ITEM_MAP_REVERSE = new Object2ObjectOpenHashMap<>();
+    private final Object2ObjectMap<Identifier, Identifier> ITEM_MAP = new Object2ObjectOpenHashMap<>();
+    private final Object2ObjectMap<Identifier, Identifier> ITEM_MAP_REVERSE = new Object2ObjectOpenHashMap<>();
 
-    private final Object2ObjectMap<ResourceLocation, ResourceLocation> TAGKEY_MAP = new Object2ObjectOpenHashMap<>();
-    private final Object2ObjectMap<ResourceLocation, ResourceLocation> TAGKEY_MAP_REVERSE = new Object2ObjectOpenHashMap<>();
+    private final Object2ObjectMap<Identifier, Identifier> TAGKEY_MAP = new Object2ObjectOpenHashMap<>();
+    private final Object2ObjectMap<Identifier, Identifier> TAGKEY_MAP_REVERSE = new Object2ObjectOpenHashMap<>();
 
     private static Registry<Item> ITEM_REGISTRY;
 
@@ -82,8 +82,8 @@ public class RandomizationMapData extends SavedData {
         ITEM_REGISTRY = access.lookupOrThrow(Registries.ITEM);
     }
 
-    public static RandomizationMapData get(DimensionDataStorage storage, String prefix) {
-        String name = RandomizerCore.MODID + "_" + prefix;
+    public static RandomizationMapData get(SavedDataStorage storage, String prefix) {
+        Identifier name = Identifier.fromNamespaceAndPath(RandomizerCore.MODID, prefix);
         SavedDataType<RandomizationMapData> type = TYPE_MAP.computeIfAbsent(name, k -> new SavedDataType<>(name, RandomizationMapData::new, RandomizationMapData.CODEC, DataFixTypes.LEVEL));
         RandomizationMapData data = storage.computeIfAbsent(type);
         if (!data.isLoaded()) {
@@ -103,7 +103,7 @@ public class RandomizationMapData extends SavedData {
         return get(serverLevel.getServer(), prefix);
     }
 
-    private static boolean isInvalid(ResourceLocation loc) {
+    private static boolean isInvalid(Identifier loc) {
         return ItemRandomizer.isBlacklisted(loc) || loc.getPath().isEmpty();
     }
 
@@ -134,13 +134,13 @@ public class RandomizationMapData extends SavedData {
         CompoundTag itemMap = tag.getCompoundOrEmpty("item_map");
         CompoundTag tagMap = tag.getCompoundOrEmpty("tag_key_map");
 
-        Set<ResourceLocation> loadedKeys;
-        Set<ResourceLocation> validKeys;
-        Sets.SetView<ResourceLocation> difference;
+        Set<Identifier> loadedKeys;
+        Set<Identifier> validKeys;
+        Sets.SetView<Identifier> difference;
 
         for (String item : itemMap.keySet()) {
-            ResourceLocation vanilla = ResourceLocation.parse(item);
-            Optional<ResourceLocation> random = itemMap.getString(item).map(ResourceLocation::tryParse);
+            Identifier vanilla = Identifier.parse(item);
+            Optional<Identifier> random = itemMap.getString(item).map(Identifier::tryParse);
             if (random.isEmpty() || isInvalid(vanilla) || isInvalid(random.get())) continue;
             data.putItem(vanilla, random.get());
         }
@@ -156,8 +156,8 @@ public class RandomizationMapData extends SavedData {
         }
 
         for (String tagKey : tagMap.keySet()) {
-            ResourceLocation vanilla = ResourceLocation.parse(tagKey);
-            Optional<ResourceLocation> random = tagMap.getString(tagKey).map(ResourceLocation::tryParse);
+            Identifier vanilla = Identifier.parse(tagKey);
+            Optional<Identifier> random = tagMap.getString(tagKey).map(Identifier::tryParse);
             if (random.isEmpty() || isInvalid(vanilla) || isInvalid(random.get())) continue;
             data.putTag(vanilla, random.get());
         }
@@ -184,18 +184,18 @@ public class RandomizationMapData extends SavedData {
         return data;
     }
 
-    private static void generateMap(Set<ResourceLocation> vanilla, BiConsumer<ResourceLocation, ResourceLocation> putItem) {
+    private static void generateMap(Set<Identifier> vanilla, BiConsumer<Identifier, Identifier> putItem) {
         generateMap(new ArrayList<>(vanilla), putItem);
     }
 
     private void generateTagMap() {
-        List<ResourceLocation> vanilla = ITEM_REGISTRY.getTags()
+        List<Identifier> vanilla = ITEM_REGISTRY.getTags()
                 .map(HolderSet.Named::key).map(TagKey::location).collect(Collectors.toList());
 
         generateMap(vanilla, this::putTag);
 
-        Set<ResourceLocation> loadedKeys = TAGKEY_MAP.keySet();
-        Set<ResourceLocation> validKeys = ITEM_REGISTRY.getTags()
+        Set<Identifier> loadedKeys = TAGKEY_MAP.keySet();
+        Set<Identifier> validKeys = ITEM_REGISTRY.getTags()
                 .map(HolderSet.Named::key).map(TagKey::location).collect(Collectors.toSet());
         validKeys.removeIf(loadedKeys::contains);
         if (!validKeys.isEmpty()) {
@@ -207,12 +207,12 @@ public class RandomizationMapData extends SavedData {
     }
 
     private void generateItemMap() {
-        List<ResourceLocation> vanilla = ItemRandomizer.getKeys().collect(Collectors.toList());
+        List<Identifier> vanilla = ItemRandomizer.getKeys().collect(Collectors.toList());
 
         generateMap(vanilla, this::putItem);
 
-        Set<ResourceLocation> loadedKeys = ITEM_MAP.keySet();
-        Set<ResourceLocation> validKeys = ItemRandomizer.getKeys().collect(Collectors.toSet());
+        Set<Identifier> loadedKeys = ITEM_MAP.keySet();
+        Set<Identifier> validKeys = ItemRandomizer.getKeys().collect(Collectors.toSet());
         validKeys.removeIf(loadedKeys::contains);
         if (!validKeys.isEmpty()) {
             logDifference(validKeys);
@@ -222,12 +222,12 @@ public class RandomizationMapData extends SavedData {
                 .forEach(RandomizationMapData::logMatchingKey);
     }
 
-    private static void generateMap(List<ResourceLocation> vanilla, BiConsumer<ResourceLocation, ResourceLocation> biConsumer) {
+    private static void generateMap(List<Identifier> vanilla, BiConsumer<Identifier, Identifier> biConsumer) {
         if (vanilla.size() == 1) {
             // need to inject single element somehow
             return;
         }
-        ResourceLocation key, value, tail = vanilla.get(RNG.nextInt(1, vanilla.size()));
+        Identifier key, value, tail = vanilla.get(RNG.nextInt(1, vanilla.size()));
 
         while (!vanilla.isEmpty()) {
             key = vanilla.removeFirst();
@@ -237,7 +237,7 @@ public class RandomizationMapData extends SavedData {
         }
     }
 
-    private void putItem(ResourceLocation vanilla, ResourceLocation random) {
+    private void putItem(Identifier vanilla, Identifier random) {
         if (isInvalid(vanilla) || isInvalid(random)) {
             LOGGER.warn("Invalid mapping: [{}:{}]", vanilla, random);
             return;
@@ -246,7 +246,7 @@ public class RandomizationMapData extends SavedData {
         ITEM_MAP_REVERSE.put(random, vanilla);
     }
 
-    private void putTag(ResourceLocation vanilla, ResourceLocation random) {
+    private void putTag(Identifier vanilla, Identifier random) {
         if (isInvalid(vanilla) || isInvalid(random)) {
             throw new IllegalArgumentException("Tags cannot be air!");
         }
@@ -271,15 +271,15 @@ public class RandomizationMapData extends SavedData {
     }
 
     public Item getItemFor(Item item) {
-        ResourceLocation vanilla = Objects.requireNonNull(ITEM_REGISTRY.getKey(item));
-        ResourceLocation random = getItemFor(vanilla);
+        Identifier vanilla = Objects.requireNonNull(ITEM_REGISTRY.getKey(item));
+        Identifier random = getItemFor(vanilla);
         return ITEM_REGISTRY.get(random).map(Holder::get).orElseGet(() -> {
             LOGGER.warn("failed to get item for {}", item);
             return item;
         });
     }
 
-    public ResourceLocation getItemFor(ResourceLocation vanilla) {
+    public Identifier getItemFor(Identifier vanilla) {
         if (isInvalid(vanilla)) throw new IllegalArgumentException("Cannot randomize Air!");
         if (!ITEM_MAP.containsKey(vanilla)) {
             LOGGER.warn("Item '{}' is not mapped to a random item!", vanilla);
@@ -288,7 +288,7 @@ public class RandomizationMapData extends SavedData {
         return ITEM_MAP.get(vanilla);
     }
 
-    public ResourceLocation getOriginalItem(ResourceLocation random) {
+    public Identifier getOriginalItem(Identifier random) {
         return ITEM_MAP_REVERSE.get(random);
     }
 
@@ -296,7 +296,7 @@ public class RandomizationMapData extends SavedData {
         return TagKey.create(Registries.ITEM, getOriginalTagKey(random.location()));
     }
 
-    public ResourceLocation getOriginalTagKey(ResourceLocation random) {
+    public Identifier getOriginalTagKey(Identifier random) {
         return TAGKEY_MAP_REVERSE.get(random);
     }
 
@@ -304,7 +304,7 @@ public class RandomizationMapData extends SavedData {
         return TagKey.create(Registries.ITEM, getTagKeyFor(vanilla.location()));
     }
 
-    public ResourceLocation getTagKeyFor(ResourceLocation vanilla) {
+    public Identifier getTagKeyFor(Identifier vanilla) {
         return TAGKEY_MAP.get(vanilla);
     }
 
@@ -312,7 +312,7 @@ public class RandomizationMapData extends SavedData {
     public TagKey<Item> getRandomTag(Random rng) {
         int s = rng.nextInt(TAGKEY_MAP.size());
         int i = 0;
-        for (ResourceLocation value : TAGKEY_MAP.values()) {
+        for (Identifier value : TAGKEY_MAP.values()) {
             if (i++ == s) return TagKey.create(ITEM_REGISTRY.key(), value);
         }
         return null;
@@ -322,17 +322,17 @@ public class RandomizationMapData extends SavedData {
     public Item getRandomItem(Random rng) {
         int s = rng.nextInt(ITEM_MAP.size());
         int i = 0;
-        for (ResourceLocation value : ITEM_MAP.values()) {
+        for (Identifier value : ITEM_MAP.values()) {
             if (i++ == s) return ITEM_REGISTRY.get(value).orElseThrow().get();
         }
         return null;
     }
 
-    public Set<ResourceLocation> getItems() {
+    public Set<Identifier> getItems() {
         return ITEM_MAP.keySet();
     }
 
-    public Set<ResourceLocation> getTags() {
+    public Set<Identifier> getTags() {
         return TAGKEY_MAP.keySet();
     }
 
@@ -340,13 +340,13 @@ public class RandomizationMapData extends SavedData {
         return isLoaded;
     }
 
-    private static void logDifference(Set<ResourceLocation> difference) {
+    private static void logDifference(Set<Identifier> difference) {
         if (difference.isEmpty()) return;
         LOGGER.warn("Not all keys were associated with a random item/tag!");
         LOGGER.warn("Missed keys: {}", difference);
     }
 
-    private static void logMatchingKey(ResourceLocation l) {
+    private static void logMatchingKey(Identifier l) {
         LOGGER.warn("The key '{}' has been mapped to itself!", l);
     }
 
@@ -377,17 +377,17 @@ public class RandomizationMapData extends SavedData {
         }
 
         @Override
-        public ResourceLocation getItemFor(ResourceLocation vanilla) {
+        public Identifier getItemFor(Identifier vanilla) {
             return vanilla;
         }
 
         @Override
-        public ResourceLocation getOriginalItem(ResourceLocation random) {
+        public Identifier getOriginalItem(Identifier random) {
             return random;
         }
 
         @Override
-        public ResourceLocation getOriginalTagKey(ResourceLocation random) {
+        public Identifier getOriginalTagKey(Identifier random) {
             return random;
         }
 

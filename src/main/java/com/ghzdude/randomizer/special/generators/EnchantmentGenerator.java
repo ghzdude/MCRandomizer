@@ -20,9 +20,7 @@ public class EnchantmentGenerator {
 
     public static void init(RegistryAccess access) {
         var enchantments = access.lookupOrThrow(Registries.ENCHANTMENT);
-        enchantments.stream()
-                .map(enchantments::wrapAsHolder)
-                .forEach(VALID_ENCHANTS::add);
+        enchantments.listElements().forEach(VALID_ENCHANTS::add);
     }
 
     public static boolean canEnchant(ItemStack stack) {

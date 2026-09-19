@@ -11,8 +11,8 @@ import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.*;
 import net.minecraft.world.entity.ai.attributes.Attribute;
@@ -31,10 +31,10 @@ import java.util.stream.Stream;
  * should only randomize when naturally spawned, or from spawner.
  */
 public class MobRandomizer {
-    private static final List<ResourceLocation> BLACKLISTED_ENTITIES = new ArrayList<>();
+    private static final List<Identifier> BLACKLISTED_ENTITIES = new ArrayList<>();
     private static final List<MobCategory> BLACKLISTED_CATEGORIES = List.of(MobCategory.MISC);
-    private static final List<ResourceLocation> BLACKLISTED_ATTRIBUTES = new ArrayList<>();
-    private static final List<ResourceLocation> VALID_ATTRIBUTES = new ArrayList<>();
+    private static final List<Identifier> BLACKLISTED_ATTRIBUTES = new ArrayList<>();
+    private static final List<Identifier> VALID_ATTRIBUTES = new ArrayList<>();
     private static final List<AttributeInfo> SPECIAL_ATTRIBUTES = List.of(
             AttributeInfo.of(Attributes.SCALE, 0.1d, 32d),
             AttributeInfo.of(Attributes.MOVEMENT_SPEED, 0.5d, 4d),
@@ -64,10 +64,10 @@ public class MobRandomizer {
 
         if (BLACKLISTED_ENTITIES.isEmpty()) {
             BLACKLISTED_ENTITIES.addAll(ConfigIO.read("blacklisted_mobs", Stream.of(
-                            EntityType.ENDER_DRAGON,
-                            EntityType.WITHER,
-                            EntityType.WARDEN,
-                            EntityType.GIANT)
+                            EntityTypes.ENDER_DRAGON,
+                            EntityTypes.WITHER,
+                            EntityTypes.WARDEN,
+                            EntityTypes.GIANT)
                     .map(TYPE_REGISTRY::getKey)
                     .filter(Objects::nonNull)
                     .toList(), TYPE_REGISTRY));
@@ -153,7 +153,7 @@ public class MobRandomizer {
             for (int i = 0; i < amt; i++) {
                 AttributeInstance instance = RandomizerUtil.getRandom(applicable, RandomizerCore.seededRNG);
                 Attribute attribute = instance.getAttribute().get();
-                ResourceLocation att = ATTRIBUTE_REGISTRY.getKey(attribute);
+                Identifier att = ATTRIBUTE_REGISTRY.getKey(attribute);
                 Optional<AttributeInfo> info = AttributeInfo.fromLocation(att);
 
                 AttributeModifier modifier;
@@ -175,7 +175,7 @@ public class MobRandomizer {
         return cancel;
     }
 
-    private static AttributeModifier createModifier(double min, double max, ResourceLocation location) {
+    private static AttributeModifier createModifier(double min, double max, Identifier location) {
         return new AttributeModifier(location,
                 RandomizerCore.unseededRNG.nextDouble(min, max),
                 AttributeModifier.Operation.ADD_MULTIPLIED_BASE);
@@ -215,23 +215,23 @@ public class MobRandomizer {
         return mob;
     }
 
-    record AttributeInfo(ResourceLocation loc, double min, double max, Op op) {
+    record AttributeInfo(Identifier loc, double min, double max, Op op) {
 
-        static Map<ResourceLocation, AttributeInfo> MAP = new Object2ObjectOpenHashMap<>();
+        static Map<Identifier, AttributeInfo> MAP = new Object2ObjectOpenHashMap<>();
 
         public static AttributeInfo of(Holder<Attribute> holder, double min, double max) {
             return of(holder, min, max, Op.ADD_M_BASE);
         }
 
         public static AttributeInfo of(Holder<Attribute> holder, double min, double max, Op op) {
-            return holder.unwrapKey().map(ResourceKey::location).map(location -> {
+            return holder.unwrapKey().map(ResourceKey::identifier).map(location -> {
                 AttributeInfo info = new AttributeInfo(location, min, max, op);
                 MAP.put(location, info);
                 return info;
             }).orElseThrow();
         }
 
-        public static Optional<AttributeInfo> fromLocation(ResourceLocation loc) {
+        public static Optional<AttributeInfo> fromLocation(Identifier loc) {
             return Optional.ofNullable(MAP.get(loc));
         }
 

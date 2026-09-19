@@ -12,7 +12,7 @@ import net.minecraft.core.Registry;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Inventory;
@@ -35,10 +35,10 @@ import java.util.stream.Stream;
  * items have a defined value, otherwise stacksize is used
  */
 public class ItemRandomizer {
-    private static final Object2IntMap<ResourceLocation> VALID_ITEMS = new Object2IntOpenHashMap<>();
-    private static final List<ResourceLocation> ITEM_LIST = new ArrayList<>();
-    private static final Object2IntMap<ResourceLocation> SIMPLE_ITEMS = new Object2IntOpenHashMap<>();
-    private static final List<ResourceLocation> BLACKLISTED_ITEMS = new ArrayList<>();
+    private static final Object2IntMap<Identifier> VALID_ITEMS = new Object2IntOpenHashMap<>();
+    private static final List<Identifier> ITEM_LIST = new ArrayList<>();
+    private static final Object2IntMap<Identifier> SIMPLE_ITEMS = new Object2IntOpenHashMap<>();
+    private static final List<Identifier> BLACKLISTED_ITEMS = new ArrayList<>();
 
     private static RandomizationMapData INSTANCE;
     private static Registry<Item> REGISTRY;
@@ -86,11 +86,11 @@ public class ItemRandomizer {
         ConfigIO.readValues("items", SpecialItems.CONFIGURED_ITEMS, REGISTRY)
                 .object2IntEntrySet().forEach(ItemRandomizer::putValidItem);
 
-        for (ResourceLocation loc : REGISTRY.keySet()) {
+        for (Identifier loc : REGISTRY.keySet()) {
             putValidItem(loc, 1);
         }
 
-        for (ResourceLocation loc : VALID_ITEMS.keySet()) {
+        for (Identifier loc : VALID_ITEMS.keySet()) {
             REGISTRY.get(loc).map(ItemStack::new)
                     .filter(stack -> !EnchantmentGenerator.canEnchant(stack) && !PotionGenerator.canHaveEffect(stack))
                     .map(ItemStack::getItem)
@@ -101,13 +101,13 @@ public class ItemRandomizer {
         INSTANCE = RandomizationMapData.get(server, "item");
     }
 
-    private static void putValidItem(Map.Entry<ResourceLocation, Integer> entry) {
-        if (entry instanceof Object2IntMap.Entry<ResourceLocation> intEntry)
+    private static void putValidItem(Map.Entry<Identifier, Integer> entry) {
+        if (entry instanceof Object2IntMap.Entry<Identifier> intEntry)
             putValidItem(entry.getKey(), intEntry.getIntValue());
         else putValidItem(entry.getKey(), entry.getValue());
     }
 
-    private static void putValidItem(ResourceLocation loc, int value) {
+    private static void putValidItem(Identifier loc, int value) {
         var item = RandomizerUtil.getOrThrow(REGISTRY, loc);
         if (isBlacklisted(item) || VALID_ITEMS.containsKey(loc) || ENABLED == null || !item.isEnabled(ENABLED))
             return;
@@ -115,7 +115,7 @@ public class ItemRandomizer {
     }
 
     public static int giveRandomItem(int pointsToUse, Inventory inventory) {
-        inventory.player.displayClientMessage(Component.translatable("randomizer.giving_item.label"), true);
+        inventory.player.sendSystemMessage(Component.translatable("randomizer.giving_item.label"));
         return RandomizerConfig.giveMultipleItems ?
                 RandomizerUtil.giveMultiple(pointsToUse, inventory) :
                 RandomizerUtil.giveOnce(pointsToUse, inventory);
@@ -125,12 +125,12 @@ public class ItemRandomizer {
         return getPointValue(REGISTRY.getKey(item));
     }
 
-    public static int getPointValue(ResourceLocation item) {
+    public static int getPointValue(Identifier item) {
         return VALID_ITEMS.getInt(item);
     }
 
     public static Item getRandomItem(Random rng, int points) {
-        ResourceLocation toReturn;
+        Identifier toReturn;
         do {
             toReturn = RandomizerUtil.getRandom(ITEM_LIST, rng);
         } while (getPointValue(toReturn) > points);
@@ -152,7 +152,7 @@ public class ItemRandomizer {
                 .map(Holder::get);
     }
 
-    public static Stream<ResourceLocation> getKeys() {
+    public static Stream<Identifier> getKeys() {
         return ITEM_LIST.stream();
     }
 
@@ -160,7 +160,7 @@ public class ItemRandomizer {
         return isBlacklisted(REGISTRY.getKey(item));
     }
 
-    public static boolean isBlacklisted(ResourceLocation item) {
+    public static boolean isBlacklisted(Identifier item) {
         return BLACKLISTED_ITEMS.contains(item);
     }
 
@@ -218,7 +218,7 @@ public class ItemRandomizer {
             int i = (cycleCounter / 2) + 1;
             cycleCounter = Math.min(cycleCounter + i, COUNTER_MAX);
             pointMax++;
-            player.displayClientMessage(Component.translatable("randomizer.player.point_max.increased", pointMax), false);
+            player.sendSystemMessage(Component.translatable("randomizer.player.point_max.increased", pointMax));
         }
 
         data.putInt(POINT_MAX_KEY, pointMax);

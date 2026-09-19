@@ -17,13 +17,13 @@ import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import net.minecraft.advancements.Advancement;
 import net.minecraft.advancements.AdvancementHolder;
 import net.minecraft.advancements.AdvancementRewards;
-import net.minecraft.advancements.critereon.InventoryChangeTrigger;
+import net.minecraft.advancements.triggers.InventoryChangeTrigger.TriggerInstance;
 import net.minecraft.core.Holder;
 import net.minecraft.core.HolderSet;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.ServerAdvancementManager;
 import net.minecraft.tags.TagKey;
@@ -56,16 +56,16 @@ import java.util.*;
 public class RecipeRandomizer {
 
     // item ingredients -> recipes
-    private static final Map<ResourceLocation, List<ResourceLocation>> MODIFIED = new Object2ObjectOpenHashMap<>();
+    private static final Map<Identifier, List<Identifier>> MODIFIED = new Object2ObjectOpenHashMap<>();
 
     // recipe id -> recipe
-    private static final Map<ResourceLocation, Set<JsonElement>> CACHED_RECIPES = new Object2ObjectOpenHashMap<>();
+    private static final Map<Identifier, Set<JsonElement>> CACHED_RECIPES = new Object2ObjectOpenHashMap<>();
 
     // recipe id -> result item
-    private static final Map<ResourceLocation, ResourceLocation> RESULT_MAP = new Object2ObjectOpenHashMap<>();
+    private static final Map<Identifier, Identifier> RESULT_MAP = new Object2ObjectOpenHashMap<>();
 
     // item output -> recipe
-    public static final Map<ResourceLocation, List<ResourceLocation>> OUTPUT_MAP = new Object2ObjectOpenHashMap<>();
+    public static final Map<Identifier, List<Identifier>> OUTPUT_MAP = new Object2ObjectOpenHashMap<>();
     private static final Logger LOGGER = LogUtils.getLogger();
 
     private static RandomizationMapData INSTANCE = null;
@@ -119,19 +119,19 @@ public class RecipeRandomizer {
         return RandomizationMapData.VANILLA;
     }
 
-    public static List<ResourceLocation> getRecipesForItem(Item item) {
+    public static List<Identifier> getRecipesForItem(Item item) {
         return getRecipesFor(ITEM_REGISTRY.getKey(item));
     }
 
-    public static List<ResourceLocation> getRecipesForTag(TagKey<Item> tagKey) {
+    public static List<Identifier> getRecipesForTag(TagKey<Item> tagKey) {
         return getRecipesFor(tagKey.location());
     }
 
-    public static List<ResourceLocation> getRecipesFor(ResourceLocation location) {
+    public static List<Identifier> getRecipesFor(Identifier location) {
         return OUTPUT_MAP.getOrDefault(location, Collections.emptyList());
     }
 
-    public static Set<JsonElement> getIngredients(ResourceLocation recipe) {
+    public static Set<JsonElement> getIngredients(Identifier recipe) {
         return CACHED_RECIPES.getOrDefault(recipe, Collections.emptySet());
     }
 
@@ -155,11 +155,11 @@ public class RecipeRandomizer {
         }).orElse(original);
     }
 
-    private static ResourceLocation activeRecipe;
+    private static Identifier activeRecipe;
 
     private static RecipeHolder<Recipe<?>> randomizeRecipe(RecipeHolder<Recipe<?>> recipeHolder, DynamicOps<JsonElement> ops) {
         DataResult<JsonElement> encoded = Recipe.CODEC.encodeStart(ops, recipeHolder.value());
-        activeRecipe = recipeHolder.id().location();
+        activeRecipe = recipeHolder.id().identifier();
         return encoded.map(JsonElement::getAsJsonObject)
                 .ifError(e -> error(recipeHolder, e.message()))
                 // handling recipes in this way means tagkeys are expanded into items
@@ -240,7 +240,7 @@ public class RecipeRandomizer {
             JsonArray inner = new JsonArray();
             output.getAsJsonArray().asList().stream()
                     .map(JsonElement::getAsString)
-                    .map(ResourceLocation::tryParse)
+                    .map(Identifier::tryParse)
                     .map(getMapData()::getItemFor)
                     .map(loc -> {
                         addToMap(activeRecipe, loc);
@@ -250,13 +250,13 @@ public class RecipeRandomizer {
             return inner;
         } else {
             String vanilla = output.getAsString();
-            ResourceLocation location;
+            Identifier location;
             if (vanilla.startsWith("#")) {
-                location = ResourceLocation.parse(vanilla.substring(1));
+                location = Identifier.parse(vanilla.substring(1));
                 addToMap(activeRecipe, location);
                 return new JsonPrimitive("#" + getMapData().getTagKeyFor(location).toString());
             } else {
-                location = ResourceLocation.parse(vanilla);
+                location = Identifier.parse(vanilla);
                 addToMap(activeRecipe, location);
                 return new JsonPrimitive(getMapData().getItemFor(location).toString());
             }
@@ -267,12 +267,12 @@ public class RecipeRandomizer {
         return recipe.get("type").getAsString().equals(type);
     }
 
-    public static void addToMap(@NotNull ResourceLocation recipe, @NotNull ResourceLocation ingredient) {
+    public static void addToMap(@NotNull Identifier recipe, @NotNull Identifier ingredient) {
         MODIFIED.computeIfAbsent(ingredient, key -> new ArrayList<>())
                 .add(recipe);
     }
 
-    public static void buildAdvancements(ImmutableMap.Builder<ResourceLocation, AdvancementHolder> map) {
+    public static void buildAdvancements(ImmutableMap.Builder<Identifier, AdvancementHolder> map) {
         for (var ing : MODIFIED.keySet()) {
             Item[] changedItems;
             Optional<Item> item = ITEM_REGISTRY.getOptional(ing);
@@ -293,22 +293,22 @@ public class RecipeRandomizer {
 
             Advancement.Builder builder = new Advancement.Builder();
             AdvancementRewards.Builder rewards = new AdvancementRewards.Builder();
-            for (ResourceLocation recipe : MODIFIED.get(ing)) {
+            for (Identifier recipe : MODIFIED.get(ing)) {
                 rewards.addRecipe(ResourceKey.create(Registries.RECIPE, recipe));
             }
             builder.rewards(rewards);
-            builder.addCriterion("has_item", InventoryChangeTrigger.TriggerInstance.hasItems(changedItems));
+            builder.addCriterion("has_item", TriggerInstance.hasItems(changedItems));
             String path = "%s-%s_gives_recipes".formatted(ing.getNamespace(), ing.getPath());
             AdvancementHolder toAdd = builder.build(RandomizerUtil.location(path));
             map.put(toAdd.id(), toAdd);
         }
     }
 
-    public static Set<ResourceLocation> getKnownRecipes() {
+    public static Set<Identifier> getKnownRecipes() {
         return RESULT_MAP.keySet();
     }
 
-    public static ResourceLocation getResultFor(ResourceLocation recipe) {
+    public static Identifier getResultFor(Identifier recipe) {
         return RESULT_MAP.get(recipe);
     }
 }

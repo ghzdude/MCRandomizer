@@ -10,7 +10,7 @@ import net.minecraft.core.Registry;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -76,8 +76,8 @@ public class RandomizerUtil {
         return getRandom(list, RandomizerCore.unseededRNG);
     }
 
-    public static <T> @NotNull T getOrThrow(Registry<T> registry, ResourceLocation location) {
-        return registry.get(location).orElseThrow().get();
+    public static <T> @NotNull T getOrThrow(Registry<T> registry, Identifier location) {
+        return registry.getOptional(location).orElseThrow();
     }
 
     public static ItemStack specialItemToStack(Item item, int points) {
@@ -111,8 +111,8 @@ public class RandomizerUtil {
         return stack;
     }
 
-    public static ResourceLocation location(String path) {
-        return ResourceLocation.fromNamespaceAndPath(RandomizerCore.MODID, path);
+    public static Identifier location(String path) {
+        return Identifier.fromNamespaceAndPath(RandomizerCore.MODID, path);
     }
 
     public static @NotNull List<Component> getOrCreateLines(ItemStack inputStack) {

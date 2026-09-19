@@ -6,15 +6,15 @@ import net.minecraft.data.worldgen.features.CaveFeatures;
 import net.minecraft.data.worldgen.features.EndFeatures;
 import net.minecraft.data.worldgen.features.MiscOverworldFeatures;
 import net.minecraft.data.worldgen.features.OreFeatures;
+import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.resources.ResourceLocation;
 
 import java.util.List;
 import java.util.stream.Stream;
 
 public class SpecialFeatures {
-    public static final Object2IntMap<ResourceLocation> DEFAULT_FEATURES = new Object2IntOpenHashMap<>();
-    public static final List<ResourceLocation> BLACKLISTED_FEATURES = Stream.of(
+    public static final Object2IntMap<Identifier> DEFAULT_FEATURES = new Object2IntOpenHashMap<>();
+    public static final List<Identifier> BLACKLISTED_FEATURES = Stream.of(
                     CaveFeatures.SCULK_PATCH_DEEP_DARK,
                     CaveFeatures.SCULK_PATCH_ANCIENT_CITY,
                     CaveFeatures.SCULK_VEIN,
@@ -23,7 +23,7 @@ public class SpecialFeatures {
                     MiscOverworldFeatures.DISK_GRAVEL,
                     MiscOverworldFeatures.DISK_CLAY,
                     MiscOverworldFeatures.DISK_GRASS)
-            .map(ResourceKey::location).toList();
+            .map(ResourceKey::identifier).toList();
 
     static {
 
@@ -63,6 +63,6 @@ public class SpecialFeatures {
     }
 
     private static void put(ResourceKey<?> key, int value) {
-        DEFAULT_FEATURES.put(key.location(), value);
+        DEFAULT_FEATURES.put(key.identifier(), value);
     }
 }
