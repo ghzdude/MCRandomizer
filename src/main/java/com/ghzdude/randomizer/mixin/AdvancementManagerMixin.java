@@ -12,7 +12,7 @@ import org.spongepowered.asm.mixin.Shadow;
 
 import java.util.Map;
 
-@Mixin(ServerAdvancementManager.class)
+@Mixin(value = ServerAdvancementManager.class, remap = false)
 public abstract class AdvancementManagerMixin implements AdvancementModify {
 
     @Shadow

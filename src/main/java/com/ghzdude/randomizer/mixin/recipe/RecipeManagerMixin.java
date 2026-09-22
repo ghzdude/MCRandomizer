@@ -9,7 +9,7 @@ import net.minecraft.world.item.crafting.RecipeMap;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 
-@Mixin(RecipeManager.class)
+@Mixin(value = RecipeManager.class, remap = false)
 public abstract class RecipeManagerMixin extends SimplePreparableReloadListener<RecipeMap> implements Randomizable {
 
     @Shadow private RecipeMap recipes;
