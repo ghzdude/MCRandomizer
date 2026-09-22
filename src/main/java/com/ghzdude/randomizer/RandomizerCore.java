@@ -6,7 +6,10 @@ import com.google.gson.JsonElement;
 import com.mojang.logging.LogUtils;
 import com.mojang.serialization.DynamicOps;
 import com.mojang.serialization.JsonOps;
+import net.minecraft.core.Registry;
+import net.minecraft.core.RegistryAccess;
 import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
 import net.minecraftforge.event.AddReloadListenerEvent;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.entity.living.MobSpawnEvent;
@@ -33,6 +36,7 @@ public class RandomizerCore
     public static Random unseededRNG;
     public static boolean serverStarted = false;
     private static DynamicOps<JsonElement> OPS;
+    private static RegistryAccess access;
 
     public RandomizerCore(FMLJavaModLoadingContext context) {
         context.registerConfig(ModConfig.Type.COMMON, RandomizerConfig.Holder.getSpec());
@@ -44,6 +48,7 @@ public class RandomizerCore
         ServerStartingEvent.BUS.addListener(event -> {
             final var server = event.getServer();
             OPS = server.registryAccess().createSerializationContext(JsonOps.INSTANCE);
+            access = server.registryAccess();
             seededRNG = new Random(server.getWorldGenSettings().options().seed());
             unseededRNG = new Random();
         });
@@ -79,6 +84,10 @@ public class RandomizerCore
 
     public static Optional<DynamicOps<JsonElement>> getOps() {
         return Optional.ofNullable(OPS);
+    }
+
+    public static <T> Optional<Registry<T>> getRegistry(ResourceKey<Registry<T>> key) {
+        return Optional.ofNullable(access).flatMap(p -> p.lookup(key));
     }
 
     private static void addListeners(AddReloadListenerEvent event) {
