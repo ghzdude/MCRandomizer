@@ -104,32 +104,18 @@ public class LootRandomizer {
         BLOCK_REGISTRY = access.lookupOrThrow(Registries.BLOCK);
         RECIPE_MANAGER = server.getRecipeManager();
 
-        TagKey<Block> pickaxeMineable = BlockTags.create(Identifier.withDefaultNamespace("mineable/pickaxe"));
-        TagKey<Block> shovelMineable = BlockTags.create(Identifier.withDefaultNamespace("mineable/shovel"));
-
-        TagKey<Block> needsStone = BlockTags.create(Identifier.withDefaultNamespace("needs_stone_tool"));
-        TagKey<Block> needsIron = BlockTags.create(Identifier.withDefaultNamespace("needs_iron_tool"));
-        TagKey<Block> needsDiamond = BlockTags.create(Identifier.withDefaultNamespace("needs_diamond_tool"));
-
-//        TagKey<Block> notWooden = BlockTags.create(Identifier.withDefaultNamespace("incorrect_for_wooden_tool"));
-//        TagKey<Block> notStone = BlockTags.create(Identifier.withDefaultNamespace("incorrect_for_stone_tool"));
-//        TagKey<Block> notIron = BlockTags.create(Identifier.withDefaultNamespace("incorrect_for_iron_tool"));
-//        TagKey<Block> notGold = BlockTags.create(Identifier.withDefaultNamespace("incorrect_for_gold_tool"));
-//        TagKey<Block> notDiamond = BlockTags.create(Identifier.withDefaultNamespace("incorrect_for_diamond_tool"));
-//        TagKey<Block> notNetherite = BlockTags.create(Identifier.withDefaultNamespace("incorrect_for_netherite_tool"));
-
-        collectFromTag(pickaxeMineable, PICKAXE_MINABLE);
-        collectFromTag(shovelMineable, SHOVEL_MINABLE);
-        collectFromTag(needsStone, REQUIRES_STONE);
-        collectFromTag(needsIron, REQUIRES_IRON);
-        collectFromTag(needsDiamond, REQUIRES_DIAMOND);
+        collectFromTag(BlockTags.MINEABLE_WITH_PICKAXE, PICKAXE_MINABLE);
+        collectFromTag(BlockTags.MINEABLE_WITH_SHOVEL, SHOVEL_MINABLE);
+        collectFromTag(BlockTags.NEEDS_STONE_TOOL, REQUIRES_STONE);
+        collectFromTag(BlockTags.NEEDS_IRON_TOOL, REQUIRES_IRON);
+        collectFromTag(BlockTags.NEEDS_DIAMOND_TOOL, REQUIRES_DIAMOND);
 
         for (Block block : BLOCK_REGISTRY) {
             if (block == Blocks.AIR) continue;
             Optional<ResourceKey<LootTable>> lootTable = block.getLootTable();
             if (lootTable.isEmpty()) {
                 if (RandomizerConfig.enableDebug)
-                    LOGGER.debug("Block {} has no loot table", block);
+                    LOGGER.info("Block {} has no loot table", block);
                 continue;
             }
 
@@ -158,7 +144,7 @@ public class LootRandomizer {
         for (Holder.Reference<LootTable> table : lootTables) {
             // serialize loot table into JSON for easy lookup
             LootTable.DIRECT_CODEC.encodeStart(ops, table.get())
-                    .ifError(e -> LOGGER.debug("error encoding table: {}", e.message()))
+                    .ifError(e -> LOGGER.error("error encoding table: {}", e.message()))
                     .result()
                     .filter(JsonElement::isJsonObject)
                     .map(JsonElement::getAsJsonObject)
@@ -168,7 +154,7 @@ public class LootRandomizer {
         activeLocation = null;
 
         if (RandomizerConfig.enableDebug) {
-            LOGGER.debug("loot map size: {}", LOOT_MAP.size());
+            LOGGER.info("loot map size: {}", LOOT_MAP.size());
         }
 
         for (Identifier table : LOOT_MAP.keySet()) {
@@ -273,11 +259,11 @@ public class LootRandomizer {
         }
     }
 
-    private static @Nullable Item getItemFromBlock(Identifier block) {
-        return switch (BLOCK_REGISTRY.get(block).orElseThrow().get()) {
+    private static Item getItemFromBlock(Identifier block) {
+        return BLOCK_REGISTRY.get(block).map(Holder::get).map(b -> switch (b) {
             case CandleCakeBlock candleCakeBlock -> {
                 DataResult<JsonElement> result = CandleCakeBlock.CODEC.encoder().encodeStart(JsonOps.INSTANCE, candleCakeBlock);
-                if (result.isError()) yield null;
+                if (result.isError()) yield Items.AIR;
                 yield result.result()
                         .map(JsonElement::getAsJsonObject)
                         .map(object -> object.get("candle").getAsString())
@@ -286,11 +272,11 @@ public class LootRandomizer {
                         .filter(Optional::isPresent)
                         .map(Optional::get)
                         .map(Holder::get)
-                        .orElse(null);
+                        .orElse(Items.AIR);
             }
             case AttachedStemBlock stemBlock -> {
                 DataResult<JsonElement> result = AttachedStemBlock.CODEC.encoder().encodeStart(JsonOps.INSTANCE, stemBlock);
-                if (result.isError()) yield null;
+                if (result.isError()) yield Items.AIR;
                 yield result.result()
                         .map(JsonElement::getAsJsonObject)
                         .map(object -> object.get("seed").getAsString())
@@ -299,7 +285,7 @@ public class LootRandomizer {
                         .filter(Optional::isPresent)
                         .map(Optional::get)
                         .map(Holder::get)
-                        .orElse(null);
+                        .orElse(Items.AIR);
             }
             case WeepingVinesPlantBlock ignored -> Blocks.WEEPING_VINES.asItem();
             case KelpPlantBlock ignored -> Blocks.KELP.asItem();
@@ -308,8 +294,8 @@ public class LootRandomizer {
             case FlowerPotBlock flowerPotBlock -> flowerPotBlock.getEmptyPot().asItem();
             case BambooSaplingBlock ignored -> Blocks.BAMBOO.asItem();
             case TallSeagrassBlock ignored -> Blocks.SEAGRASS.asItem();
-            default -> Optional.of(BLOCK_REGISTRY.get(block).orElseThrow().value()).map(Block::asItem).orElse(null);
-        };
+            default -> b.asItem();
+        }).orElse(Items.AIR);
     }
 
     public static boolean hasTable(Identifier table) {
