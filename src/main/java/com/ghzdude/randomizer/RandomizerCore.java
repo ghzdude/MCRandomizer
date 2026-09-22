@@ -6,6 +6,7 @@ import com.google.gson.JsonElement;
 import com.mojang.logging.LogUtils;
 import com.mojang.serialization.DynamicOps;
 import com.mojang.serialization.JsonOps;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.packs.resources.ResourceManagerReloadListener;
 import net.minecraftforge.event.AddReloadListenerEvent;
 import net.minecraftforge.event.TickEvent;
@@ -83,5 +84,9 @@ public class RandomizerCore
 
     private static ResourceManagerReloadListener simple(Runnable runnable) {
         return m -> runnable.run();
+    }
+
+    public static Identifier withPath(String path) {
+        return Identifier.fromNamespaceAndPath(MODID, path);
     }
 }

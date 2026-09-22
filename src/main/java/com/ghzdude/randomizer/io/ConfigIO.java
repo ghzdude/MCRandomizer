@@ -8,7 +8,6 @@ import it.unimi.dsi.fastutil.objects.Object2IntMap;
 import net.minecraft.core.Registry;
 import net.minecraft.resources.Identifier;
 import net.minecraftforge.fml.loading.FMLPaths;
-import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 
@@ -86,7 +85,7 @@ public class ConfigIO {
         return map;
     }
 
-    public static List<Identifier> read(@NotNull String file, @NotNull List< @NotNull Identifier> defaults, @Nullable Registry<?> registry) {
+    public static List<Identifier> read(String file, List<Identifier> defaults, @Nullable Registry<?> registry) {
         List<Identifier> blacklist = new ArrayList<>();
 
         File blacklistFile = createFileName(file);

@@ -3,11 +3,9 @@ package com.ghzdude.randomizer;
 import com.ghzdude.randomizer.loot.LootRandomizer;
 import com.ghzdude.randomizer.util.RandomizerUtil;
 import com.google.gson.JsonElement;
-import com.mojang.datafixers.util.Pair;
 import com.mojang.logging.LogUtils;
 import com.mojang.serialization.Codec;
-import com.mojang.serialization.DataResult;
-import com.mojang.serialization.DynamicOps;
+import com.mojang.serialization.codecs.RecordCodecBuilder;
 import it.unimi.dsi.fastutil.ints.Int2ObjectArrayMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMaps;
@@ -15,14 +13,10 @@ import it.unimi.dsi.fastutil.objects.*;
 import net.minecraft.core.Holder;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.Registries;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.ListTag;
-import net.minecraft.nbt.Tag;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.tags.ItemTags;
-import net.minecraft.util.datafix.DataFixTypes;
 import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;
@@ -80,7 +74,6 @@ public class CompletabilityVerifier {
     public static Identifier OBSIDIAN;
 
     private static final Deque<Identifier> RECIPE_PATH = new ArrayDeque<>();
-    private static final Deque<String> PRINT_PATH = new ArrayDeque<>();
     private static final Deque<Identifier> COMPLETION_QUEUE = new ArrayDeque<>();
     private static final Logger LOGGER = LogUtils.getLogger();
 
@@ -439,7 +432,7 @@ public class CompletabilityVerifier {
         ENDER_EYE = ITEM_REGISTRY.getKey(Items.ENDER_EYE);
         OBSIDIAN = ITEM_REGISTRY.getKey(Items.OBSIDIAN);
 
-        if (data.fromDisk) {
+        if (false && data.fromDisk) {
             LOGGER.info("Loading saved completability data!");
             for (ModificationData modificationData : data.modificationData) {
                 LootRandomizer.registerSpecialDrop(modificationData.table, modificationData.original, modificationData.replacement);
@@ -564,14 +557,14 @@ public class CompletabilityVerifier {
         // we will modify this recipe to give this ingredient
         MODIFY_RECIPES.put(table, ingredient);
         if (RandomizerConfig.enableDebug) {
-            LOGGER.debug("Table '{}' will be modified to drop '{}'", table, ingredient);
+            LOGGER.info("Table '{}' will be modified to drop '{}'", table, ingredient);
         }
         return true;
     }
 
     private static void commitModifiedRecipes() {
         if (RandomizerConfig.enableDebug) {
-            LOGGER.debug("Commiting {} modified recipes", MODIFY_RECIPES.size());
+            LOGGER.info("Commiting {} modified recipes", MODIFY_RECIPES.size());
         }
         for (Identifier table : MODIFY_RECIPES.keySet()) {
             // modify
@@ -589,21 +582,20 @@ public class CompletabilityVerifier {
     }
 
     static void ensureCompletability() {
-        if (data.fromDisk) {
+        if (false && data.fromDisk) {
             // we loaded from disk, no need to check again
             return;
         }
 
-        PRINT_PATH.add("Iterating all ender eye recipes");
+        LOGGER.info("Iterating all ender eye recipes");
         boolean validRecipe = ensureCompletability(ENDER_EYE);
 
         if (requiresNether) {
             RECIPE_PATH.clear();
-            PRINT_PATH.add("Requires nether access, iterating obsidian recipes");
-            LOGGER.info("Nether access is required!");
+            LOGGER.info("Requires nether access, iterating obsidian recipes");
             validRecipe = ensureCompletability(OBSIDIAN);
             if (!validRecipe) {
-                LOGGER.warn("Obsidian is not obtainable!");
+                LOGGER.info("Obsidian is not obtainable!");
             }
             for (Identifier location : COMPLETION_QUEUE) {
                 COMPLETABILITY_CACHE.put(location, validRecipe);
@@ -614,10 +606,6 @@ public class CompletabilityVerifier {
 
         if (validRecipe) {
             isCompletable = true;
-        }
-
-        for (String line : PRINT_PATH) {
-            LOGGER.info(line);
         }
 
         if (!isCompletable) {
@@ -652,17 +640,13 @@ public class CompletabilityVerifier {
             // i shouldn't modify recipes just yet
             // should just store it for later
             Identifier random = RandomizerUtil.getRandom(ALL_OVERWORLD, RandomizerCore.seededRNG);
-            print("Ingredient '%s' can be obtained from '%s'", ingredient, random);
+            LOGGER.info("Ingredient '{}' can be obtained from '{}'", ingredient, random);
             return modifyRecipe(random, ingredient);
         } else {
             // this might be duplicated?
-            print("Ingredient '%s' can be obtained from %s", ingredient, passed);
+            LOGGER.info("Ingredient '{}' can be obtained from {}", ingredient, passed);
             return true;
         }
-    }
-
-    private static void print(String key, Object... args) {
-        PRINT_PATH.add(key.formatted(args));
     }
 
     private static Set<Identifier> iterateRecipes(Set<Identifier> recipes, boolean deep) {
@@ -762,7 +746,7 @@ public class CompletabilityVerifier {
 
             if (!quickSearch.isEmpty()) {
                 logIngredient(ingredient, RECIPE_PATH.peekLast(), true);
-                print("Ingredient '%s' can be obtained from %s", ingredient, quickSearch);
+                LOGGER.info("Ingredient '{}' can be obtained from {}", ingredient, quickSearch);
                 return computeCompletion(ingredient);
             } else if (!isTag(ingredient)) {
                 // sometimes compact ingredients can be normal items
@@ -873,10 +857,10 @@ public class CompletabilityVerifier {
         Identifier last = RECIPE_PATH.removeLast();
         if (!RandomizerConfig.enableDebug) return;
         if (success) {
-            LOGGER.debug("Back to recipe '{}'", RECIPE_PATH.peekLast());
-            PRINT_PATH.add(String.format("Recipe %s is obtainable!", last));
+            LOGGER.info("Back to recipe '{}'", RECIPE_PATH.peekLast());
+            LOGGER.info("Recipe {} is obtainable!", last);
         } else {
-            LOGGER.debug("Recipe '{}' is not obtainable, back to recipe '{}'", last, RECIPE_PATH.peekLast());
+            LOGGER.info("Recipe '{}' is not obtainable, back to recipe '{}'", last, RECIPE_PATH.peekLast());
         }
     }
 
@@ -889,41 +873,27 @@ public class CompletabilityVerifier {
     private static void logIngredient(Object ingredient, Identifier recipe, boolean success) {
         if (!RandomizerConfig.enableDebug) return;
         if (success) {
-            LOGGER.debug("Ingredient '{}' in recipe '{}' is obtainable!", ingredient, recipe);
+            LOGGER.info("Ingredient '{}' in recipe '{}' is obtainable!", ingredient, recipe);
         } else {
-            LOGGER.debug("All ingredients for recipe '{}' are unobtainable!", recipe);
+            LOGGER.info("All ingredients for recipe '{}' are unobtainable!", recipe);
         }
     }
 
     private static void logEmptyIngredients(Identifier recipe) {
         if (!RandomizerConfig.enableDebug) return;
         String type = isLoot(recipe) ? "Table" : "Recipe";
-        LOGGER.debug("{} '{}' has a set of ingredients that is empty!", type, recipe);
+        LOGGER.info("{} '{}' has a set of ingredients that is empty!", type, recipe);
     }
 
     private static class VerifierSaveData extends SavedData {
 
-        public static final Codec<VerifierSaveData> CODEC = new Codec<>() {
-            @Override
-            public <T> DataResult<T> encode(VerifierSaveData saveData, DynamicOps<T> dynamicOps, T t) {
-                return CompoundTag.CODEC.encode(saveData.save(), dynamicOps, t);
-            }
-
-            @Override
-            public <T> DataResult<Pair<VerifierSaveData, T>> decode(DynamicOps<T> dynamicOps, T t) {
-                return CompoundTag.CODEC.decode(dynamicOps, t)
-                        .map(p -> p.mapFirst(VerifierSaveData::load));
-            }
-        };
+        public static final Codec<VerifierSaveData> CODEC = RecordCodecBuilder.create(instance -> instance.group(
+                ModificationData.CODEC.listOf().fieldOf("data").forGetter(data -> data.modificationData)
+        ).apply(instance, VerifierSaveData::new));
 
         public static final SavedDataType<VerifierSaveData> FACTORY = new SavedDataType<>(
-                Identifier.fromNamespaceAndPath(RandomizerCore.MODID, "modified_data"),
-                VerifierSaveData::new, VerifierSaveData.CODEC, DataFixTypes.LEVEL);
-
-
-        public static VerifierSaveData get(SavedDataStorage storage) {
-            return storage.computeIfAbsent(FACTORY);
-        }
+                RandomizerCore.withPath("modified_data"),
+                VerifierSaveData::new, VerifierSaveData.CODEC, null);
 
         /**
          * Maps a loot table id to a map of a recipe to a set of its ingredients that needs to be modified
@@ -931,6 +901,13 @@ public class CompletabilityVerifier {
         private final List<ModificationData> modificationData = new ArrayList<>();
 
         public boolean fromDisk = false;
+
+        private VerifierSaveData() {}
+
+        private VerifierSaveData(Collection<ModificationData> c) {
+            c.forEach(this::addEntry);
+            fromDisk = true;
+        }
 
         public void addEntry(Identifier table, Identifier original, Identifier replacement) {
             addEntry(new ModificationData(table, original, replacement));
@@ -941,62 +918,18 @@ public class CompletabilityVerifier {
                 modificationData.add(data);
         }
 
-        public @NotNull CompoundTag save() {
-            return save(new CompoundTag());
-        }
 
-        public @NotNull CompoundTag save(@NotNull CompoundTag tag) {
-            ListTag data = new ListTag();
-            LOGGER.info("Saving Verification Data!");
-            for (ModificationData table : modificationData) {
-                data.add(table.toNBT());
-            }
-            LOGGER.info("Wrote {} entries!", modificationData.size());
-            tag.put("data", data);
-            return tag;
-        }
-
-        public static VerifierSaveData load(CompoundTag tag) {
-            VerifierSaveData data = new VerifierSaveData();
-            tag.getList("data")
-                    .map(ListTag::stream)
-                    .ifPresent(stream -> stream
-                            .map(Tag::asCompound)
-                            .filter(Optional::isPresent)
-                            .map(Optional::get)
-                            .map(ModificationData::fromNBT)
-                            .filter(data1 -> LootRandomizer.getKnownTables().contains(data1.table()))
-                            .forEach(data::addEntry));
-
-            if (!data.modificationData.isEmpty())
-                data.fromDisk = true;
-
-            return data;
+        public static VerifierSaveData get(SavedDataStorage storage) {
+            return storage.computeIfAbsent(FACTORY);
         }
     }
 
     private record ModificationData(Identifier table, Identifier original, Identifier replacement) {
 
-        public CompoundTag toNBT() {
-            return CompoundTag.builder()
-                    .put("id", table.toString())
-                    .put("original", original.toString())
-                    .put("replacement", replacement.toString())
-                    .build();
-        }
-
-        public static ModificationData fromNBT(CompoundTag tag) {
-            return new ModificationData(
-                    Identifier.parse(tag.getString("id").orElseThrow()),
-                    Identifier.parse(tag.getString("original").orElseThrow()),
-                    Identifier.parse(tag.getString("replacement").orElseThrow())
-            );
-        }
-
-        @Override
-        public boolean equals(Object obj) {
-            return obj instanceof ModificationData modificationData &&
-                    this.table().equals(modificationData.table());
-        }
+        public static final Codec<ModificationData> CODEC = RecordCodecBuilder.create(instance -> instance.group(
+                Identifier.CODEC.fieldOf("id").forGetter(ModificationData::table),
+                Identifier.CODEC.fieldOf("original").forGetter(ModificationData::original),
+                Identifier.CODEC.fieldOf("replacement").forGetter(ModificationData::replacement)
+        ).apply(instance, ModificationData::new));
     }
 }
