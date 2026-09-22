@@ -7,7 +7,6 @@ import com.mojang.logging.LogUtils;
 import com.mojang.serialization.DynamicOps;
 import com.mojang.serialization.JsonOps;
 import net.minecraft.resources.Identifier;
-import net.minecraft.server.packs.resources.ResourceManagerReloadListener;
 import net.minecraftforge.event.AddReloadListenerEvent;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.entity.living.MobSpawnEvent;
@@ -51,7 +50,7 @@ public class RandomizerCore
         TickEvent.PlayerTickEvent.Pre.BUS.addListener(ItemRandomizer::playerTickPre);
         ServerStartedEvent.BUS.addListener(RandomizerCore::onStart);
         ServerStoppingEvent.BUS.addListener(RandomizerCore::onStop);
-        AddReloadListenerEvent.BUS.addListener(event -> event.addListener(simple(RecipeRandomizer::reload)));
+        AddReloadListenerEvent.BUS.addListener(RandomizerCore::addListeners);
     }
 
     static void onStart(ServerStartedEvent event) {
@@ -82,8 +81,8 @@ public class RandomizerCore
         return Optional.ofNullable(OPS);
     }
 
-    private static ResourceManagerReloadListener simple(Runnable runnable) {
-        return m -> runnable.run();
+    private static void addListeners(AddReloadListenerEvent event) {
+        event.addListener(RecipeRandomizer.LISTENER);
     }
 
     public static Identifier withPath(String path) {

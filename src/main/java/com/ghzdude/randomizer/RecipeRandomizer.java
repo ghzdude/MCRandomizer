@@ -26,6 +26,7 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.ServerAdvancementManager;
+import net.minecraft.server.packs.resources.ResourceManagerReloadListener;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -66,6 +67,9 @@ public class RecipeRandomizer {
 
     // item output -> recipe
     public static final Map<Identifier, List<Identifier>> OUTPUT_MAP = new Object2ObjectOpenHashMap<>();
+
+    public static final ResourceManagerReloadListener LISTENER = _ -> reload();
+
     private static final Logger LOGGER = LogUtils.getLogger();
 
     private static RandomizationMapData INSTANCE = null;
@@ -100,7 +104,7 @@ public class RecipeRandomizer {
         }
     }
 
-    static void reload() {
+    private static void reload() {
         if (init) onReload.run();
     }
 
