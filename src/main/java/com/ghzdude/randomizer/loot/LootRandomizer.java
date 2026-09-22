@@ -3,7 +3,6 @@ package com.ghzdude.randomizer.loot;
 import com.ghzdude.randomizer.RandomizationMapData;
 import com.ghzdude.randomizer.RandomizerConfig;
 import com.ghzdude.randomizer.RandomizerCore;
-import com.ghzdude.randomizer.compat.jei.ParsedLootTable;
 import com.ghzdude.randomizer.special.item.SpecialItems;
 import com.ghzdude.randomizer.util.RandomizerUtil;
 import com.google.common.collect.ImmutableSet;
@@ -80,7 +79,7 @@ public class LootRandomizer {
     private static final Map<Identifier, Map<Identifier, Identifier>> SPECIAL_MAP = new Object2ObjectOpenHashMap<>();
 
     private static final Map<Identifier, Identifier> ENTITY_EGG_MAP = new Object2ObjectOpenHashMap<>();
-
+    private static final Map<ResourceKey<ParsedLootTable>, ParsedLootTable> PARSED_REGISTRY = new Object2ObjectOpenHashMap<>();
 
     public static Identifier activeLocation;
 
@@ -90,7 +89,6 @@ public class LootRandomizer {
     private static final Set<Identifier> REQUIRES_IRON = new ObjectOpenHashSet<>();
     private static final Set<Identifier> REQUIRES_DIAMOND = new ObjectOpenHashSet<>();
     private static RecipeManager RECIPE_MANAGER;
-    private static RegistryAccess ACCESS;
     private static boolean appliesToAll;
     private static boolean requiresPick;
     private static boolean requiresShovel;
@@ -99,10 +97,11 @@ public class LootRandomizer {
 
     public static void init(MinecraftServer server) {
         INSTANCE = RandomizationMapData.get(server, "loot");
-        ACCESS = server.registryAccess();
+        RegistryAccess access = server.registryAccess();
+
         LOOT_REGISTRY = server.reloadableRegistries().lookup().lookupOrThrow(Registries.LOOT_TABLE);
-        ITEM_REGISTRY = ACCESS.lookupOrThrow(Registries.ITEM);
-        BLOCK_REGISTRY = ACCESS.lookupOrThrow(Registries.BLOCK);
+        ITEM_REGISTRY = access.lookupOrThrow(Registries.ITEM);
+        BLOCK_REGISTRY = access.lookupOrThrow(Registries.BLOCK);
         RECIPE_MANAGER = server.getRecipeManager();
 
         TagKey<Block> pickaxeMineable = BlockTags.create(Identifier.withDefaultNamespace("mineable/pickaxe"));
@@ -227,7 +226,7 @@ public class LootRandomizer {
 
             List<ItemStack> drops = new ArrayList<>();
             for (LootData data : lootData) {
-                ParsedLootTable.Type type = data.getType();
+                Type type = data.getType();
                 expandData(data).map(ITEM_REGISTRY::get)
                         .filter(Optional::isPresent)
                         .map(Optional::get)
@@ -245,21 +244,21 @@ public class LootRandomizer {
         }
 
         if (RandomizerConfig.enableDebug) {
-            LOGGER.debug("Parsed {} loot tables", ParsedLootTable.getKeys().size());
+            LOGGER.debug("Parsed {} loot tables", PARSED_REGISTRY.size());
         }
     }
 
-    private static void configureOutputStack(Identifier table, LootData data, ItemStack stack, ParsedLootTable.Type type) {
+    private static void configureOutputStack(Identifier table, LootData data, ItemStack stack, Type type) {
         List<Component> additional = new ArrayList<>();
         if (isBlock(table)) {
             additional.add(type.getName());
         }
         if (data.silk() && data.shears()) {
-            additional.add(ParsedLootTable.Type.SHEARS_OR_SILK.getName());
+            additional.add(Type.SHEARS_OR_SILK.getName());
         } else if (data.silk()) {
-            additional.add(ParsedLootTable.Type.SILK.getName());
+            additional.add(Type.SILK.getName());
         } else if (data.shears()) {
-            additional.add(ParsedLootTable.Type.SHEARS.getName());
+            additional.add(Type.SHEARS.getName());
         }
         if (SpecialItems.EFFECT_ITEMS.contains(stack.getItem())) {
             additional.add(Component.literal("May have random effects!"));
@@ -357,7 +356,7 @@ public class LootRandomizer {
     }
 
     public static void registerSpecialDrop(Identifier table, Identifier drop, Identifier replace) {
-        ParsedLootTable parsedLootTable = ParsedLootTable.get(table);
+        ParsedLootTable parsedLootTable = PARSED_REGISTRY.get(ResourceKey.create(ParsedLootTable.key, table));
         if (parsedLootTable == null) {
             LOGGER.warn("Parsed LootTable \"{}\" does not exist!", table);
             return;
@@ -368,7 +367,7 @@ public class LootRandomizer {
 
         List<ItemStack> drops = new ArrayList<>();
         for (LootData data : LOOT_MAP.get(table)) {
-            ParsedLootTable.Type type = data.getType();
+            Type type = data.getType();
             expandData(data).map(l -> drop.equals(l) ? replace : l)
                     .map(ITEM_REGISTRY::get)
                     .filter(Optional::isPresent)
@@ -652,7 +651,7 @@ public class LootRandomizer {
     }
 
     public static void dispose() {
-        ParsedLootTable.clearRegistry();
+        PARSED_REGISTRY.clear();
         TABLES.clear();
         BLOCK_MAP.clear();
         LOOT_MAP.clear();
@@ -703,6 +702,33 @@ public class LootRandomizer {
         }
 
         return ret;
+    }
+
+    public enum Type {
+        HAND("Hand"),
+        PICK("Pick"),
+        SHOVEL("Shovel"),
+        AXE("Axe"),
+        SILK("Silk Touch"),
+        SHEARS("Shears"),
+        SHEARS_OR_SILK("Silk or Shears");
+
+        private final String name;
+        private final String lower;
+
+        Type(String name) {
+            this.name = name;
+            this.lower = name.toLowerCase().replace(' ', '_');
+        }
+
+        public Component getName() {
+            return Component.translatable("randomizer.compat.jei.block_drop.type." + this.lower);
+        }
+
+        @Override
+        public String toString() {
+            return "Type{%s}".formatted(name);
+        }
     }
 
     public static final class LootData {
@@ -796,9 +822,9 @@ public class LootRandomizer {
             return this;
         }
 
-        public ParsedLootTable.Type getType() {
-            if (!shovel() && !pick()) return ParsedLootTable.Type.HAND;
-            return shovel() ? ParsedLootTable.Type.SHOVEL : ParsedLootTable.Type.PICK;
+        public Type getType() {
+            if (!shovel() && !pick()) return Type.HAND;
+            return shovel() ? Type.SHOVEL : Type.PICK;
         }
 
         public TagKey<Item> makeTagKey() {
@@ -834,6 +860,19 @@ public class LootRandomizer {
                     ", table=" + reference() +
                     ", tag=" + tag() +
                     ']';
+        }
+    }
+
+    public record ParsedLootTable(ItemStack input, List<ItemStack> drops, Identifier lootTable) {
+
+        public static final ResourceKey<Registry<ParsedLootTable>> key = ResourceKey.createRegistryKey(RandomizerCore.withPath("parsed_loot"));
+
+        public static void registerRecipe(ItemStack input, List<ItemStack> drops, @NotNull Identifier table) {
+            // todo figure out a resource key instead of table id
+            ParsedLootTable existing = PARSED_REGISTRY.put(ResourceKey.create(key, table), new ParsedLootTable(input, drops, Objects.requireNonNull(table)));
+            if (existing != null && RandomizerConfig.enableDebug) {
+                LOGGER.debug("Parsed Loot Table '{}' was replaced!", existing.lootTable());
+            }
         }
     }
 }
