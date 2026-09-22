@@ -28,6 +28,7 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.tags.TagKey;
+import net.minecraft.util.StringRepresentable;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -112,17 +113,13 @@ public class LootRandomizer {
 
         for (Block block : BLOCK_REGISTRY) {
             if (block == Blocks.AIR) continue;
-            Optional<ResourceKey<LootTable>> lootTable = block.getLootTable();
-            if (lootTable.isEmpty()) {
-                if (RandomizerConfig.enableDebug)
-                    LOGGER.info("Block {} has no loot table", block);
-                continue;
-            }
+            block.getLootTable().ifPresent(lootTable -> BLOCK_MAP.put(lootTable.identifier(), BLOCK_REGISTRY.getKey(block)));
+            if (RandomizerConfig.enableDebug)
+                LOGGER.info("Block {} has no loot table", block);
 
-            BLOCK_MAP.put(lootTable.get().identifier(), BLOCK_REGISTRY.getKey(block));
         }
 
-        for (EntityType<?> type : server.registryAccess().lookupOrThrow(Registries.ENTITY_TYPE)) {
+        for (EntityType<?> type : access.lookupOrThrow(Registries.ENTITY_TYPE)) {
             SpawnEggItem.byId(type).ifPresent(egg -> type.getDefaultLootTable()
                     .map(ResourceKey::identifier)
                     .ifPresent(key -> ENTITY_EGG_MAP.put(key, egg.unwrapKey().map(ResourceKey::identifier).orElseThrow())));
@@ -138,7 +135,7 @@ public class LootRandomizer {
         List<Holder.Reference<LootTable>> lootTables = LOOT_REGISTRY.listElements().toList();
 
         if (RandomizerConfig.enableDebug) {
-            LOGGER.debug("Found {} loot tables", lootTables.size());
+            LOGGER.info("Found {} loot tables", lootTables.size());
         }
 
         for (Holder.Reference<LootTable> table : lootTables) {
@@ -159,49 +156,34 @@ public class LootRandomizer {
 
         for (Identifier table : LOOT_MAP.keySet()) {
             Set<LootData> lootData = LOOT_MAP.get(table);
-
-            ItemStack inputStack;
-            if (isChestLoot(table)) {
-                inputStack = new ItemStack(Items.CHEST);
-            } else if (isEntityDrop(table)) {
-                Optional<Holder.Reference<Item>> egg = ITEM_REGISTRY.get(Objects.requireNonNull(getEggForEntityTable(table)));
-                inputStack = egg.map(ItemStack::new).orElse(ItemStack.EMPTY);
-            } else if (table.getPath().startsWith("gameplay/fishing")) {
-                inputStack = new ItemStack(Items.FISHING_ROD);
-            } else if (table.getPath().startsWith("spawners")) {
-                inputStack = new ItemStack(Items.SPAWNER);
-            } else if (table.getPath().startsWith("gameplay/hero")) {
-                inputStack = new ItemStack(Items.EMERALD);
-            } else if (isBlock(table)) {
-                Item blockItem = getItemFromBlock(getBlockFor(table));
-                if (blockItem == null) continue;
-                inputStack = new ItemStack(blockItem);
-            } else if (table.getPath().startsWith("dispensers/")) {
-                inputStack = new ItemStack(Items.DISPENSER);
-            } else if (table.getPath().startsWith("pots/")) {
-                inputStack = new ItemStack(Items.DECORATED_POT);
-            } else if (table.getPath().startsWith("archaeology/")) {
-                inputStack = new ItemStack(Items.BRUSH);
-            } else if (table.getPath().equals("gameplay/piglin_bartering")) {
-                inputStack = new ItemStack(Items.GOLD_INGOT);
-            } else if (table.getPath().equals("gameplay/cat_morning_gift")) {
-                inputStack = new ItemStack(Items.CAT_SPAWN_EGG);
-            } else if (table.getPath().equals("gameplay/sniffer_digging")) {
-                inputStack = new ItemStack(Items.SNIFFER_SPAWN_EGG);
-            } else if (table.getPath().startsWith("shearing/")) {
-                inputStack = new ItemStack(Items.SHEARS);
-            } else if (table.getPath().equals("gameplay/panda_sneeze")) {
-                inputStack = new ItemStack(Items.PANDA_SPAWN_EGG);
-            } else if (table.getPath().equals("gameplay/chicken_lay")) {
-                inputStack = new ItemStack(Items.EGG);
-            } else {
-                if (RandomizerConfig.enableDebug)
-                    LOGGER.debug("Unhandled Table: '{}'", table);
-                continue;
-            }
+            ItemStack inputStack = switch (getType(table)) {
+                case ENTITY -> {
+                    Optional<Holder.Reference<Item>> egg = ITEM_REGISTRY.get(Objects.requireNonNull(getEggForEntityTable(table)));
+                    yield egg.map(ItemStack::new).orElse(ItemStack.EMPTY);
+                }
+                case CHEST -> new ItemStack(Items.CHEST);
+                case BLOCK -> new ItemStack(getItemFromBlock(getBlockFor(table)));
+                case FISHING -> new ItemStack(Items.FISHING_ROD);
+                case SPAWNERS -> new ItemStack(Items.SPAWNER);
+                case VILLAGE_HERO -> new ItemStack(Items.EMERALD);
+                case DISPENSER -> new ItemStack(Items.DISPENSER);
+                case POTS -> new ItemStack(Items.DECORATED_POT);
+                case ARCHAEOLOGY -> new ItemStack(Items.BRUSH);
+                case BARTERING -> new ItemStack(Items.GOLD_INGOT);
+                case CAT_GIFT -> new ItemStack(Items.CAT_SPAWN_EGG);
+                case SNIFFER -> new ItemStack(Items.SNIFFER_SPAWN_EGG);
+                case SHEARING -> new ItemStack(Items.SHEARS);
+                case PANDA_SNEEZING -> new ItemStack(Items.PANDA_SPAWN_EGG);
+                case CHICKEN_LAY -> new ItemStack(Items.EGG);
+                default -> {
+                    if (RandomizerConfig.enableDebug)
+                        LOGGER.info("Unhandled Table: '{}'", table);
+                    yield ItemStack.EMPTY;
+                }
+            };
 
             if (inputStack.isEmpty()) {
-                LOGGER.warn("Input cannot be air for table '{}'!", table);
+                LOGGER.info("Input cannot be air for table '{}'!", table);
                 return;
             }
 
@@ -232,6 +214,13 @@ public class LootRandomizer {
         if (RandomizerConfig.enableDebug) {
             LOGGER.debug("Parsed {} loot tables", PARSED_REGISTRY.size());
         }
+    }
+
+    private static LootType getType(Identifier table) {
+        for (LootType type : LootType.LOOT_TYPES) {
+            if (type.test(table)) return type;
+        }
+        return LootType.UNKNOWN;
     }
 
     private static void configureOutputStack(Identifier table, LootData data, ItemStack stack, Type type) {
@@ -342,7 +331,7 @@ public class LootRandomizer {
     }
 
     public static void registerSpecialDrop(Identifier table, Identifier drop, Identifier replace) {
-        ParsedLootTable parsedLootTable = PARSED_REGISTRY.get(ResourceKey.create(ParsedLootTable.key, table));
+        ParsedLootTable parsedLootTable = PARSED_REGISTRY.get(ResourceKey.create(ParsedLootTable.REGISTRY_KEY, table));
         if (parsedLootTable == null) {
             LOGGER.warn("Parsed LootTable \"{}\" does not exist!", table);
             return;
@@ -690,7 +679,7 @@ public class LootRandomizer {
         return ret;
     }
 
-    public enum Type {
+    public enum Type implements StringRepresentable {
         HAND("Hand"),
         PICK("Pick"),
         SHOVEL("Shovel"),
@@ -703,7 +692,7 @@ public class LootRandomizer {
         private final String lower;
 
         Type(String name) {
-            this.name = name;
+            this.name = "Type{%s}".formatted(name);
             this.lower = name.toLowerCase().replace(' ', '_');
         }
 
@@ -713,7 +702,47 @@ public class LootRandomizer {
 
         @Override
         public String toString() {
-            return "Type{%s}".formatted(name);
+            return this.name;
+        }
+
+        @Override
+        public String getSerializedName() {
+            return this.name;
+        }
+    }
+
+    public enum LootType implements Predicate<Identifier> {
+        UNKNOWN(_ -> false),
+        ENTITY("entities/.*"),
+        CHEST("chests/.*"),
+        BLOCK("blocks/.*"),
+        FISHING("gameplay/fishing.*"),
+        SPAWNERS("spawners.*"),
+        VILLAGE_HERO("gameplay/hero.*"),
+        DISPENSER("dispensers/.*"),
+        POTS("pots/.*"),
+        ARCHAEOLOGY("archaeology/.*"),
+        BARTERING("gameplay/piglin_bartering"),
+        CAT_GIFT("gameplay/cat_morning_gift"),
+        SNIFFER("gameplay/sniffer_digging"),
+        SHEARING("shearing/.*"),
+        PANDA_SNEEZING("gameplay/panda_sneeze"),
+        CHICKEN_LAY("gameplay/chicken_lay");
+
+        public static final LootType[] LOOT_TYPES = values();
+        private final Predicate<Identifier> predicate;
+
+        LootType(String regex) {
+            this.predicate = id -> id.getPath().matches(regex);
+        }
+
+        LootType(Predicate<Identifier> predicate) {
+            this.predicate = predicate;
+        }
+
+        @Override
+        public boolean test(Identifier identifier) {
+            return this.predicate.test(identifier);
         }
     }
 
@@ -739,7 +768,7 @@ public class LootRandomizer {
         }
 
         private final Identifier location;
-        private final BitSet data = new BitSet();
+        private final BitSet data = new BitSet(7);
 
         public LootData(@NotNull Identifier location) {
             this.location = Objects.requireNonNull(location);
@@ -851,13 +880,13 @@ public class LootRandomizer {
 
     public record ParsedLootTable(ItemStack input, List<ItemStack> drops, Identifier lootTable) {
 
-        public static final ResourceKey<Registry<ParsedLootTable>> key = ResourceKey.createRegistryKey(RandomizerCore.withPath("parsed_loot"));
+        public static final ResourceKey<Registry<ParsedLootTable>> REGISTRY_KEY = ResourceKey.createRegistryKey(RandomizerCore.withPath("parsed_loot"));
 
-        public static void registerRecipe(ItemStack input, List<ItemStack> drops, @NotNull Identifier table) {
-            // todo figure out a resource key instead of table id
-            ParsedLootTable existing = PARSED_REGISTRY.put(ResourceKey.create(key, table), new ParsedLootTable(input, drops, Objects.requireNonNull(table)));
+        public static void registerRecipe(ItemStack input, List<ItemStack> drops, Identifier table) {
+            ParsedLootTable existing = PARSED_REGISTRY.put(ResourceKey.create(REGISTRY_KEY, table),
+                    new ParsedLootTable(input, drops, Objects.requireNonNull(table)));
             if (existing != null && RandomizerConfig.enableDebug) {
-                LOGGER.debug("Parsed Loot Table '{}' was replaced!", existing.lootTable());
+                LOGGER.info("Parsed Loot Table '{}' was replaced!", existing.lootTable());
             }
         }
     }
