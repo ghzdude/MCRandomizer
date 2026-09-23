@@ -11,7 +11,6 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.mojang.datafixers.util.Pair;
 import com.mojang.logging.LogUtils;
-import com.mojang.serialization.DataResult;
 import com.mojang.serialization.DynamicOps;
 import com.mojang.serialization.JsonOps;
 import it.unimi.dsi.fastutil.objects.Object2ObjectMap;
@@ -226,14 +225,14 @@ public class LootRandomizer {
     private static void configureOutputStack(Identifier table, LootData data, ItemStack stack, Type type) {
         List<Component> additional = new ArrayList<>();
         if (isBlock(table)) {
-            additional.add(type.getName());
+            additional.add(type.getTranslationComponent());
         }
         if (data.silk() && data.shears()) {
-            additional.add(Type.SHEARS_OR_SILK.getName());
+            additional.add(Type.SHEARS_OR_SILK.getTranslationComponent());
         } else if (data.silk()) {
-            additional.add(Type.SILK.getName());
+            additional.add(Type.SILK.getTranslationComponent());
         } else if (data.shears()) {
-            additional.add(Type.SHEARS.getName());
+            additional.add(Type.SHEARS.getTranslationComponent());
         }
         if (SpecialItems.EFFECT_ITEMS.contains(stack.getItem())) {
             additional.add(Component.literal("May have random effects!"));
@@ -250,32 +249,24 @@ public class LootRandomizer {
 
     private static Item getItemFromBlock(Identifier block) {
         return BLOCK_REGISTRY.get(block).map(Holder::get).map(b -> switch (b) {
-            case CandleCakeBlock candleCakeBlock -> {
-                DataResult<JsonElement> result = CandleCakeBlock.CODEC.encoder().encodeStart(JsonOps.INSTANCE, candleCakeBlock);
-                if (result.isError()) yield Items.AIR;
-                yield result.result()
-                        .map(JsonElement::getAsJsonObject)
-                        .map(object -> object.get("candle").getAsString())
-                        .map(Identifier::parse)
-                        .map(ITEM_REGISTRY::get)
-                        .filter(Optional::isPresent)
-                        .map(Optional::get)
-                        .map(Holder::get)
-                        .orElse(Items.AIR);
-            }
-            case AttachedStemBlock stemBlock -> {
-                DataResult<JsonElement> result = AttachedStemBlock.CODEC.encoder().encodeStart(JsonOps.INSTANCE, stemBlock);
-                if (result.isError()) yield Items.AIR;
-                yield result.result()
-                        .map(JsonElement::getAsJsonObject)
-                        .map(object -> object.get("seed").getAsString())
-                        .map(Identifier::parse)
-                        .map(ITEM_REGISTRY::get)
-                        .filter(Optional::isPresent)
-                        .map(Optional::get)
-                        .map(Holder::get)
-                        .orElse(Items.AIR);
-            }
+            case CandleCakeBlock candleCakeBlock -> CandleCakeBlock.CODEC.encoder()
+                    .encodeStart(JsonOps.INSTANCE, candleCakeBlock)
+                    .result()
+                    .map(JsonElement::getAsJsonObject)
+                    .map(object -> object.get("candle").getAsString())
+                    .map(Identifier::parse)
+                    .flatMap(ITEM_REGISTRY::get)
+                    .map(Holder::get)
+                    .orElse(Items.AIR);
+            case AttachedStemBlock stemBlock -> AttachedStemBlock.CODEC.encoder()
+                    .encodeStart(JsonOps.INSTANCE, stemBlock)
+                    .result()
+                    .map(JsonElement::getAsJsonObject)
+                    .map(object -> object.get("seed").getAsString())
+                    .map(Identifier::parse)
+                    .flatMap(ITEM_REGISTRY::get)
+                    .map(Holder::get)
+                    .orElse(Items.AIR);
             case WeepingVinesPlantBlock ignored -> Blocks.WEEPING_VINES.asItem();
             case KelpPlantBlock ignored -> Blocks.KELP.asItem();
             case TwistingVinesPlantBlock ignored -> Blocks.TWISTING_VINES.asItem();
@@ -639,15 +630,15 @@ public class LootRandomizer {
     }
 
     public static boolean isBlock(Identifier location) {
-        return location.getPath().startsWith("blocks/");
+        return LootType.BLOCK.test(location);
     }
 
     public static boolean isEntityDrop(Identifier location) {
-        return location.getPath().startsWith("entities/");
+        return LootType.ENTITY.test(location);
     }
 
     public static boolean isChestLoot(Identifier location) {
-        return location.getPath().startsWith("chests/");
+        return LootType.CHEST.test(location);
     }
 
     public static @NotNull ObjectArrayList<ItemStack> randomizeLoot(ObjectArrayList<ItemStack> generatedLoot, LootContext context) {
@@ -696,7 +687,7 @@ public class LootRandomizer {
             this.lower = name.toLowerCase().replace(' ', '_');
         }
 
-        public Component getName() {
+        public Component getTranslationComponent() {
             return Component.translatable("randomizer.compat.jei.block_drop.type." + this.lower);
         }
 
@@ -712,7 +703,7 @@ public class LootRandomizer {
     }
 
     public enum LootType implements Predicate<Identifier> {
-        UNKNOWN(_ -> false),
+        UNKNOWN,
         ENTITY("entities/.*"),
         CHEST("chests/.*"),
         BLOCK("blocks/.*"),
@@ -736,8 +727,8 @@ public class LootRandomizer {
             this.predicate = id -> id.getPath().matches(regex);
         }
 
-        LootType(Predicate<Identifier> predicate) {
-            this.predicate = predicate;
+        LootType() {
+            this.predicate = _ -> false;
         }
 
         @Override
