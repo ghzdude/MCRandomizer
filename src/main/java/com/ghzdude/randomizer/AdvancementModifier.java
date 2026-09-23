@@ -6,6 +6,7 @@ import com.mojang.logging.LogUtils;
 import net.minecraft.advancements.Advancement;
 import net.minecraft.advancements.AdvancementHolder;
 import net.minecraft.advancements.AdvancementRewards;
+import net.minecraft.advancements.predicates.ItemPredicate;
 import net.minecraft.advancements.triggers.InventoryChangeTrigger;
 import net.minecraft.core.Holder;
 import net.minecraft.core.HolderSet;
@@ -14,8 +15,10 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.item.Item;
+import net.minecraft.world.level.ItemLike;
 import org.slf4j.Logger;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -61,5 +64,28 @@ public class AdvancementModifier {
             AdvancementHolder toAdd = builder.build(RandomizerUtil.location(path));
             map.put(toAdd.id(), toAdd);
         }
+    }
+
+    public static Advancement.Builder modify(Advancement advancement) {
+        Map<Identifier, List<Identifier>> modified = RecipeRandomizer.getModified();
+        List<ItemPredicate> predicates = new ArrayList<>();
+        Registry<Item> itemRegistry = RandomizerCore.getRegistry(Registries.ITEM).orElseThrow();
+        Advancement.Builder builder = new Advancement.Builder();
+        AdvancementRewards.Builder rewards = new AdvancementRewards.Builder();
+        advancement.rewards().recipes().forEach(recipeKey -> {
+            predicates.add(ItemPredicate.Builder.item()
+                    .of(itemRegistry, modified.get(recipeKey.identifier()).stream()
+                            .map(itemRegistry::get)
+                            .filter(Optional::isPresent)
+                            .map(Optional::get)
+                            .map(Holder::get)
+                            .toArray(ItemLike[]::new))
+                    .build());
+            rewards.addRecipe(recipeKey);
+        });
+        builder.rewards(rewards);
+
+        builder.addCriterion("has_item", InventoryChangeTrigger.TriggerInstance.hasItems(predicates.toArray(new ItemPredicate[0])));
+        return builder;
     }
 }

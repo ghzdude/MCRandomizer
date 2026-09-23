@@ -432,6 +432,18 @@ public class CompletabilityVerifier {
         ENDER_EYE = ITEM_REGISTRY.getKey(Items.ENDER_EYE);
         OBSIDIAN = ITEM_REGISTRY.getKey(Items.OBSIDIAN);
 
+        // todo add villager trades
+        // todo ensure emerald is craftable
+
+        ALL_OVERWORLD.clear();
+        ALL_OVERWORLD.addAll(OVERWORLD_BLOCKS);
+        ALL_OVERWORLD.addAll(OVERWORLD_LOOT);
+
+        ALL_NETHER.clear();
+        ALL_NETHER.addAll(NETHER_BLOCKS);
+        ALL_NETHER.addAll(NETHER_LOOT);
+        ALL_NETHER.removeIf(ALL_OVERWORLD::contains);
+
         if (false && data.fromDisk) {
             LOGGER.info("Loading saved completability data!");
             for (ModificationData modificationData : data.modificationData) {
@@ -450,18 +462,6 @@ public class CompletabilityVerifier {
         for (Identifier table : LootRandomizer.getKnownTables()) {
             addLootTable(table, LootRandomizer.getDrops(table));
         }
-
-        // todo add villager trades
-        // todo ensure emerald is craftable
-
-        ALL_OVERWORLD.clear();
-        ALL_OVERWORLD.addAll(OVERWORLD_BLOCKS);
-        ALL_OVERWORLD.addAll(OVERWORLD_LOOT);
-
-        ALL_NETHER.clear();
-        ALL_NETHER.addAll(NETHER_BLOCKS);
-        ALL_NETHER.addAll(NETHER_LOOT);
-        ALL_NETHER.removeIf(ALL_OVERWORLD::contains);
     }
 
     public static void dispose() {

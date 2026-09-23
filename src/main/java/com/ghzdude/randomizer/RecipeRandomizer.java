@@ -30,6 +30,7 @@ import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 
 import java.util.*;
+import java.util.function.Predicate;
 
 /* Recipe Randomizer Description.
  * on resource re/load, randomize every recipe.
@@ -50,8 +51,8 @@ public class RecipeRandomizer {
     /// item ingredients -> recipes
     private static final Map<Identifier, List<Identifier>> MODIFIED = new Object2ObjectOpenHashMap<>();
 
-    /// recipe id -> recipe
-    private static final Map<Identifier, Set<JsonElement>> CACHED_RECIPES = new Object2ObjectOpenHashMap<>();
+    /// recipe id -> recipe inputs
+    private static final Map<Identifier, Set<JsonElement>> INPUT_MAP = new Object2ObjectOpenHashMap<>();
 
     /// recipe id -> result item
     private static final Map<Identifier, Identifier> RESULT_MAP = new Object2ObjectOpenHashMap<>();
@@ -101,7 +102,7 @@ public class RecipeRandomizer {
 
     public static void dispose() {
         MODIFIED.clear();
-        CACHED_RECIPES.clear();
+        INPUT_MAP.clear();
         OUTPUT_MAP.clear();
         RESULT_MAP.clear();
         init = false;
@@ -131,7 +132,7 @@ public class RecipeRandomizer {
     }
 
     public static Set<JsonElement> getIngredients(Identifier recipe) {
-        return CACHED_RECIPES.getOrDefault(recipe, Collections.emptySet());
+        return INPUT_MAP.getOrDefault(recipe, Collections.emptySet());
     }
 
     public static void setAdvancements(ServerAdvancementManager manager) {
@@ -201,7 +202,7 @@ public class RecipeRandomizer {
                     modifyOutput(recipe, "base");
                     modifyOutput(recipe, "addition");
                 }
-                case null -> {
+                default -> {
                     if (RandomizerConfig.enableDebug) {
                         LOGGER.info("unhandled recipe object: {}", recipe);
                     }
@@ -237,7 +238,7 @@ public class RecipeRandomizer {
     }
 
     private static JsonElement randomizeOutput(JsonElement output) {
-        CACHED_RECIPES.computeIfAbsent(activeRecipe, k -> new ObjectOpenHashSet<>(9))
+        INPUT_MAP.computeIfAbsent(activeRecipe, k -> new ObjectOpenHashSet<>(9))
                 .add(output);
         if (output.isJsonArray()) {
             // list of outputs
@@ -294,7 +295,8 @@ public class RecipeRandomizer {
         }
     }
 
-    public enum RecipeType {
+    public enum RecipeType implements Predicate<Identifier> {
+        UNKNOWN(RandomizerCore.MODID, "unknown"),
         CRAFTING_TRANSMUTE("crafting_transmute"),
         SMITHING_TRIM("smithing_trim"),
         SMITHING_TRANSFORM("smithing_transform"),
@@ -315,11 +317,16 @@ public class RecipeRandomizer {
 
         public static RecipeType fromRecipe(JsonObject recipe) {
             if (recipe.has("ingredient")) return SINGLE;
-            Identifier id = Identifier.tryParse(recipe.get("id").getAsString());
+            Identifier id = Identifier.tryParse(recipe.get("type").getAsString());
             if (id != null) for (RecipeType type : VALUES) {
-                if (type.name.equals(id)) return type;
+                if (type.test(id)) return type;
             }
-            return null;
+            return UNKNOWN;
+        }
+
+        @Override
+        public boolean test(Identifier identifier) {
+            return identifier.equals(this.name);
         }
     }
 }

@@ -1,7 +1,6 @@
 package com.ghzdude.randomizer.mixin;
 
 import com.ghzdude.randomizer.AdvancementModifier;
-import com.ghzdude.randomizer.RandomizerCore;
 import com.ghzdude.randomizer.api.AdvancementModify;
 import com.google.common.collect.ImmutableMap;
 import net.minecraft.advancements.AdvancementHolder;
@@ -19,15 +18,18 @@ public abstract class AdvancementManagerMixin implements AdvancementModify {
     private Map<Identifier, AdvancementHolder> advancements;
 
     public void randomizer$randomizeRecipeAdvancements() {
-        ImmutableMap.Builder<Identifier, AdvancementHolder> toKeep = ImmutableMap.builder();
+        ImmutableMap.Builder<Identifier, AdvancementHolder> modified = ImmutableMap.builder();
         this.advancements.forEach((loc, holder) -> {
-            if (loc.getNamespace().equals(RandomizerCore.MODID)) return;
-            //todo make this modify recipe advancements and use the same ids
-            if (loc.getPath().startsWith("recipes/")) return;
-            toKeep.put(loc, holder);
+            AdvancementHolder modify;
+            if (loc.getPath().startsWith("recipes/")) {
+                modify = AdvancementModifier.modify(holder.value()).build(loc);
+            } else {
+                modify = holder;
+            }
+            modified.put(loc, modify);
         });
 
-        AdvancementModifier.buildAdvancements(toKeep);
-        this.advancements = toKeep.build();
+//        AdvancementModifier.buildAdvancements(modified);
+        this.advancements = modified.build();
     }
 }
