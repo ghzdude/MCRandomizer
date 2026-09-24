@@ -2,10 +2,12 @@ package com.ghzdude.randomizer;
 
 import com.ghzdude.randomizer.api.AdvancementModify;
 import com.ghzdude.randomizer.api.Randomizable;
+import com.ghzdude.randomizer.util.KeyFactory;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
+import com.mojang.datafixers.util.Either;
 import com.mojang.datafixers.util.Pair;
 import com.mojang.logging.LogUtils;
 import com.mojang.serialization.DynamicOps;
@@ -26,7 +28,6 @@ import net.minecraft.world.item.crafting.Recipe;
 import net.minecraft.world.item.crafting.RecipeHolder;
 import net.minecraft.world.item.crafting.RecipeManager;
 import net.minecraft.world.item.crafting.RecipeMap;
-import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 
 import java.util.*;
@@ -49,16 +50,16 @@ import java.util.function.Predicate;
 public class RecipeRandomizer {
 
     /// item ingredients -> recipes
-    private static final Map<Identifier, List<Identifier>> MODIFIED = new Object2ObjectOpenHashMap<>();
+    private static final Map<Either<TagKey<Item>, ResourceKey<Item>>, List<ResourceKey<Recipe<?>>>> INGREDIENTS_TO_RECIPES = new Object2ObjectOpenHashMap<>();
 
     /// recipe id -> recipe inputs
-    private static final Map<Identifier, Set<JsonElement>> INPUT_MAP = new Object2ObjectOpenHashMap<>();
+    private static final Map<ResourceKey<Recipe<?>>, Set<Either<TagKey<Item>, ResourceKey<Item>>>> INPUT_MAP = new Object2ObjectOpenHashMap<>();
 
     /// recipe id -> result item
-    private static final Map<Identifier, Identifier> RESULT_MAP = new Object2ObjectOpenHashMap<>();
+    private static final Map<ResourceKey<Recipe<?>>, ResourceKey<Item>> RESULT_MAP = new Object2ObjectOpenHashMap<>();
 
     /// item output -> recipe
-    public static final Map<Identifier, List<Identifier>> OUTPUT_MAP = new Object2ObjectOpenHashMap<>();
+    private static final Map<Identifier, List<ResourceKey<Recipe<?>>>> OUTPUT_MAP = new Object2ObjectOpenHashMap<>();
 
     public static final ResourceManagerReloadListener LISTENER = _ -> reload();
 
@@ -101,7 +102,7 @@ public class RecipeRandomizer {
     }
 
     public static void dispose() {
-        MODIFIED.clear();
+        INGREDIENTS_TO_RECIPES.clear();
         INPUT_MAP.clear();
         OUTPUT_MAP.clear();
         RESULT_MAP.clear();
@@ -115,23 +116,23 @@ public class RecipeRandomizer {
         return RandomizationMapData.VANILLA;
     }
 
-    public static Map<Identifier, List<Identifier>> getModified() {
-        return Collections.unmodifiableMap(MODIFIED);
+    public static Map<Either<TagKey<Item>, ResourceKey<Item>>, List<ResourceKey<Recipe<?>>>> getIngredientsToRecipes() {
+        return Collections.unmodifiableMap(INGREDIENTS_TO_RECIPES);
     }
 
-    public static List<Identifier> getRecipesForItem(Item item) {
+    public static Collection<ResourceKey<Recipe<?>>> getRecipesForItem(Item item) {
         return getRecipesFor(ITEM_REGISTRY.getKey(item));
     }
 
-    public static List<Identifier> getRecipesForTag(TagKey<Item> tagKey) {
+    public static Collection<ResourceKey<Recipe<?>>> getRecipesForTag(TagKey<Item> tagKey) {
         return getRecipesFor(tagKey.location());
     }
 
-    public static List<Identifier> getRecipesFor(Identifier location) {
+    public static Collection<ResourceKey<Recipe<?>>> getRecipesFor(Identifier location) {
         return OUTPUT_MAP.getOrDefault(location, Collections.emptyList());
     }
 
-    public static Set<JsonElement> getIngredients(Identifier recipe) {
+    public static Collection<Either<TagKey<Item>, ResourceKey<Item>>> getIngredients(ResourceKey<Recipe<?>> recipe) {
         return INPUT_MAP.getOrDefault(recipe, Collections.emptySet());
     }
 
@@ -156,12 +157,12 @@ public class RecipeRandomizer {
         }).orElse(original);
     }
 
-    private static Identifier activeRecipe;
+    private static ResourceKey<Recipe<?>> activeRecipe;
 
     private static Optional<RecipeHolder<Recipe<?>>> randomizeRecipe(ResourceKey<Recipe<?>> recipeId, Recipe<?> recipe, DynamicOps<JsonElement> ops) {
-        activeRecipe = recipeId.identifier();
+        activeRecipe = recipeId;
         if (RandomizerConfig.enableDebug) {
-            LOGGER.info("Randomizing recipe \"{}\"", activeRecipe);
+            LOGGER.info("Randomizing \"{}\"!", activeRecipe);
         }
         return Recipe.CODEC.encodeStart(ops, recipe)
                 .map(JsonElement::getAsJsonObject)
@@ -171,14 +172,14 @@ public class RecipeRandomizer {
                 // back to recipe object
                 .flatMap(object -> Recipe.CODEC.decode(ops, object).ifError(e -> error(e.message())))
                 .map(Pair::getFirst)
-                .map(r -> new RecipeHolder<Recipe<?>>(recipeId, r))
+                .map(r -> new RecipeHolder<Recipe<?>>(activeRecipe, r))
                 .result();
 
     }
 
     private static void error(String message) {
-        LOGGER.debug("failed to randomize: {}", activeRecipe);
-        LOGGER.debug(message);
+        LOGGER.error("failed to randomize: {}", activeRecipe);
+        LOGGER.error(message);
     }
 
     private static JsonObject handleRecipe(JsonObject recipe, DynamicOps<JsonElement> ops) {
@@ -186,13 +187,13 @@ public class RecipeRandomizer {
             switch (RecipeType.fromRecipe(recipe)) {
                 case CRAFTING_SHAPED -> {
                     JsonObject inputs = recipe.getAsJsonObject("key");
-                    Set.copyOf(inputs.keySet()).forEach(key -> inputs.add(key, randomizeOutput(inputs.get(key))));
+                    Set.copyOf(inputs.keySet()).forEach(key -> inputs.add(key, randomizeInput(inputs.get(key))));
                 }
                 case CRAFTING_SHAPELESS -> {
                     JsonArray inputs = recipe.getAsJsonArray("ingredients");
 
                     recipe.add("ingredients", inputs.asList().stream()
-                            .map(RecipeRandomizer::randomizeOutput)
+                            .map(RecipeRandomizer::randomizeInput)
                             .collect(JsonArray::new, JsonArray::add, JsonArray::addAll));
                 }
                 case SINGLE -> modifyOutput(recipe, "ingredient");
@@ -221,7 +222,8 @@ public class RecipeRandomizer {
                             return vanilla;
 
                         ItemStack stack = getMapData().getStackFor(vanilla);
-                        RESULT_MAP.put(activeRecipe, ITEM_REGISTRY.getKey(stack.getItem()));
+                        ITEM_REGISTRY.getResourceKey(stack.getItem())
+                                .ifPresent(resourceKey -> RESULT_MAP.put(activeRecipe, resourceKey));
                         return stack;
                     })
                     .flatMap(stack -> ItemStack.CODEC.encodeStart(ops, stack)
@@ -234,17 +236,15 @@ public class RecipeRandomizer {
     }
 
     private static void modifyOutput(JsonObject recipe, String key) {
-        recipe.add(key, randomizeOutput(recipe.get(key)));
+        recipe.add(key, randomizeInput(recipe.get(key)));
     }
 
-    private static JsonElement randomizeOutput(JsonElement output) {
-        INPUT_MAP.computeIfAbsent(activeRecipe, k -> new ObjectOpenHashSet<>(9))
-                .add(output);
+    private static JsonElement randomizeInput(JsonElement output) {
         if (output.isJsonArray()) {
             // list of outputs
             JsonArray inner = new JsonArray();
             for (JsonElement jsonElement : output.getAsJsonArray()) {
-                inner.add(randomizeOutput(jsonElement));
+                inner.add(randomizeInput(jsonElement));
             }
             return inner;
         } else {
@@ -252,21 +252,30 @@ public class RecipeRandomizer {
             String vanilla = output.getAsString();
             ItemType type = ItemType.getType(vanilla);
             Identifier location = type.parse(vanilla);
-            addToMap(activeRecipe, location);
+            Set<Either<TagKey<Item>, ResourceKey<Item>>> inputs = INPUT_MAP.computeIfAbsent(activeRecipe, k -> new ObjectOpenHashSet<>(9));
+            if (type.isItem()) {
+                Either<TagKey<Item>, ResourceKey<Item>> item = Either.right(KeyFactory.item(location));
+                inputs.add(item);
+                addToMap(activeRecipe, item);
+            } else {
+                Either<TagKey<Item>, ResourceKey<Item>> tag = Either.left(KeyFactory.itemTag(location));
+                inputs.add(tag);
+                addToMap(activeRecipe, tag);
+            }
             return type.toJson(getMapData(), location);
         }
     }
 
-    public static void addToMap(@NotNull Identifier recipe, @NotNull Identifier ingredient) {
-        MODIFIED.computeIfAbsent(ingredient, key -> new ArrayList<>())
+    public static void addToMap(ResourceKey<Recipe<?>> recipe, Either<TagKey<Item>, ResourceKey<Item>> ingredient) {
+        INGREDIENTS_TO_RECIPES.computeIfAbsent(ingredient, key -> new ArrayList<>())
                 .add(recipe);
     }
 
-    public static Set<Identifier> getKnownRecipes() {
+    public static Set<ResourceKey<Recipe<?>>> getKnownRecipes() {
         return RESULT_MAP.keySet();
     }
 
-    public static Identifier getResultFor(Identifier recipe) {
+    public static ResourceKey<Item> getResultFor(ResourceKey<Recipe<?>> recipe) {
         return RESULT_MAP.get(recipe);
     }
 

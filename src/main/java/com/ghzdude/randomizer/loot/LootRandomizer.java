@@ -3,7 +3,9 @@ package com.ghzdude.randomizer.loot;
 import com.ghzdude.randomizer.RandomizationMapData;
 import com.ghzdude.randomizer.RandomizerConfig;
 import com.ghzdude.randomizer.RandomizerCore;
+import com.ghzdude.randomizer.api.RandomizerContext;
 import com.ghzdude.randomizer.special.item.SpecialItems;
+import com.ghzdude.randomizer.util.KeyFactory;
 import com.ghzdude.randomizer.util.RandomizerUtil;
 import com.google.common.collect.ImmutableSet;
 import com.google.gson.JsonArray;
@@ -44,6 +46,7 @@ import org.slf4j.Logger;
 
 import java.util.*;
 import java.util.function.Predicate;
+import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -76,7 +79,7 @@ public class LootRandomizer {
     /**
      * Maps a loot table with a map of the loot table drops to a different item required for completion
      */
-    private static final Map<Identifier, Map<Identifier, Identifier>> SPECIAL_MAP = new Object2ObjectOpenHashMap<>();
+    public static final Map<Identifier, Map<Identifier, Identifier>> SPECIAL_MAP = new Object2ObjectOpenHashMap<>();
 
     private static final Map<Identifier, Identifier> ENTITY_EGG_MAP = new Object2ObjectOpenHashMap<>();
     private static final Map<ResourceKey<ParsedLootTable>, ParsedLootTable> PARSED_REGISTRY = new Object2ObjectOpenHashMap<>();
@@ -211,7 +214,7 @@ public class LootRandomizer {
         }
 
         if (RandomizerConfig.enableDebug) {
-            LOGGER.debug("Parsed {} loot tables", PARSED_REGISTRY.size());
+            LOGGER.info("Parsed {} loot tables", PARSED_REGISTRY.size());
         }
     }
 
@@ -351,6 +354,44 @@ public class LootRandomizer {
             ParsedLootTable.registerRecipe(parsedLootTable.input(), drops, parsedLootTable.lootTable());
     }
 
+    public static UnaryOperator<ItemStack> functionFromContext(LootContext context) {
+        Optional<Identifier> tables = getKnownTables().stream()
+                .map(identifier -> LOOT_REGISTRY.get(KeyFactory.table(identifier)))
+                .filter(Optional::isPresent).map(Optional::get)
+                .map(Holder::get)
+                .map(LootContext::createVisitedEntry)
+                .filter(context::hasVisitedElement)
+                .map(LootContext.VisitedEntry::value)
+                .map(LootTable::getLootTableId)
+                .filter(SPECIAL_MAP::containsKey)
+                .findFirst();
+        return stack -> {
+            if (tables.isEmpty()) return stack;
+
+            Map<Identifier, Identifier> fixerMap = SPECIAL_MAP.get(tables.get());
+            Identifier vanilla = ITEM_REGISTRY.getKey(stack.getItem());
+            Identifier randomized = getMapData(tables.get()).getItemFor(vanilla);
+            Identifier fixed = fixerMap.getOrDefault(randomized, vanilla);
+            return ITEM_REGISTRY.get(fixed).map(ItemStack::new).orElse(stack);
+        };
+    }
+
+    public static UnaryOperator<ItemStack> getSpecialDrop(Identifier table) {
+        if (SPECIAL_MAP.containsKey(table)) {
+            Map<Identifier, Identifier> map = SPECIAL_MAP.get(table);
+            return wrap(id -> map.getOrDefault(id, id));
+        }
+        return null;
+    }
+
+    public static UnaryOperator<ItemStack> wrap(UnaryOperator<Identifier> function) {
+        return stack -> ITEM_REGISTRY.getResourceKey(stack.getItem())
+                .map(k -> function.apply(k.identifier()))
+                .flatMap(ITEM_REGISTRY::get)
+                .map(ItemStack::new)
+                .orElse(stack);
+    }
+
     private static void collectFromTag(TagKey<Block> key, Set<Identifier> collection) {
         BLOCK_REGISTRY.get(key).ifPresent(blocks -> blocks.stream()
                 .map(holder -> BLOCK_REGISTRY.getKey(holder.get()))
@@ -440,7 +481,7 @@ public class LootRandomizer {
             Identifier randomized = getRandomized(vanilla);
             addEntry(LootData.tag(randomized), items);
         } else if (RandomizerConfig.enableDebug) {
-            LOGGER.debug("unhandled entry: {}", entry);
+            LOGGER.info("unhandled entry: {}", entry);
         }
     }
 
@@ -648,20 +689,22 @@ public class LootRandomizer {
         RandomizationMapData mapData = getMapData(queriedLootTableId);
 
         if (RandomizerConfig.enableDebug) {
-            LOGGER.debug("Table '{}' is being queried, randomizing", queriedLootTableId);
+            LOGGER.info("Table '{}' is being queried, randomizing", queriedLootTableId);
         }
 
-        Map<Identifier, Identifier> replacementMap = SPECIAL_MAP.getOrDefault(queriedLootTableId, Collections.emptyMap());
+        Map<Identifier, Identifier> replacementMap = ((RandomizerContext) context).randomizer$getMap();
 
         ObjectArrayList<ItemStack> ret = new ObjectArrayList<>();
         for (ItemStack stack : generatedLoot) {
             if (!stack.isEmpty()) {
-                var random = mapData.getItemFor(stack.getItem());
+                Item random = mapData.getItemFor(stack.getItem());
                 Identifier key = ITEM_REGISTRY.getKey(random);
-                if (replacementMap.containsKey(key)) {
-                    random = ITEM_REGISTRY.get(replacementMap.get(key)).orElseThrow().get();
-                }
-                ret.add(RandomizerUtil.itemToStack(random, stack.getCount()));
+                Identifier fixed = replacementMap.getOrDefault(key, key);
+                ItemStack newStack = ITEM_REGISTRY.get(fixed)
+                        .map(Holder::get)
+                        .map(i -> RandomizerUtil.itemToStack(i, stack.getCount()))
+                        .orElse(stack);
+                ret.add(newStack);
             } else {
                 ret.add(ItemStack.EMPTY);
             }

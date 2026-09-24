@@ -3,6 +3,7 @@ package com.ghzdude.randomizer;
 import com.ghzdude.randomizer.loot.LootRandomizer;
 import com.ghzdude.randomizer.util.RandomizerUtil;
 import com.google.gson.JsonElement;
+import com.mojang.datafixers.util.Either;
 import com.mojang.logging.LogUtils;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
@@ -17,9 +18,11 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.tags.ItemTags;
+import net.minecraft.tags.TagKey;
 import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.crafting.Recipe;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.saveddata.SavedData;
 import net.minecraft.world.level.saveddata.SavedDataType;
@@ -453,8 +456,8 @@ public class CompletabilityVerifier {
             return;
         }
 
-        for (Identifier recipe : RecipeRandomizer.getKnownRecipes()) {
-            Identifier result = RecipeRandomizer.getResultFor(recipe);
+        for (ResourceKey<Recipe<?>> recipe : RecipeRandomizer.getKnownRecipes()) {
+            ResourceKey<Item> result = RecipeRandomizer.getResultFor(recipe);
 
             addRecipe(RecipeRandomizer.getIngredients(recipe), result, recipe);
         }
@@ -472,25 +475,26 @@ public class CompletabilityVerifier {
         data = null;
     }
 
-    public static void addRecipe(Set<JsonElement> ingredients, Identifier output, Identifier recipe) {
+    public static void addRecipe(Collection<Either<TagKey<Item>, ResourceKey<Item>>> ingredients,
+                                 ResourceKey<Item> output, ResourceKey<Recipe<?>> recipe) {
         if (!RandomizerConfig.ensureCompletability) return;
 
         int i = 0;
-        for (JsonElement ing : ingredients) {
+        for (Either<TagKey<Item>, ResourceKey<Item>> ing : ingredients) {
             Set<Identifier> items = new ObjectOpenHashSet<>();
 
-            if (ing.isJsonArray()) {
-                for (JsonElement e : ing.getAsJsonArray()) {
-                    parseJson(e, items);
-                }
-            } else {
-                parseJson(ing, items);
-            }
+            ing.ifLeft(tag -> ITEM_REGISTRY.get(tag).ifPresent(named -> named.stream()
+                    .map(Holder::unwrapKey)
+                    .filter(Optional::isPresent)
+                    .map(Optional::get)
+                    .map(ResourceKey::identifier)
+                    .forEach(items::add))
+            ).ifRight(k -> items.add(k.identifier()));
 
-            addIngredients(recipe, i++, items);
+            addIngredients(recipe.identifier(), i++, items);
         }
 
-        addResult(output, recipe);
+        addResult(output.identifier(), recipe.identifier());
     }
 
     public static void addLootTable(Identifier table, Set<Identifier> stacks) {
@@ -774,7 +778,7 @@ public class CompletabilityVerifier {
         int craftableSlots = ingredientMap.size();
 
         if (RandomizerConfig.enableDebug) {
-            LOGGER.debug("Currently iterating recipe '{}' for their ingredients", recipe);
+            LOGGER.info("Currently iterating recipe '{}' for their ingredients", recipe);
         }
 
         for (Set<Identifier> compactIngredients : ingredientMap) {
@@ -804,14 +808,14 @@ public class CompletabilityVerifier {
     private static boolean canObtainIngredient(Identifier ingredient, Identifier recipe) {
         if (LootRandomizer.isChestLoot(recipe)) {
             if (RandomizerConfig.enableDebug) {
-                LOGGER.debug("Checking loot table '{}'", recipe);
+                LOGGER.info("Checking loot table '{}'", recipe);
             }
             // chest loot tends to be the end point
             return computeCompletion(recipe, CompletabilityVerifier::checkLoot);
         }
 
         if (RandomizerConfig.enableDebug) {
-            LOGGER.debug("Checking ingredient '{}' in recipe '{}'", ingredient, recipe);
+            LOGGER.info("Checking ingredient '{}' in recipe '{}'", ingredient, recipe);
         }
         return computeCompletion(ingredient, CompletabilityVerifier::ensureCompletability);
     }
