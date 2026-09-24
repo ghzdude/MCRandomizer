@@ -221,7 +221,7 @@ public class RecipeRandomizer {
                         if (vanilla.is(Items.ENDER_EYE) && RandomizerConfig.ensureCompletability)
                             return vanilla;
 
-                        ItemStack stack = getMapData().getStackFor(vanilla);
+                        ItemStack stack = getMapData().getStackFor(vanilla, ITEM_REGISTRY);
                         ITEM_REGISTRY.getResourceKey(stack.getItem())
                                 .ifPresent(resourceKey -> RESULT_MAP.put(activeRecipe, resourceKey));
                         return stack;
@@ -291,7 +291,7 @@ public class RecipeRandomizer {
         }
 
         public JsonElement toJson(RandomizationMapData mapData, Identifier location) {
-            Identifier random = isItem() ? mapData.getItemFor(location) : mapData.getTagKeyFor(location);
+            Identifier random = isItem() ? mapData.getItemIdFor(location) : mapData.getTagIdFor(location);
             return new JsonPrimitive(format(random));
         }
 

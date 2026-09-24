@@ -370,7 +370,7 @@ public class LootRandomizer {
 
             Map<Identifier, Identifier> fixerMap = SPECIAL_MAP.get(tables.get());
             Identifier vanilla = ITEM_REGISTRY.getKey(stack.getItem());
-            Identifier randomized = getMapData(tables.get()).getItemFor(vanilla);
+            Identifier randomized = getMapData(tables.get()).getItemIdFor(vanilla);
             Identifier fixed = fixerMap.getOrDefault(randomized, vanilla);
             return ITEM_REGISTRY.get(fixed).map(ItemStack::new).orElse(stack);
         };
@@ -545,9 +545,9 @@ public class LootRandomizer {
     private static Identifier getRandomized(Identifier vanilla) {
         RandomizationMapData mapData = getMapData(activeLocation);
         if (mapData.getItems().contains(vanilla))
-            return mapData.getItemFor(vanilla);
+            return mapData.getItemIdFor(vanilla);
         if (mapData.getTags().contains(vanilla))
-            return mapData.getTagKeyFor(vanilla);
+            return mapData.getTagIdFor(vanilla);
 
         LOGGER.warn("'{}' must be an item or tag!", vanilla);
         return vanilla;
@@ -697,7 +697,7 @@ public class LootRandomizer {
         ObjectArrayList<ItemStack> ret = new ObjectArrayList<>();
         for (ItemStack stack : generatedLoot) {
             if (!stack.isEmpty()) {
-                Item random = mapData.getItemFor(stack.getItem());
+                Item random = mapData.getItemFor(stack.getItem(), ITEM_REGISTRY);
                 Identifier key = ITEM_REGISTRY.getKey(random);
                 Identifier fixed = replacementMap.getOrDefault(key, key);
                 ItemStack newStack = ITEM_REGISTRY.get(fixed)

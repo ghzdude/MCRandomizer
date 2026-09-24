@@ -92,9 +92,13 @@ public class RandomizerUtil {
     public static ItemStack itemToStack(Item item, int size) {
         ItemStack stack = new ItemStack(item);
         stack.setCount(Math.min(size, stack.getMaxStackSize()));
+        applyStackEffects(stack);
+        return stack;
+    }
 
+    public static ItemStack applyStackEffects(ItemStack stack) {
         if (!init) return stack;
-
+        var item = stack.getItem();
         if (EnchantmentGenerator.canEnchant(stack)) {
             EnchantmentGenerator.applyEnchantment(stack);
         } else if (PotionGenerator.canHaveEffect(stack)) {

@@ -1,12 +1,14 @@
 package com.ghzdude.randomizer;
 
+import com.ghzdude.randomizer.api.StackMutator;
+import com.ghzdude.randomizer.api.TagKeyMutator;
+import com.ghzdude.randomizer.util.KeyFactory;
 import com.ghzdude.randomizer.util.RandomizerUtil;
 import com.mojang.logging.LogUtils;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import it.unimi.dsi.fastutil.objects.Object2ObjectMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
-import net.minecraft.core.Holder;
 import net.minecraft.core.HolderSet;
 import net.minecraft.core.Registry;
 import net.minecraft.core.RegistryAccess;
@@ -16,19 +18,20 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.item.Item;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
 import net.minecraft.world.level.saveddata.SavedData;
 import net.minecraft.world.level.saveddata.SavedDataType;
 import net.minecraft.world.level.storage.SavedDataStorage;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 
-import java.util.*;
+import java.util.List;
+import java.util.Map;
+import java.util.Random;
+import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
 
-public class RandomizationMapData extends SavedData {
+public class RandomizationMapData extends SavedData implements StackMutator, TagKeyMutator {
 
     public static final RandomizationMapData VANILLA = new DefaultedMapData();
     public static final Codec<RandomizationMapData> CODEC = RecordCodecBuilder.create(inst -> inst.group(
@@ -170,38 +173,14 @@ public class RandomizationMapData extends SavedData {
         reversedTagkeyMap.put(random, vanilla);
     }
 
-    public ItemStack getStackFor(ItemStack stack) {
-        return getStackFor(stack.getItem(), stack.getCount());
+    @Override
+    public Identifier getItemIdFor(Identifier id) {
+        return itemMap.getOrDefault(id, id);
     }
 
-    public ItemStack getStackFor(Item vanilla, int count) {
-        Item randomItem = getItemFor(vanilla);
-        if (randomItem == Items.AIR || count < 1) {
-            // cannot return empty
-            return new ItemStack(vanilla, Math.max(count, 1));
-        }
-
-        ItemStack random = new ItemStack(randomItem);
-        random.setCount(Math.min(random.getMaxStackSize(), count));
-        return random;
-    }
-
-    public Item getItemFor(Item item) {
-        Identifier vanilla = Objects.requireNonNull(ITEM_REGISTRY.getKey(item));
-        Identifier random = getItemFor(vanilla);
-        return ITEM_REGISTRY.get(random).map(Holder::get).orElseGet(() -> {
-            LOGGER.warn("failed to get item for {}", item);
-            return item;
-        });
-    }
-
-    public Identifier getItemFor(Identifier vanilla) {
-        if (isInvalid(vanilla)) throw new IllegalArgumentException("Cannot randomize Air!");
-        if (!itemMap.containsKey(vanilla)) {
-            LOGGER.warn("Item '{}' is not mapped to a random item!", vanilla);
-            return vanilla;
-        }
-        return itemMap.get(vanilla);
+    @Override
+    public Identifier getTagIdFor(Identifier tag) {
+        return tagkeyMap.getOrDefault(tag, tag);
     }
 
     public Identifier getOriginalItem(Identifier random) {
@@ -216,20 +195,12 @@ public class RandomizationMapData extends SavedData {
         return reversedTagkeyMap.get(random);
     }
 
-    public TagKey<Item> getTagKeyFor(TagKey<Item> vanilla) {
-        return TagKey.create(Registries.ITEM, getTagKeyFor(vanilla.location()));
-    }
-
-    public Identifier getTagKeyFor(Identifier vanilla) {
-        return tagkeyMap.get(vanilla);
-    }
-
     @Nullable
     public TagKey<Item> getRandomTag(Random rng) {
         int s = rng.nextInt(tagkeyMap.size());
         int i = 0;
         for (Identifier value : tagkeyMap.values()) {
-            if (i++ == s) return TagKey.create(ITEM_REGISTRY.key(), value);
+            if (i++ == s) return KeyFactory.itemTag(value);
         }
         return null;
     }
@@ -278,23 +249,13 @@ public class RandomizationMapData extends SavedData {
         }
 
         @Override
-        public ItemStack getStackFor(Item vanilla, int count) {
-            return new ItemStack(vanilla, count);
+        public Identifier getItemIdFor(Identifier id) {
+            return id;
         }
 
         @Override
-        public ItemStack getStackFor(ItemStack stack) {
-            return stack;
-        }
-
-        @Override
-        public Item getItemFor(Item item) {
-            return item;
-        }
-
-        @Override
-        public Identifier getItemFor(Identifier vanilla) {
-            return vanilla;
+        public Identifier getTagIdFor(Identifier tag) {
+            return tag;
         }
 
         @Override
@@ -305,11 +266,6 @@ public class RandomizationMapData extends SavedData {
         @Override
         public Identifier getOriginalTagKey(Identifier random) {
             return random;
-        }
-
-        @Override
-        public TagKey<Item> getTagKeyFor(TagKey<Item> vanilla) {
-            return vanilla;
         }
 
         @Override

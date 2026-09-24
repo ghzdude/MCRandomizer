@@ -142,8 +142,17 @@ public class ItemRandomizer {
     }
 
     public static ItemStack getRandomItemStack(Random rng) {
-        var item = RandomizerUtil.getRandom(ITEM_LIST, rng);
-        return RandomizerUtil.itemToStack(INSTANCE.getItemFor(REGISTRY.get(item).orElseThrow().get()));
+        Identifier vanilla = RandomizerUtil.getRandom(ITEM_LIST, rng);
+        return REGISTRY.get(vanilla)
+                .map(ref -> INSTANCE.getHolderFor(ref, REGISTRY))
+                .map(Holder::get)
+                .map(RandomizerUtil::itemToStack)
+                .orElseGet(() -> {
+                    if (RandomizerConfig.enableDebug) {
+                        RandomizerCore.LOGGER.warn("Failed to get random item!");
+                    }
+                    return ItemStack.EMPTY;
+                });
     }
 
     public static Stream<Item> getValidItems() {
