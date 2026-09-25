@@ -5,6 +5,7 @@ import com.ghzdude.randomizer.special.generators.EnchantmentGenerator;
 import com.ghzdude.randomizer.special.generators.PotionGenerator;
 import com.ghzdude.randomizer.special.item.SpecialItems;
 import com.ghzdude.randomizer.util.RandomizerUtil;
+import com.ghzdude.randomizer.util.TagToken;
 import it.unimi.dsi.fastutil.objects.Object2IntMap;
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 import net.minecraft.core.Holder;
@@ -22,6 +23,7 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraftforge.event.TickEvent;
+import net.minecraftforge.fml.loading.FMLLoader;
 
 import java.util.*;
 import java.util.stream.Stream;
@@ -44,11 +46,11 @@ public class ItemRandomizer {
     private static Registry<Item> REGISTRY;
     private static FeatureFlagSet ENABLED;
 
-    private static final String POINT_KEY = "points";
-    private static final String POINT_MAX_KEY = "point_max";
-    private static final String CYCLE_KEY = "cycle";
-    private static final String CYCLE_COUNTER_KEY = "cycle_counter";
-    private static final String AMOUNT_KEY = "amount_items_given";
+    private static final TagToken.Int POINTS = TagToken.ofInt("points", 0);
+    private static final TagToken.Int MAX_POINTS = TagToken.ofInt("point_max", 1);
+    private static final TagToken.Int CYCLE = TagToken.ofInt("cycle", 0);
+    private static final TagToken.Int CYCLE_COUNTER = TagToken.ofInt("cycle_counter", () -> RandomizerConfig.cycleBase);
+    private static final TagToken.Int AMOUNT_ITEMS_GIVEN = TagToken.ofInt("amount_items_given", 0);
 
     private static int OFFSET = 0;
     private static final int COUNTER_MAX = 50;
@@ -181,46 +183,43 @@ public class ItemRandomizer {
 
         if (shouldUsePoints(player)) {
 
-            int pointMax = data.getInt(POINT_MAX_KEY).orElseGet(() -> {
-                data.putInt(POINT_MAX_KEY, 1);
-                return 1;
-            });
+            int pointMax = MAX_POINTS.getInt(data);
 
-            int points = RandomizerConfig.pointsCarryover ?
-                    data.getIntOr(POINT_KEY, 0) + pointMax : pointMax;
+            int points = RandomizerConfig.pointsCarryover ? POINTS.getInt(data) + pointMax : pointMax;
 
             int pointsToUse = RandomizerCore.seededRNG.nextInt(points) + 1;
-            int remaining = pointsToUse;
+            int remaining;
 
             if (RandomizerConfig.generateStructures && RandomizerCore.seededRNG.nextInt(100) < RandomizerConfig.structureProbability) {
                 remaining = StructureRandomizer.tryPlace(pointsToUse, player.level(), player);
             } else if (RandomizerConfig.giveRandomItems) {
                 remaining = ItemRandomizer.giveRandomItem(pointsToUse, player.getInventory());
+            } else {
+                return;
             }
 
-            // we used points, so something succeeded
-            if (remaining < pointsToUse) {
-                increaseCycle(player, data);
-            }
-
-            data.putInt(POINT_KEY, remaining);
+            increaseCycle(player, data);
+            POINTS.setInt(data, remaining);
         }
     }
 
     private static boolean shouldUsePoints(ServerPlayer player) {
-        return player.gameMode.isSurvival();
+        return player.gameMode.isSurvival() || (!FMLLoader.isProduction() && player.gameMode.isCreative());
     }
 
     private static boolean shouldTick(TickEvent.PlayerTickEvent.Pre event) {
         if (event.side().isClient()) return false;
-        if (OFFSET < 0) OFFSET = 0;
-        return ++OFFSET % RandomizerConfig.itemCooldown == 0;
+        if (RandomizerConfig.giveRandomItems || RandomizerConfig.generateStructures) {
+            if (OFFSET < 0) OFFSET = 0;
+            return ++OFFSET % RandomizerConfig.itemCooldown == 0;
+        }
+        return false;
     }
 
     private static void increaseCycle(Player player, CompoundTag data) {
-        int pointMax = data.getIntOr(POINT_MAX_KEY, 1);
-        int cycle = data.getIntOr(CYCLE_KEY, 0) + 1;
-        int cycleCounter = data.getIntOr(CYCLE_COUNTER_KEY, RandomizerConfig.cycleBase);
+        int pointMax = MAX_POINTS.getInt(data);
+        int cycle = CYCLE.incrementInt(data);
+        int cycleCounter = CYCLE_COUNTER.getInt(data);
 
         if (cycle % cycleCounter == 0) {
             cycle = 0;
@@ -230,9 +229,9 @@ public class ItemRandomizer {
             player.sendSystemMessage(Component.translatable("randomizer.player.point_max.increased", pointMax));
         }
 
-        data.putInt(POINT_MAX_KEY, pointMax);
-        data.putInt(CYCLE_KEY, cycle);
-        data.putInt(CYCLE_COUNTER_KEY, cycleCounter);
+        POINTS.setInt(data, pointMax);
+        CYCLE.setInt(data, cycle);
+        CYCLE_COUNTER.setInt(data, cycleCounter);
     }
 
     public static void incrementAmtItemsGiven(Player player) {
@@ -240,6 +239,6 @@ public class ItemRandomizer {
     }
 
     public static void incrementAmtItemsGiven(CompoundTag data) {
-        data.putInt(AMOUNT_KEY, data.getIntOr(AMOUNT_KEY, 0) + 1);
+        AMOUNT_ITEMS_GIVEN.incrementInt(data);
     }
 }
