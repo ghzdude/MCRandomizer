@@ -19,11 +19,16 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.tags.ItemTags;
 import net.minecraft.tags.TagKey;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.EntityTypes;
+import net.minecraft.world.item.DyeColor;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.crafting.Recipe;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.ColorCollection;
 import net.minecraft.world.level.saveddata.SavedData;
 import net.minecraft.world.level.saveddata.SavedDataType;
 import net.minecraft.world.level.storage.SavedDataStorage;
@@ -86,349 +91,394 @@ public class CompletabilityVerifier {
     private static Registry<Item> ITEM_REGISTRY;
 
     // overworld
-    private static final List<Identifier> OVERWORLD_LOOT = Stream.of(
-            // chests
-            BuiltInLootTables.BURIED_TREASURE,
-            BuiltInLootTables.ABANDONED_MINESHAFT,
-            BuiltInLootTables.SIMPLE_DUNGEON,
-            BuiltInLootTables.DESERT_PYRAMID,
-            BuiltInLootTables.ANCIENT_CITY,
-            BuiltInLootTables.ANCIENT_CITY_ICE_BOX,
-            BuiltInLootTables.STRONGHOLD_CORRIDOR,
-            BuiltInLootTables.STRONGHOLD_CROSSING,
-            BuiltInLootTables.STRONGHOLD_LIBRARY,
-            BuiltInLootTables.SHIPWRECK_TREASURE,
-            BuiltInLootTables.SHIPWRECK_MAP,
-            BuiltInLootTables.SHIPWRECK_SUPPLY,
-//            BuiltInLootTables.SPAWN_BONUS_CHEST,
-            BuiltInLootTables.CAT_MORNING_GIFT,
-            BuiltInLootTables.VILLAGE_WEAPONSMITH,
-            BuiltInLootTables.VILLAGE_TOOLSMITH,
-            BuiltInLootTables.VILLAGE_ARMORER,
-            BuiltInLootTables.VILLAGE_CARTOGRAPHER,
-            BuiltInLootTables.VILLAGE_MASON,
-            BuiltInLootTables.VILLAGE_SHEPHERD,
-            BuiltInLootTables.VILLAGE_BUTCHER,
-            BuiltInLootTables.VILLAGE_FLETCHER,
-            BuiltInLootTables.VILLAGE_FISHER,
-            BuiltInLootTables.VILLAGE_TANNERY,
-            BuiltInLootTables.VILLAGE_TEMPLE,
-            BuiltInLootTables.VILLAGE_DESERT_HOUSE,
-            BuiltInLootTables.VILLAGE_PLAINS_HOUSE,
-            BuiltInLootTables.VILLAGE_TAIGA_HOUSE,
-            BuiltInLootTables.VILLAGE_SNOWY_HOUSE,
-            BuiltInLootTables.RUINED_PORTAL,
-            BuiltInLootTables.TRIAL_CHAMBERS_REWARD,
-            BuiltInLootTables.TRIAL_CHAMBERS_REWARD_COMMON,
-            BuiltInLootTables.TRIAL_CHAMBERS_REWARD_RARE,
-            BuiltInLootTables.TRIAL_CHAMBERS_REWARD_UNIQUE,
-            BuiltInLootTables.TRIAL_CHAMBERS_REWARD_OMINOUS,
-            BuiltInLootTables.TRIAL_CHAMBERS_REWARD_OMINOUS_COMMON,
-            BuiltInLootTables.TRIAL_CHAMBERS_REWARD_OMINOUS_RARE,
-            BuiltInLootTables.TRIAL_CHAMBERS_REWARD_OMINOUS_UNIQUE,
-            BuiltInLootTables.TRIAL_CHAMBERS_SUPPLY,
-            BuiltInLootTables.TRIAL_CHAMBERS_CORRIDOR,
-            BuiltInLootTables.TRIAL_CHAMBERS_INTERSECTION,
-            BuiltInLootTables.TRIAL_CHAMBERS_INTERSECTION_BARREL,
-            BuiltInLootTables.TRIAL_CHAMBERS_ENTRANCE,
-            BuiltInLootTables.TRIAL_CHAMBERS_CORRIDOR_DISPENSER,
-            BuiltInLootTables.TRIAL_CHAMBERS_CHAMBER_DISPENSER,
-            BuiltInLootTables.TRIAL_CHAMBERS_WATER_DISPENSER,
-            BuiltInLootTables.TRIAL_CHAMBERS_CORRIDOR_POT,
-            BuiltInLootTables.EQUIPMENT_TRIAL_CHAMBER,
-            BuiltInLootTables.EQUIPMENT_TRIAL_CHAMBER_RANGED,
-            BuiltInLootTables.EQUIPMENT_TRIAL_CHAMBER_MELEE,
-            BuiltInLootTables.TRAIL_RUINS_ARCHAEOLOGY_COMMON,
-            BuiltInLootTables.TRAIL_RUINS_ARCHAEOLOGY_RARE,
-            BuiltInLootTables.DESERT_PYRAMID_ARCHAEOLOGY,
-            BuiltInLootTables.DESERT_WELL_ARCHAEOLOGY,
-            BuiltInLootTables.OCEAN_RUIN_COLD_ARCHAEOLOGY,
-            BuiltInLootTables.OCEAN_RUIN_WARM_ARCHAEOLOGY,
-
-            // sheep
-            BuiltInLootTables.SHEAR_DYED_SHEEP.black(),
-            BuiltInLootTables.SHEAR_DYED_SHEEP.gray(),
-            BuiltInLootTables.SHEAR_DYED_SHEEP.lightGray(),
-            BuiltInLootTables.SHEAR_DYED_SHEEP.white(),
-            BuiltInLootTables.SHEAR_DYED_SHEEP.red(),
-            BuiltInLootTables.SHEAR_DYED_SHEEP.orange(),
-            BuiltInLootTables.SHEAR_DYED_SHEEP.yellow(),
-            BuiltInLootTables.SHEAR_DYED_SHEEP.green(),
-            BuiltInLootTables.SHEAR_DYED_SHEEP.cyan(),
-            BuiltInLootTables.SHEAR_DYED_SHEEP.blue(),
-            BuiltInLootTables.SHEAR_DYED_SHEEP.purple(),
-            BuiltInLootTables.SHEAR_DYED_SHEEP.brown(),
-            BuiltInLootTables.SHEAR_DYED_SHEEP.lightBlue(),
-            BuiltInLootTables.SHEAR_DYED_SHEEP.lime(),
-            BuiltInLootTables.SHEAR_DYED_SHEEP.magenta(),
-            BuiltInLootTables.SHEAR_DYED_SHEEP.pink(),
-
-            // mobs
-            EntityTypes.COW.getDefaultLootTable().orElseThrow(),
-            EntityTypes.COD.getDefaultLootTable().orElseThrow(),
-            EntityTypes.RABBIT.getDefaultLootTable().orElseThrow(),
-            EntityTypes.TROPICAL_FISH.getDefaultLootTable().orElseThrow(),
-            EntityTypes.PUFFERFISH.getDefaultLootTable().orElseThrow(),
-            EntityTypes.SILVERFISH.getDefaultLootTable().orElseThrow(),
-            EntityTypes.ILLUSIONER.getDefaultLootTable().orElseThrow(),
-            EntityTypes.PIG.getDefaultLootTable().orElseThrow(),
-            EntityTypes.PILLAGER.getDefaultLootTable().orElseThrow(),
-            EntityTypes.ILLUSIONER.getDefaultLootTable().orElseThrow(),
-            EntityTypes.ZOMBIE.getDefaultLootTable().orElseThrow(),
-            EntityTypes.CREEPER.getDefaultLootTable().orElseThrow(),
-            EntityTypes.SPIDER.getDefaultLootTable().orElseThrow(),
-            EntityTypes.SKELETON.getDefaultLootTable().orElseThrow(),
-            EntityTypes.WITCH.getDefaultLootTable().orElseThrow(),
-            EntityTypes.BREEZE.getDefaultLootTable().orElseThrow(),
-            EntityTypes.ARMADILLO.getDefaultLootTable().orElseThrow()
-    ).map(ResourceKey::identifier).toList();
-
-    private static final List<Identifier> OVERWORLD_BLOCKS = Stream.of(
-            // surface
-            Blocks.GRASS_BLOCK,
-            Blocks.DIRT,
-            Blocks.COARSE_DIRT,
-            Blocks.PODZOL,
-            Blocks.MUD,
-
-            // underground
-            Blocks.STONE,
-            Blocks.ANDESITE,
-            Blocks.GRANITE,
-            Blocks.DIORITE,
-            Blocks.AMETHYST_BLOCK,
-            Blocks.LARGE_AMETHYST_BUD,
-            Blocks.MEDIUM_AMETHYST_BUD,
-            Blocks.SMALL_AMETHYST_BUD,
-            Blocks.OBSIDIAN,
-            Blocks.COBBLESTONE,
-            Blocks.POINTED_DRIPSTONE,
-            Blocks.DRIPSTONE_BLOCK,
-            Blocks.DEEPSLATE,
-            Blocks.CHEST,
-
-            // ancient city
-            Blocks.CHISELED_DEEPSLATE,
-            Blocks.COBBLED_DEEPSLATE,
-            Blocks.DEEPSLATE_BRICK_STAIRS,
-            Blocks.DEEPSLATE_BRICK_SLAB,
-            Blocks.DEEPSLATE_BRICKS,
-            Blocks.DEEPSLATE_TILES,
-            Blocks.DEEPSLATE_TILE_STAIRS,
-            Blocks.POLISHED_BASALT,
-            Blocks.POLISHED_DEEPSLATE,
-            Blocks.POLISHED_DEEPSLATE_WALL,
-            Blocks.SMOOTH_BASALT,
-            Blocks.CANDLE,
-            Blocks.DYED_CANDLE.white(),
-            Blocks.CARPET.gray(),
-            Blocks.WOOL.gray(),
-            Blocks.WOOL.blue(),
-            Blocks.WOOL.lightBlue(),
-            Blocks.WOOL.cyan(),
-            Blocks.PACKED_ICE,
-            Blocks.REDSTONE_WIRE,
-
-            // villages
-            Blocks.BRICKS,
-            Blocks.COBBLESTONE_SLAB,
-            Blocks.COBBLESTONE_STAIRS,
-            Blocks.COBBLESTONE_WALL,
-            Blocks.DIRT_PATH,
-            Blocks.FARMLAND,
-            Blocks.OAK_PLANKS,
-            Blocks.OAK_SLAB,
-            Blocks.OAK_STAIRS,
-            Blocks.ACACIA_PLANKS,
-            Blocks.ACACIA_SLAB,
-            Blocks.ACACIA_STAIRS,
-            Blocks.SPRUCE_PLANKS,
-            Blocks.SPRUCE_SLAB,
-            Blocks.SPRUCE_STAIRS,
-            Blocks.SMOOTH_SANDSTONE,
-            Blocks.SMOOTH_SANDSTONE_SLAB,
-            Blocks.SMOOTH_SANDSTONE_STAIRS,
-            Blocks.SANDSTONE,
-            Blocks.SANDSTONE_SLAB,
-            Blocks.SANDSTONE_STAIRS,
-            Blocks.WHEAT,
-            Blocks.POTATOES,
-            Blocks.CARROTS,
-            Blocks.BEETROOTS,
-
-            // stronghold
-            Blocks.STONE_BRICKS,
-            Blocks.MOSSY_STONE_BRICKS,
-            Blocks.CRACKED_STONE_BRICKS,
-            Blocks.STONE_BRICK_STAIRS,
-            Blocks.STONE_BRICK_SLAB,
-            Blocks.SMOOTH_STONE_SLAB,
-            Blocks.IRON_BARS,
-            Blocks.IRON_DOOR,
-            Blocks.STONE_BUTTON,
-            Blocks.OAK_DOOR,
-            Blocks.BOOKSHELF,
-
-            // mineshaft
-            Blocks.OAK_FENCE,
-            Blocks.DARK_OAK_PLANKS,
-            Blocks.DARK_OAK_FENCE,
-            Blocks.RAIL,
-            Blocks.COBWEB,
-
-            // trial ruins
-            Blocks.MUD_BRICKS,
-            Blocks.MUD_BRICK_STAIRS,
-            Blocks.DYED_TERRACOTTA.blue(),
-            Blocks.DYED_TERRACOTTA.yellow(),
-            Blocks.DYED_TERRACOTTA.red(),
-            Blocks.DYED_TERRACOTTA.cyan(),
-            Blocks.BRICK_SLAB,
-
-            // shipwreck
-            Blocks.BIRCH_FENCE,
-            Blocks.BIRCH_PLANKS,
-            Blocks.BIRCH_SLAB,
-            Blocks.BIRCH_STAIRS,
-            Blocks.DARK_OAK_DOOR,
-            Blocks.DARK_OAK_FENCE,
-            Blocks.DARK_OAK_LOG,
-            Blocks.DARK_OAK_PLANKS,
-            Blocks.DARK_OAK_SLAB,
-            Blocks.DARK_OAK_STAIRS,
-            Blocks.JUNGLE_DOOR,
-            Blocks.JUNGLE_FENCE,
-            Blocks.JUNGLE_LOG,
-            Blocks.JUNGLE_PLANKS,
-            Blocks.JUNGLE_SLAB,
-            Blocks.JUNGLE_STAIRS,
-            Blocks.OAK_DOOR,
-            Blocks.OAK_FENCE,
-            Blocks.OAK_LOG,
-            Blocks.OAK_PLANKS,
-            Blocks.OAK_SLAB,
-            Blocks.OAK_STAIRS,
-            Blocks.SPRUCE_DOOR,
-            Blocks.SPRUCE_FENCE,
-            Blocks.SPRUCE_LOG,
-            Blocks.SPRUCE_PLANKS,
-            Blocks.SPRUCE_SLAB,
-            Blocks.SPRUCE_STAIRS,
-
-            // wood
-            Blocks.ACACIA_LOG,
-            Blocks.BIRCH_LOG,
-            Blocks.CHERRY_LOG,
-            Blocks.OAK_LOG,
-            Blocks.DARK_OAK_LOG,
-            Blocks.SPRUCE_LOG,
-
-            // raw ores
-            Blocks.IRON_ORE,
-            Blocks.GOLD_ORE,
-            Blocks.COPPER_ORE,
-            Blocks.COAL_ORE,
-            Blocks.DIAMOND_ORE,
-            Blocks.DEEPSLATE_IRON_ORE,
-            Blocks.DEEPSLATE_GOLD_ORE,
-            Blocks.DEEPSLATE_COPPER_ORE,
-            Blocks.DEEPSLATE_COAL_ORE,
-            Blocks.DEEPSLATE_DIAMOND_ORE,
-
-            // flowers
-            Blocks.CORNFLOWER,
-            Blocks.SUNFLOWER,
-            Blocks.DANDELION,
-            Blocks.ORANGE_TULIP,
-            Blocks.PINK_TULIP,
-            Blocks.RED_TULIP,
-            Blocks.WHITE_TULIP,
-            Blocks.ROSE_BUSH,
-            Blocks.SMALL_DRIPLEAF,
-            Blocks.BIG_DRIPLEAF
-    ).distinct().map(block -> block.getLootTable().orElseThrow().identifier()).toList();
-
     // store all overworld obtainable things in here
-    private static final List<Identifier> ALL_OVERWORLD = new ArrayList<>();
+    private static final List<Identifier> ALL_OVERWORLD;
+    private static final List<Identifier> OVERWORLD_LOOT;
+    private static final List<Identifier> OVERWORLD_BLOCKS;
 
     // nether
-    private static final List<Identifier> NETHER_BLOCKS = Stream.of(
-            // nether wastes
-            Blocks.NETHERRACK,
-            Blocks.SOUL_SAND,
-            Blocks.GLOWSTONE,
-            Blocks.MAGMA_BLOCK,
-            Blocks.GRAVEL,
-
-            // soul sand valley
-            Blocks.SOUL_SAND,
-            Blocks.BASALT,
-            Blocks.SOUL_SOIL,
-            Blocks.BONE_BLOCK,
-
-            // ores
-            Blocks.NETHER_QUARTZ_ORE,
-            Blocks.NETHER_GOLD_ORE,
-            Blocks.ANCIENT_DEBRIS,
-
-            // bastion
-            Blocks.BASALT,
-            Blocks.POLISHED_BASALT,
-            Blocks.BLACKSTONE,
-            Blocks.GILDED_BLACKSTONE,
-            Blocks.POLISHED_BLACKSTONE_BRICKS,
-            Blocks.CRACKED_POLISHED_BLACKSTONE_BRICKS,
-            Blocks.CHISELED_POLISHED_BLACKSTONE,
-            Blocks.GOLD_BLOCK,
-            Blocks.MAGMA_BLOCK,
-            Blocks.QUARTZ_BLOCK,
-            Blocks.SMOOTH_QUARTZ,
-
-            // nether fortress
-            Blocks.NETHER_BRICKS,
-            Blocks.NETHER_BRICK_FENCE,
-            Blocks.NETHER_BRICK_STAIRS,
-            Blocks.NETHER_WART,
-
-            // crimson fungus
-            Blocks.CRIMSON_STEM,
-            Blocks.NETHER_WART_BLOCK,
-            Blocks.SHROOMLIGHT,
-            Blocks.WEEPING_VINES,
-
-            // warped fungus
-            Blocks.WARPED_STEM,
-            Blocks.WARPED_WART_BLOCK,
-            Blocks.SHROOMLIGHT
-    ).distinct().map(block -> block.getLootTable().orElseThrow().identifier()).toList();
-
     // store all nether obtainable things in here
-    private static final List<Identifier> ALL_NETHER = new ArrayList<>();
+    private static final List<Identifier> ALL_NETHER;
+    private static final List<Identifier> NETHER_LOOT;
+    private static final List<Identifier> NETHER_BLOCKS;
 
-    private static final List<Identifier> NETHER_LOOT = Stream.of(
-            // chests
-            BuiltInLootTables.BASTION_BRIDGE,
-            BuiltInLootTables.BASTION_OTHER,
-            BuiltInLootTables.BASTION_HOGLIN_STABLE,
-            BuiltInLootTables.BASTION_TREASURE,
-            BuiltInLootTables.NETHER_BRIDGE,
-            BuiltInLootTables.PIGLIN_BARTERING,
+    static {
+        OVERWORLD_LOOT = initOverworldLoot();
+        OVERWORLD_BLOCKS = initOverworldBlocks();
+        ALL_OVERWORLD = Stream.concat(OVERWORLD_LOOT.stream(), OVERWORLD_BLOCKS.stream()).toList();
 
-            // mobs
-            EntityTypes.BLAZE.getDefaultLootTable().orElseThrow(),
-            EntityTypes.PIGLIN.getDefaultLootTable().orElseThrow(),
-            EntityTypes.PIGLIN_BRUTE.getDefaultLootTable().orElseThrow(),
-            EntityTypes.ZOGLIN.getDefaultLootTable().orElseThrow(),
-            EntityTypes.HOGLIN.getDefaultLootTable().orElseThrow(),
-            EntityTypes.GHAST.getDefaultLootTable().orElseThrow(),
-            EntityTypes.WITHER_SKELETON.getDefaultLootTable().orElseThrow(),
-            EntityTypes.MAGMA_CUBE.getDefaultLootTable().orElseThrow()
-    ).map(ResourceKey::identifier).toList();
+        NETHER_LOOT = initNetherLoot();
+        NETHER_BLOCKS = initNetherBlocks();
+        ALL_NETHER = Stream.concat(NETHER_LOOT.stream(), NETHER_BLOCKS.stream())
+                .filter(ALL_OVERWORLD::contains)
+                .toList();
+
+        RESULT_MAP.defaultReturnValue(Collections.emptySet());
+        INGREDIENT_MAP.defaultReturnValue(Int2ObjectMaps.emptyMap());
+    }
+
+    private static List<Identifier> initOverworldBlocks() {
+        List<Identifier> list = new ArrayList<>();
+
+        // surface
+        addBlockDrop(list, Blocks.GRASS_BLOCK);
+        addBlockDrop(list, Blocks.DIRT);
+        addBlockDrop(list, Blocks.COARSE_DIRT);
+        addBlockDrop(list, Blocks.PODZOL);
+        addBlockDrop(list, Blocks.MUD);
+
+        // underground
+        addBlockDrop(list, Blocks.STONE);
+        addBlockDrop(list, Blocks.ANDESITE);
+        addBlockDrop(list, Blocks.GRANITE);
+        addBlockDrop(list, Blocks.DIORITE);
+        addBlockDrop(list, Blocks.AMETHYST_BLOCK);
+        addBlockDrop(list, Blocks.LARGE_AMETHYST_BUD);
+        addBlockDrop(list, Blocks.MEDIUM_AMETHYST_BUD);
+        addBlockDrop(list, Blocks.SMALL_AMETHYST_BUD);
+        addBlockDrop(list, Blocks.OBSIDIAN);
+        addBlockDrop(list, Blocks.COBBLESTONE);
+        addBlockDrop(list, Blocks.POINTED_DRIPSTONE);
+        addBlockDrop(list, Blocks.DRIPSTONE_BLOCK);
+        addBlockDrop(list, Blocks.DEEPSLATE);
+        addBlockDrop(list, Blocks.CHEST);
+
+        // ancient city
+        addBlockDrop(list, Blocks.CHISELED_DEEPSLATE);
+        addBlockDrop(list, Blocks.COBBLED_DEEPSLATE);
+        addBlockDrop(list, Blocks.DEEPSLATE_BRICK_STAIRS);
+        addBlockDrop(list, Blocks.DEEPSLATE_BRICK_SLAB);
+        addBlockDrop(list, Blocks.DEEPSLATE_BRICKS);
+        addBlockDrop(list, Blocks.DEEPSLATE_TILES);
+        addBlockDrop(list, Blocks.DEEPSLATE_TILE_STAIRS);
+        addBlockDrop(list, Blocks.POLISHED_BASALT);
+        addBlockDrop(list, Blocks.POLISHED_DEEPSLATE);
+        addBlockDrop(list, Blocks.POLISHED_DEEPSLATE_WALL);
+        addBlockDrop(list, Blocks.SMOOTH_BASALT);
+        addBlockDrop(list, Blocks.CANDLE);
+        addBlockDrop(list, Blocks.PACKED_ICE);
+        addBlockDrop(list, Blocks.REDSTONE_WIRE);
+        addSomeColoredBlocks(list, Blocks.DYED_CANDLE, DyeColor.WHITE);
+        addSomeColoredBlocks(list, Blocks.CARPET, DyeColor.GRAY);
+        addSomeColoredBlocks(list, Blocks.WOOL,
+                DyeColor.GRAY, DyeColor.BLUE, DyeColor.LIGHT_BLUE, DyeColor.CYAN);
+
+        // villages
+        addBlockDrop(list, Blocks.BRICKS);
+        addBlockDrop(list, Blocks.COBBLESTONE_SLAB);
+        addBlockDrop(list, Blocks.COBBLESTONE_STAIRS);
+        addBlockDrop(list, Blocks.COBBLESTONE_WALL);
+        addBlockDrop(list, Blocks.DIRT_PATH);
+        addBlockDrop(list, Blocks.FARMLAND);
+        addBlockDrop(list, Blocks.OAK_PLANKS);
+        addBlockDrop(list, Blocks.OAK_SLAB);
+        addBlockDrop(list, Blocks.OAK_STAIRS);
+        addBlockDrop(list, Blocks.ACACIA_PLANKS);
+        addBlockDrop(list, Blocks.ACACIA_SLAB);
+        addBlockDrop(list, Blocks.ACACIA_STAIRS);
+        addBlockDrop(list, Blocks.SPRUCE_PLANKS);
+        addBlockDrop(list, Blocks.SPRUCE_SLAB);
+        addBlockDrop(list, Blocks.SPRUCE_STAIRS);
+        addBlockDrop(list, Blocks.SMOOTH_SANDSTONE);
+        addBlockDrop(list, Blocks.SMOOTH_SANDSTONE_SLAB);
+        addBlockDrop(list, Blocks.SMOOTH_SANDSTONE_STAIRS);
+        addBlockDrop(list, Blocks.SANDSTONE);
+        addBlockDrop(list, Blocks.SANDSTONE_SLAB);
+        addBlockDrop(list, Blocks.SANDSTONE_STAIRS);
+        addBlockDrop(list, Blocks.WHEAT);
+        addBlockDrop(list, Blocks.POTATOES);
+        addBlockDrop(list, Blocks.CARROTS);
+        addBlockDrop(list, Blocks.BEETROOTS);
+
+        // stronghold
+        addBlockDrop(list, Blocks.STONE_BRICKS);
+        addBlockDrop(list, Blocks.MOSSY_STONE_BRICKS);
+        addBlockDrop(list, Blocks.CRACKED_STONE_BRICKS);
+        addBlockDrop(list, Blocks.STONE_BRICK_STAIRS);
+        addBlockDrop(list, Blocks.STONE_BRICK_SLAB);
+        addBlockDrop(list, Blocks.SMOOTH_STONE_SLAB);
+        addBlockDrop(list, Blocks.IRON_BARS);
+        addBlockDrop(list, Blocks.IRON_DOOR);
+        addBlockDrop(list, Blocks.STONE_BUTTON);
+        addBlockDrop(list, Blocks.OAK_DOOR);
+        addBlockDrop(list, Blocks.BOOKSHELF);
+
+        // mineshaft
+        addBlockDrop(list, Blocks.OAK_FENCE);
+        addBlockDrop(list, Blocks.DARK_OAK_PLANKS);
+        addBlockDrop(list, Blocks.DARK_OAK_FENCE);
+        addBlockDrop(list, Blocks.RAIL);
+        addBlockDrop(list, Blocks.COBWEB);
+
+        // trial ruins
+        addBlockDrop(list, Blocks.MUD_BRICKS);
+        addBlockDrop(list, Blocks.MUD_BRICK_STAIRS);
+        addBlockDrop(list, Blocks.BRICK_SLAB);
+        addSomeColoredBlocks(list, Blocks.DYED_TERRACOTTA,
+                DyeColor.BLUE, DyeColor.YELLOW, DyeColor.RED, DyeColor.CYAN);
+
+        // shipwreck
+        addBlockDrop(list, Blocks.BIRCH_FENCE);
+        addBlockDrop(list, Blocks.BIRCH_PLANKS);
+        addBlockDrop(list, Blocks.BIRCH_SLAB);
+        addBlockDrop(list, Blocks.BIRCH_STAIRS);
+        addBlockDrop(list, Blocks.DARK_OAK_DOOR);
+        addBlockDrop(list, Blocks.DARK_OAK_FENCE);
+        addBlockDrop(list, Blocks.DARK_OAK_LOG);
+        addBlockDrop(list, Blocks.DARK_OAK_PLANKS);
+        addBlockDrop(list, Blocks.DARK_OAK_SLAB);
+        addBlockDrop(list, Blocks.DARK_OAK_STAIRS);
+        addBlockDrop(list, Blocks.JUNGLE_DOOR);
+        addBlockDrop(list, Blocks.JUNGLE_FENCE);
+        addBlockDrop(list, Blocks.JUNGLE_LOG);
+        addBlockDrop(list, Blocks.JUNGLE_PLANKS);
+        addBlockDrop(list, Blocks.JUNGLE_SLAB);
+        addBlockDrop(list, Blocks.JUNGLE_STAIRS);
+        addBlockDrop(list, Blocks.OAK_DOOR);
+        addBlockDrop(list, Blocks.OAK_FENCE);
+        addBlockDrop(list, Blocks.OAK_LOG);
+        addBlockDrop(list, Blocks.OAK_PLANKS);
+        addBlockDrop(list, Blocks.OAK_SLAB);
+        addBlockDrop(list, Blocks.OAK_STAIRS);
+        addBlockDrop(list, Blocks.SPRUCE_DOOR);
+        addBlockDrop(list, Blocks.SPRUCE_FENCE);
+        addBlockDrop(list, Blocks.SPRUCE_LOG);
+        addBlockDrop(list, Blocks.SPRUCE_PLANKS);
+        addBlockDrop(list, Blocks.SPRUCE_SLAB);
+        addBlockDrop(list, Blocks.SPRUCE_STAIRS);
+
+        // wood
+        addBlockDrop(list, Blocks.ACACIA_LOG);
+        addBlockDrop(list, Blocks.BIRCH_LOG);
+        addBlockDrop(list, Blocks.CHERRY_LOG);
+        addBlockDrop(list, Blocks.OAK_LOG);
+        addBlockDrop(list, Blocks.DARK_OAK_LOG);
+        addBlockDrop(list, Blocks.SPRUCE_LOG);
+
+        // raw ores
+        addBlockDrop(list, Blocks.IRON_ORE);
+        addBlockDrop(list, Blocks.GOLD_ORE);
+        addBlockDrop(list, Blocks.COPPER_ORE);
+        addBlockDrop(list, Blocks.COAL_ORE);
+        addBlockDrop(list, Blocks.DIAMOND_ORE);
+        addBlockDrop(list, Blocks.DEEPSLATE_IRON_ORE);
+        addBlockDrop(list, Blocks.DEEPSLATE_GOLD_ORE);
+        addBlockDrop(list, Blocks.DEEPSLATE_COPPER_ORE);
+        addBlockDrop(list, Blocks.DEEPSLATE_COAL_ORE);
+        addBlockDrop(list, Blocks.DEEPSLATE_DIAMOND_ORE);
+
+        // flowers
+        addBlockDrop(list, Blocks.CORNFLOWER);
+        addBlockDrop(list, Blocks.SUNFLOWER);
+        addBlockDrop(list, Blocks.DANDELION);
+        addBlockDrop(list, Blocks.ORANGE_TULIP);
+        addBlockDrop(list, Blocks.PINK_TULIP);
+        addBlockDrop(list, Blocks.RED_TULIP);
+        addBlockDrop(list, Blocks.WHITE_TULIP);
+        addBlockDrop(list, Blocks.ROSE_BUSH);
+        addBlockDrop(list, Blocks.SMALL_DRIPLEAF);
+        addBlockDrop(list, Blocks.BIG_DRIPLEAF);
+
+        return Collections.unmodifiableList(list);
+    }
+
+    private static List<Identifier> initOverworldLoot() {
+
+        List<Identifier> list = new ArrayList<>();
+
+        // chests
+        addResourceKey(list, BuiltInLootTables.BURIED_TREASURE);
+        addResourceKey(list, BuiltInLootTables.ABANDONED_MINESHAFT);
+        addResourceKey(list, BuiltInLootTables.SIMPLE_DUNGEON);
+        addResourceKey(list, BuiltInLootTables.DESERT_PYRAMID);
+        addResourceKey(list, BuiltInLootTables.ANCIENT_CITY);
+        addResourceKey(list, BuiltInLootTables.ANCIENT_CITY_ICE_BOX);
+        addResourceKey(list, BuiltInLootTables.STRONGHOLD_CORRIDOR);
+        addResourceKey(list, BuiltInLootTables.STRONGHOLD_CROSSING);
+        addResourceKey(list, BuiltInLootTables.STRONGHOLD_LIBRARY);
+        addResourceKey(list, BuiltInLootTables.SHIPWRECK_TREASURE);
+        addResourceKey(list, BuiltInLootTables.SHIPWRECK_MAP);
+        addResourceKey(list, BuiltInLootTables.SHIPWRECK_SUPPLY);
+        addResourceKey(list, BuiltInLootTables.CAT_MORNING_GIFT);
+        addResourceKey(list, BuiltInLootTables.VILLAGE_WEAPONSMITH);
+        addResourceKey(list, BuiltInLootTables.VILLAGE_TOOLSMITH);
+        addResourceKey(list, BuiltInLootTables.VILLAGE_ARMORER);
+        addResourceKey(list, BuiltInLootTables.VILLAGE_CARTOGRAPHER);
+        addResourceKey(list, BuiltInLootTables.VILLAGE_MASON);
+        addResourceKey(list, BuiltInLootTables.VILLAGE_SHEPHERD);
+        addResourceKey(list, BuiltInLootTables.VILLAGE_BUTCHER);
+        addResourceKey(list, BuiltInLootTables.VILLAGE_FLETCHER);
+        addResourceKey(list, BuiltInLootTables.VILLAGE_FISHER);
+        addResourceKey(list, BuiltInLootTables.VILLAGE_TANNERY);
+        addResourceKey(list, BuiltInLootTables.VILLAGE_TEMPLE);
+        addResourceKey(list, BuiltInLootTables.VILLAGE_DESERT_HOUSE);
+        addResourceKey(list, BuiltInLootTables.VILLAGE_PLAINS_HOUSE);
+        addResourceKey(list, BuiltInLootTables.VILLAGE_TAIGA_HOUSE);
+        addResourceKey(list, BuiltInLootTables.VILLAGE_SNOWY_HOUSE);
+        addResourceKey(list, BuiltInLootTables.RUINED_PORTAL);
+        addResourceKey(list, BuiltInLootTables.TRIAL_CHAMBERS_REWARD);
+        addResourceKey(list, BuiltInLootTables.TRIAL_CHAMBERS_REWARD_COMMON);
+        addResourceKey(list, BuiltInLootTables.TRIAL_CHAMBERS_REWARD_RARE);
+        addResourceKey(list, BuiltInLootTables.TRIAL_CHAMBERS_REWARD_UNIQUE);
+        addResourceKey(list, BuiltInLootTables.TRIAL_CHAMBERS_REWARD_OMINOUS);
+        addResourceKey(list, BuiltInLootTables.TRIAL_CHAMBERS_REWARD_OMINOUS_COMMON);
+        addResourceKey(list, BuiltInLootTables.TRIAL_CHAMBERS_REWARD_OMINOUS_RARE);
+        addResourceKey(list, BuiltInLootTables.TRIAL_CHAMBERS_REWARD_OMINOUS_UNIQUE);
+        addResourceKey(list, BuiltInLootTables.TRIAL_CHAMBERS_SUPPLY);
+        addResourceKey(list, BuiltInLootTables.TRIAL_CHAMBERS_CORRIDOR);
+        addResourceKey(list, BuiltInLootTables.TRIAL_CHAMBERS_INTERSECTION);
+        addResourceKey(list, BuiltInLootTables.TRIAL_CHAMBERS_INTERSECTION_BARREL);
+        addResourceKey(list, BuiltInLootTables.TRIAL_CHAMBERS_ENTRANCE);
+        addResourceKey(list, BuiltInLootTables.TRIAL_CHAMBERS_CORRIDOR_DISPENSER);
+        addResourceKey(list, BuiltInLootTables.TRIAL_CHAMBERS_CHAMBER_DISPENSER);
+        addResourceKey(list, BuiltInLootTables.TRIAL_CHAMBERS_WATER_DISPENSER);
+        addResourceKey(list, BuiltInLootTables.TRIAL_CHAMBERS_CORRIDOR_POT);
+        addResourceKey(list, BuiltInLootTables.EQUIPMENT_TRIAL_CHAMBER);
+        addResourceKey(list, BuiltInLootTables.EQUIPMENT_TRIAL_CHAMBER_RANGED);
+        addResourceKey(list, BuiltInLootTables.EQUIPMENT_TRIAL_CHAMBER_MELEE);
+        addResourceKey(list, BuiltInLootTables.TRAIL_RUINS_ARCHAEOLOGY_COMMON);
+        addResourceKey(list, BuiltInLootTables.TRAIL_RUINS_ARCHAEOLOGY_RARE);
+        addResourceKey(list, BuiltInLootTables.DESERT_PYRAMID_ARCHAEOLOGY);
+        addResourceKey(list, BuiltInLootTables.DESERT_WELL_ARCHAEOLOGY);
+        addResourceKey(list, BuiltInLootTables.OCEAN_RUIN_COLD_ARCHAEOLOGY);
+        addResourceKey(list, BuiltInLootTables.OCEAN_RUIN_WARM_ARCHAEOLOGY);
+
+        // sheep
+        addAllColors(list, BuiltInLootTables.SHEAR_DYED_SHEEP);
+
+        // mobs
+        addMobDrop(list, EntityTypes.COW);
+        addMobDrop(list, EntityTypes.COD);
+        addMobDrop(list, EntityTypes.RABBIT);
+        addMobDrop(list, EntityTypes.TROPICAL_FISH);
+        addMobDrop(list, EntityTypes.PUFFERFISH);
+        addMobDrop(list, EntityTypes.SILVERFISH);
+        addMobDrop(list, EntityTypes.ILLUSIONER);
+        addMobDrop(list, EntityTypes.PIG);
+        addMobDrop(list, EntityTypes.PILLAGER);
+        addMobDrop(list, EntityTypes.ILLUSIONER);
+        addMobDrop(list, EntityTypes.ZOMBIE);
+        addMobDrop(list, EntityTypes.CREEPER);
+        addMobDrop(list, EntityTypes.SPIDER);
+        addMobDrop(list, EntityTypes.SKELETON);
+        addMobDrop(list, EntityTypes.WITCH);
+        addMobDrop(list, EntityTypes.BREEZE);
+        addMobDrop(list, EntityTypes.ARMADILLO);
+
+        return Collections.unmodifiableList(list);
+    }
+
+    private static List<Identifier> initNetherBlocks() {
+        List<Identifier> list = new ArrayList<>();
+        // nether wastes
+        addBlockDrop(list, Blocks.NETHERRACK);
+        addBlockDrop(list, Blocks.SOUL_SAND);
+        addBlockDrop(list, Blocks.GLOWSTONE);
+        addBlockDrop(list, Blocks.MAGMA_BLOCK);
+        addBlockDrop(list, Blocks.GRAVEL);
+
+        // soul sand valley
+        addBlockDrop(list, Blocks.SOUL_SAND);
+        addBlockDrop(list, Blocks.BASALT);
+        addBlockDrop(list, Blocks.SOUL_SOIL);
+        addBlockDrop(list, Blocks.BONE_BLOCK);
+
+        // ores
+        addBlockDrop(list, Blocks.NETHER_QUARTZ_ORE);
+        addBlockDrop(list, Blocks.NETHER_GOLD_ORE);
+        addBlockDrop(list, Blocks.ANCIENT_DEBRIS);
+
+        // bastion
+        addBlockDrop(list, Blocks.BASALT);
+        addBlockDrop(list, Blocks.POLISHED_BASALT);
+        addBlockDrop(list, Blocks.BLACKSTONE);
+        addBlockDrop(list, Blocks.GILDED_BLACKSTONE);
+        addBlockDrop(list, Blocks.POLISHED_BLACKSTONE_BRICKS);
+        addBlockDrop(list, Blocks.CRACKED_POLISHED_BLACKSTONE_BRICKS);
+        addBlockDrop(list, Blocks.CHISELED_POLISHED_BLACKSTONE);
+        addBlockDrop(list, Blocks.GOLD_BLOCK);
+        addBlockDrop(list, Blocks.MAGMA_BLOCK);
+        addBlockDrop(list, Blocks.QUARTZ_BLOCK);
+        addBlockDrop(list, Blocks.SMOOTH_QUARTZ);
+
+        // nether fortress
+        addBlockDrop(list, Blocks.NETHER_BRICKS);
+        addBlockDrop(list, Blocks.NETHER_BRICK_FENCE);
+        addBlockDrop(list, Blocks.NETHER_BRICK_STAIRS);
+        addBlockDrop(list, Blocks.NETHER_WART);
+
+        // crimson fungus
+        addBlockDrop(list, Blocks.CRIMSON_STEM);
+        addBlockDrop(list, Blocks.NETHER_WART_BLOCK);
+        addBlockDrop(list, Blocks.SHROOMLIGHT);
+        addBlockDrop(list, Blocks.WEEPING_VINES);
+
+        // warped fungus
+        addBlockDrop(list, Blocks.WARPED_STEM);
+        addBlockDrop(list, Blocks.WARPED_WART_BLOCK);
+        addBlockDrop(list, Blocks.SHROOMLIGHT);
+
+        return Collections.unmodifiableList(list);
+    }
+
+    private static List<Identifier> initNetherLoot() {
+        List<Identifier> list = new ArrayList<>();
+
+        // chests
+        addResourceKey(list, BuiltInLootTables.BASTION_BRIDGE);
+        addResourceKey(list, BuiltInLootTables.BASTION_OTHER);
+        addResourceKey(list, BuiltInLootTables.BASTION_HOGLIN_STABLE);
+        addResourceKey(list, BuiltInLootTables.BASTION_TREASURE);
+        addResourceKey(list, BuiltInLootTables.NETHER_BRIDGE);
+        addResourceKey(list, BuiltInLootTables.PIGLIN_BARTERING);
+
+        // mobs
+        addMobDrop(list, EntityTypes.BLAZE);
+        addMobDrop(list, EntityTypes.PIGLIN);
+        addMobDrop(list, EntityTypes.PIGLIN_BRUTE);
+        addMobDrop(list, EntityTypes.ZOGLIN);
+        addMobDrop(list, EntityTypes.HOGLIN);
+        addMobDrop(list, EntityTypes.GHAST);
+        addMobDrop(list, EntityTypes.WITHER_SKELETON);
+        addMobDrop(list, EntityTypes.MAGMA_CUBE);
+
+        return Collections.unmodifiableList(list);
+    }
+
+    private static void addBlockDrop(List<Identifier> list, Block block) {
+        block.getLootTable().ifPresent(key -> addResourceKey(list, key));
+    }
+
+    private static void addAllColoredBlocks(List<Identifier> list, ColorCollection<Block> blocks) {
+        blocks.forEach(block -> addBlockDrop(list, block));
+    }
+
+    private static void addSomeColoredBlocks(List<Identifier> list, ColorCollection<Block> blocks, DyeColor... colors) {
+        for (DyeColor color : colors) {
+            addBlockDrop(list, blocks.pick(color));
+        }
+    }
+
+    private static <T> void addResourceKey(List<Identifier> list, ResourceKey<T> key) {
+        list.add(key.identifier());
+    }
+
+    private static <T extends Entity> void addMobDrop(List<Identifier> list, EntityType<T> type) {
+        type.getDefaultLootTable().ifPresent(key -> addResourceKey(list, key));
+    }
+
+    private static <T> void addAllColors(List<Identifier> list, ColorCollection<ResourceKey<T>> colors) {
+        colors.forEach(o -> addResourceKey(list, o));
+    }
+
+    private static <T> void addSomeColors(List<Identifier> list, ColorCollection<ResourceKey<T>> collection, DyeColor... colors) {
+        for (DyeColor color : colors) {
+            addResourceKey(list, collection.pick(color));
+        }
+    }
 
     static void init(MinecraftServer server) {
         ITEM_REGISTRY = server.registryAccess().lookupOrThrow(Registries.ITEM);
-        RESULT_MAP.defaultReturnValue(Collections.emptySet());
-        INGREDIENT_MAP.defaultReturnValue(Int2ObjectMaps.emptyMap());
 
         data = VerifierSaveData.get(server.overworld().getDataStorage());
 
@@ -437,15 +487,6 @@ public class CompletabilityVerifier {
 
         // todo add villager trades
         // todo ensure emerald is craftable
-
-        ALL_OVERWORLD.clear();
-        ALL_OVERWORLD.addAll(OVERWORLD_BLOCKS);
-        ALL_OVERWORLD.addAll(OVERWORLD_LOOT);
-
-        ALL_NETHER.clear();
-        ALL_NETHER.addAll(NETHER_BLOCKS);
-        ALL_NETHER.addAll(NETHER_LOOT);
-        ALL_NETHER.removeIf(ALL_OVERWORLD::contains);
 
         if (false && data.fromDisk) {
             LOGGER.info("Loading saved completability data!");
