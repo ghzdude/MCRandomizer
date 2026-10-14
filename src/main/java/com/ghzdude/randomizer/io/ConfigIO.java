@@ -2,7 +2,11 @@ package com.ghzdude.randomizer.io;
 
 import com.ghzdude.randomizer.RandomizerCore;
 import com.google.gson.*;
+import com.mojang.datafixers.util.Pair;
 import com.mojang.logging.LogUtils;
+import com.mojang.serialization.Codec;
+import com.mojang.serialization.DataResult;
+import com.mojang.serialization.JsonOps;
 import it.unimi.dsi.fastutil.objects.Object2IntArrayMap;
 import it.unimi.dsi.fastutil.objects.Object2IntMap;
 import net.minecraft.core.Registry;
@@ -44,13 +48,10 @@ public class ConfigIO {
     }
 
     private static void tryWriteJson(JsonElement toWrite, File file) {
-        try {
+        try (Writer writer = Files.newBufferedWriter(file.toPath())) {
             if (file.canWrite() || file.createNewFile()) {
-                Writer writer = Files.newBufferedWriter(file.toPath());
                 GSON.toJson(toWrite, writer);
-                writer.close();
             }
-
         } catch (IOException | NullPointerException e) {
             LOGGER.warn("Failure to write JSON at {}", file);
         }
@@ -124,5 +125,86 @@ public class ConfigIO {
 
     private static void readFail(File file) {
         LOGGER.warn("Failure to read JSON at '{}'! Overwriting with defaults!", file.getAbsolutePath());
+    }
+
+    public static <T> Helper<T> ofList(Codec<T> codec) {
+        return new Helper<>(codec);
+    }
+
+    public static class Helper<T> {
+
+        private final Codec<T> codec;
+        private Path filePath;
+        private T defaults;
+        private DataResult<T> result;
+
+        private Helper(Codec<T> codec) {
+            this.codec = codec;
+        }
+
+        public Helper<T> config(String file) {
+            filePath = createFileName(file, CONFIG_DIR);
+            return this;
+        }
+
+        public Helper<T> values(String file) {
+            filePath = createFileName(file, VALUE_DIR);
+            return this;
+        }
+
+        private Path createFileName(String file, Path dir) {
+            if (Files.exists(dir) || dir.toFile().mkdirs()) {
+                file = file.toLowerCase(Locale.ROOT).replace(" ", "");
+                return dir.resolve(JSON_FILE.formatted(file));
+            }
+            throw new IllegalStateException("Failed to make file for \"%s\" in \"%s\"".formatted(file, dir));
+        }
+
+        public Helper<T> defaults(T defaults) {
+            this.defaults = defaults;
+            return this;
+        }
+
+        // TODO fix validation somehow
+//        public <R> Helper<T> validate(Function<T, Stream<ResourceKey<R>>> toKeys,
+//                                      Function<Collection<ResourceKey<R>>, T> toResult,
+//                                      Registry<R> registry) {
+//            this.result.ifError(err -> LOGGER.info("All element(s) invalid! {}", err))
+//                    .map(toKeys)
+//                    .flatMap(keys -> {
+//                        List<ResourceKey<R>> validKeys = keys.filter(key -> {
+//                            if (registry.containsKey(key)) {
+//                                return true;
+//                            }
+//                            LOGGER.warn("Value \"{}\" does not exist in {} or is invalid!", key.identifier(), registry.key());
+//                            return false;
+//                        }).toList();
+//                        if (validKeys.isEmpty()) return DataResult.error(() -> "All element(s) invalid!");
+//                        return DataResult.success(toResult.apply(validKeys));
+//                    });
+//            return this;
+//        }
+
+        public DataResult<T> read() {
+            File pathFile = filePath.toFile();
+            try {
+                if (shouldWriteDefaults(pathFile)) {
+                    this.codec.encodeStart(JsonOps.INSTANCE, defaults)
+                            .ifError(err -> LOGGER.error("Failed to write default values!: {}", err))
+                            .ifSuccess(result -> tryWriteJson(result, pathFile));
+                    return DataResult.success(defaults);
+                } else {
+                    JsonElement object = JsonParser.parseString(Files.readString(filePath));
+                    return this.codec.decode(JsonOps.INSTANCE, object).map(Pair::getFirst);
+                }
+            } catch (IOException e) {
+                readFail(pathFile);
+                return DataResult.error(() -> "Failed to read: " + e);
+            }
+        }
+
+        private static boolean shouldWriteDefaults(File pathFile) {
+            return !pathFile.exists() && (pathFile.getParentFile().exists() || pathFile.getParentFile().mkdirs());
+        }
     }
 }

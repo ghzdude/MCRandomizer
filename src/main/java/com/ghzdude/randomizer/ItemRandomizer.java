@@ -9,15 +9,16 @@ import com.mojang.datafixers.util.Pair;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.DataResult;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
-import it.unimi.dsi.fastutil.objects.Object2IntMap;
-import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 import net.minecraft.core.Holder;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtOps;
 import net.minecraft.network.chat.Component;
+import net.minecraft.references.BlockItemIds;
+import net.minecraft.references.ItemIds;
 import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Inventory;
@@ -25,7 +26,6 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.flag.FeatureFlagSet;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.fml.loading.FMLLoader;
 
@@ -42,10 +42,10 @@ import java.util.stream.Stream;
  * items have a defined value, otherwise stacksize is used
  */
 public class ItemRandomizer {
-    private static final Object2IntMap<Identifier> VALID_ITEMS = new Object2IntOpenHashMap<>();
+    private static final List<SpecialItems.ValueItem> VALID_ITEMS = new ArrayList<>();
     private static final List<Identifier> ITEM_LIST = new ArrayList<>();
-    private static final Object2IntMap<Identifier> SIMPLE_ITEMS = new Object2IntOpenHashMap<>();
-    private static final List<Identifier> BLACKLISTED_ITEMS = new ArrayList<>();
+    private static final List<SpecialItems.ValueItem> SIMPLE_ITEMS = new ArrayList<>();
+    private static final Set<ResourceKey<Item>> BLACKLISTED_ITEMS = new HashSet<>();
     public static final String DATA_KEY = "randomizer";
 
     private static RandomizationMapData INSTANCE;
@@ -61,58 +61,65 @@ public class ItemRandomizer {
 
         REGISTRY = server.registryAccess().lookupOrThrow(Registries.ITEM);
         ENABLED = server.getWorldData().enabledFeatures();
-        SpecialItems.init(REGISTRY::getKey);
+        SpecialItems.init();
 
-        BLACKLISTED_ITEMS.addAll(ConfigIO.read("blacklisted_items", Stream.of(
-                        Items.COMMAND_BLOCK,
-                        Items.COMMAND_BLOCK_MINECART,
-                        Items.CHAIN_COMMAND_BLOCK,
-                        Items.REPEATING_COMMAND_BLOCK,
-                        Items.BARRIER,
-                        Items.LIGHT,
-                        Items.STRUCTURE_BLOCK,
-                        Items.STRUCTURE_VOID,
-                        Items.KNOWLEDGE_BOOK,
-                        Items.JIGSAW,
-                        Items.TEST_BLOCK,
-                        Items.TEST_INSTANCE_BLOCK,
-                        Items.DEBUG_STICK)
-                .map(REGISTRY::getKey)
-                .filter(Objects::nonNull)
-                .toList(), REGISTRY));
+        ConfigIO.ofList(ResourceKey.codec(Registries.ITEM).listOf())
+                .config("blacklisted_items")
+                .defaults(List.of(
+                        BlockItemIds.COMMAND_BLOCK.item(),
+                        ItemIds.COMMAND_BLOCK_MINECART,
+                        BlockItemIds.CHAIN_COMMAND_BLOCK.item(),
+                        BlockItemIds.REPEATING_COMMAND_BLOCK.item(),
+                        BlockItemIds.BARRIER.item(),
+                        BlockItemIds.LIGHT.item(),
+                        BlockItemIds.STRUCTURE_BLOCK.item(),
+                        BlockItemIds.STRUCTURE_VOID.item(),
+                        ItemIds.KNOWLEDGE_BOOK,
+                        BlockItemIds.JIGSAW.item(),
+                        BlockItemIds.TEST_BLOCK.item(),
+                        BlockItemIds.TEST_INSTANCE_BLOCK.item(),
+                        ItemIds.DEBUG_STICK
+                ))
+                .read()
+                .ifSuccess(BLACKLISTED_ITEMS::addAll);
 
         // hard code air blacklist
-        BLACKLISTED_ITEMS.add(REGISTRY.getKey(Items.AIR));
+        BLACKLISTED_ITEMS.add(BlockItemIds.AIR.item());
 
-        ConfigIO.readValues("items", SpecialItems.CONFIGURED_ITEMS, REGISTRY)
-                .object2IntEntrySet().forEach(ItemRandomizer::putValidItem);
+        ConfigIO.ofList(SpecialItems.ValueItem.CODEC.listOf())
+                .values("items")
+                .defaults(SpecialItems.CONFIGURED_ITEMS)
+                .read()
+                .ifSuccess(list -> list.forEach(ItemRandomizer::putValidItem));
 
-        for (Identifier loc : REGISTRY.keySet()) {
+        for (ResourceKey<Item> loc : REGISTRY.registryKeySet()) {
             putValidItem(loc, 1);
         }
 
-        for (Identifier loc : VALID_ITEMS.keySet()) {
-            REGISTRY.get(loc).map(ItemStack::new)
-                    .filter(stack -> !EnchantmentGenerator.canEnchant(stack) && !PotionGenerator.canHaveEffect(stack))
-                    .map(ItemStack::getItem)
-                    .ifPresent(stack -> SIMPLE_ITEMS.put(loc, VALID_ITEMS.getInt(stack)));
-        }
-        ITEM_LIST.addAll(VALID_ITEMS.keySet());
+        VALID_ITEMS.stream()
+                .filter(item -> {
+                    ItemStack stack = item.get(REGISTRY).map(ItemStack::new).orElse(ItemStack.EMPTY);
+                    return !EnchantmentGenerator.canEnchant(stack) && !PotionGenerator.canHaveEffect(stack);
+                })
+                .forEach(SIMPLE_ITEMS::add);
+
+        VALID_ITEMS.stream()
+                .map(SpecialItems.ValueItem::item)
+                .map(ResourceKey::identifier)
+                .forEach(ITEM_LIST::add);
 
         INSTANCE = RandomizationMapData.get(server, "item");
     }
 
-    private static void putValidItem(Map.Entry<Identifier, Integer> entry) {
-        if (entry instanceof Object2IntMap.Entry<Identifier> intEntry)
-            putValidItem(entry.getKey(), intEntry.getIntValue());
-        else putValidItem(entry.getKey(), entry.getValue());
+    private static void putValidItem(ResourceKey<Item> loc, int i) {
+        putValidItem(new SpecialItems.ValueItem(loc, i));
     }
 
-    private static void putValidItem(Identifier loc, int value) {
-        var item = RandomizerUtil.getOrThrow(REGISTRY, loc);
-        if (isBlacklisted(item) || VALID_ITEMS.containsKey(loc) || ENABLED == null || !item.isEnabled(ENABLED))
+    private static void putValidItem(SpecialItems.ValueItem entry) {
+        boolean enabled = REGISTRY.get(entry.item()).map(item -> item.value().isEnabled(ENABLED)).orElse(false);
+        if (isBlacklisted(entry.item()) || VALID_ITEMS.contains(entry) || ENABLED == null || !enabled)
             return;
-        VALID_ITEMS.put(loc, value);
+        VALID_ITEMS.add(entry);
     }
 
     public static int giveRandomItem(int pointsToUse, Inventory inventory) {
@@ -127,7 +134,12 @@ public class ItemRandomizer {
     }
 
     public static int getPointValue(Identifier item) {
-        return VALID_ITEMS.getInt(item);
+        for (var validItem : VALID_ITEMS) {
+            if (validItem.is(item)) {
+                return validItem.value();
+            }
+        }
+        return 0;
     }
 
     public static Item getRandomItem(Random rng, int points) {
@@ -167,10 +179,14 @@ public class ItemRandomizer {
     }
 
     public static boolean isBlacklisted(Item item) {
-        return isBlacklisted(REGISTRY.getKey(item));
+        return isBlacklisted(REGISTRY.getResourceKey(item).orElseThrow());
     }
 
-    public static boolean isBlacklisted(Identifier item) {
+    public static boolean isBlacklisted(Identifier loc) {
+        return BLACKLISTED_ITEMS.stream().anyMatch(key -> key.identifier().equals(loc));
+    }
+
+    public static boolean isBlacklisted(ResourceKey<Item> item) {
         return BLACKLISTED_ITEMS.contains(item);
     }
 

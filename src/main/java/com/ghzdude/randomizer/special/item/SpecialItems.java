@@ -1,191 +1,229 @@
 package com.ghzdude.randomizer.special.item;
 
-import it.unimi.dsi.fastutil.objects.Object2IntMap;
-import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
+import com.mojang.serialization.Codec;
+import com.mojang.serialization.codecs.RecordCodecBuilder;
+import net.minecraft.core.Holder;
+import net.minecraft.core.Registry;
 import net.minecraft.core.component.DataComponents;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.references.BlockItemId;
 import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.item.Item;
-import net.minecraft.world.item.Items;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.block.ColorCollection;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
-import java.util.function.Function;
+import java.util.Optional;
+
+import static net.minecraft.references.BlockItemIds.*;
+import static net.minecraft.references.ItemIds.*;
 
 public class SpecialItems {
 
     // potions, etc
-    public static final List<Item> EFFECT_ITEMS = new ArrayList<>();
+    public static final List<ResourceKey<Item>> EFFECT_ITEMS = new ArrayList<>();
 
     // enchantable items
-    public static final List<Item> ENCHANTABLE = new ArrayList<>();
+    public static final List<ResourceKey<Item>> ENCHANTABLE = new ArrayList<>();
 
-    public static final Object2IntMap<Identifier> CONFIGURED_ITEMS = new Object2IntOpenHashMap<>();
+    public static final List<ValueItem> CONFIGURED_ITEMS = new ArrayList<>();
 
-    public static final List<Item> LEATHER_ARMOR = List.of(
-            Items.LEATHER_HELMET,
-            Items.LEATHER_CHESTPLATE,
-            Items.LEATHER_LEGGINGS,
-            Items.LEATHER_BOOTS
+    public static final List<ResourceKey<Item>> LEATHER_ARMOR = List.of(
+            LEATHER_HELMET,
+            LEATHER_CHESTPLATE,
+            LEATHER_LEGGINGS,
+            LEATHER_BOOTS
     );
 
-    public static final List<Item> CHAINMAIL_ARMOR = List.of(
-            Items.CHAINMAIL_HELMET,
-            Items.CHAINMAIL_CHESTPLATE,
-            Items.CHAINMAIL_LEGGINGS,
-            Items.CHAINMAIL_BOOTS
+    public static final List<ResourceKey<Item>> CHAINMAIL_ARMOR = List.of(
+            CHAINMAIL_HELMET,
+            CHAINMAIL_CHESTPLATE,
+            CHAINMAIL_LEGGINGS,
+            CHAINMAIL_BOOTS
     );
 
-    public static final List<Item> IRON_ARMOR = List.of(
-            Items.IRON_HELMET,
-            Items.IRON_CHESTPLATE,
-            Items.IRON_LEGGINGS,
-            Items.IRON_BOOTS
+    public static final List<ResourceKey<Item>> IRON_ARMOR = List.of(
+            IRON_HELMET,
+            IRON_CHESTPLATE,
+            IRON_LEGGINGS,
+            IRON_BOOTS
     );
 
-    public static final List<Item> DIAMOND_ARMOR = List.of(
-            Items.DIAMOND_HELMET,
-            Items.DIAMOND_CHESTPLATE,
-            Items.DIAMOND_LEGGINGS,
-            Items.DIAMOND_BOOTS
+    public static final List<ResourceKey<Item>> DIAMOND_ARMOR = List.of(
+            DIAMOND_HELMET,
+            DIAMOND_CHESTPLATE,
+            DIAMOND_LEGGINGS,
+            DIAMOND_BOOTS
     );
 
-    public static final List<Item> NETHERITE_ARMOR = List.of(
-            Items.NETHERITE_HELMET,
-            Items.NETHERITE_CHESTPLATE,
-            Items.NETHERITE_LEGGINGS,
-            Items.NETHERITE_BOOTS
+    public static final List<ResourceKey<Item>> NETHERITE_ARMOR = List.of(
+            NETHERITE_HELMET,
+            NETHERITE_CHESTPLATE,
+            NETHERITE_LEGGINGS,
+            NETHERITE_BOOTS
     );
 
-    public static final List<Item> WOODEN_TOOLS = List.of(
-            Items.WOODEN_PICKAXE,
-            Items.WOODEN_AXE,
-            Items.WOODEN_HOE,
-            Items.WOODEN_SHOVEL,
-            Items.WOODEN_SWORD
+    public static final List<ResourceKey<Item>> WOODEN_TOOLS = List.of(
+            WOODEN_PICKAXE,
+            WOODEN_AXE,
+            WOODEN_HOE,
+            WOODEN_SHOVEL,
+            WOODEN_SWORD
     );
 
-    public static final List<Item> STONE_TOOLS = List.of(
-            Items.STONE_PICKAXE,
-            Items.STONE_AXE,
-            Items.STONE_HOE,
-            Items.STONE_SHOVEL,
-            Items.STONE_SWORD
+    public static final List<ResourceKey<Item>> STONE_TOOLS = List.of(
+            STONE_PICKAXE,
+            STONE_AXE,
+            STONE_HOE,
+            STONE_SHOVEL,
+            STONE_SWORD
     );
 
-    public static final List<Item> IRON_TOOLS = List.of(
-            Items.IRON_PICKAXE,
-            Items.IRON_AXE,
-            Items.IRON_HOE,
-            Items.IRON_SHOVEL,
-            Items.IRON_SWORD
+    public static final List<ResourceKey<Item>> IRON_TOOLS = List.of(
+            IRON_PICKAXE,
+            IRON_AXE,
+            IRON_HOE,
+            IRON_SHOVEL,
+            IRON_SWORD
     );
 
-    public static final List<Item> GOLDEN_TOOLS = List.of(
-            Items.GOLDEN_PICKAXE,
-            Items.GOLDEN_AXE,
-            Items.GOLDEN_HOE,
-            Items.GOLDEN_SHOVEL,
-            Items.GOLDEN_SWORD
+    public static final List<ResourceKey<Item>> GOLDEN_TOOLS = List.of(
+            GOLDEN_PICKAXE,
+            GOLDEN_AXE,
+            GOLDEN_HOE,
+            GOLDEN_SHOVEL,
+            GOLDEN_SWORD
     );
 
-    public static final List<Item> DIAMOND_TOOLS = List.of(
-            Items.DIAMOND_PICKAXE,
-            Items.DIAMOND_AXE,
-            Items.DIAMOND_HOE,
-            Items.DIAMOND_SHOVEL,
-            Items.DIAMOND_SWORD
+    public static final List<ResourceKey<Item>> DIAMOND_TOOLS = List.of(
+            DIAMOND_PICKAXE,
+            DIAMOND_AXE,
+            DIAMOND_HOE,
+            DIAMOND_SHOVEL,
+            DIAMOND_SWORD
     );
 
-    public static final List<Item> NETHERITE_TOOLS = List.of(
-            Items.NETHERITE_PICKAXE,
-            Items.NETHERITE_AXE,
-            Items.NETHERITE_HOE,
-            Items.NETHERITE_SHOVEL,
-            Items.NETHERITE_SWORD
+    public static final List<ResourceKey<Item>> NETHERITE_TOOLS = List.of(
+            NETHERITE_PICKAXE,
+            NETHERITE_AXE,
+            NETHERITE_HOE,
+            NETHERITE_SHOVEL,
+            NETHERITE_SWORD
     );
 
-    public static final List<Item> SHULKER_BOXES = List.of(
-            Items.SHULKER_BOX,
-            Items.DYED_SHULKER_BOX.white(),
-            Items.DYED_SHULKER_BOX.lightGray(),
-            Items.DYED_SHULKER_BOX.gray(),
-            Items.DYED_SHULKER_BOX.black(),
-            Items.DYED_SHULKER_BOX.red(),
-            Items.DYED_SHULKER_BOX.orange(),
-            Items.DYED_SHULKER_BOX.yellow(),
-            Items.DYED_SHULKER_BOX.green(),
-            Items.DYED_SHULKER_BOX.cyan(),
-            Items.DYED_SHULKER_BOX.lightBlue(),
-            Items.DYED_SHULKER_BOX.blue(),
-            Items.DYED_SHULKER_BOX.purple(),
-            Items.DYED_SHULKER_BOX.brown(),
-            Items.DYED_SHULKER_BOX.lime(),
-            Items.DYED_SHULKER_BOX.pink()
-    );
 
-    private static Function<Item, Identifier> converter;
+    public static void init() {
+        Helper helper = new Helper();
+        helper.addAll(WOODEN_TOOLS, 1);
+        helper.addAll(STONE_TOOLS, 2);
+        helper.addAll(IRON_TOOLS, 3);
+        helper.addAll(GOLDEN_TOOLS, 2);
+        helper.addAll(DIAMOND_TOOLS, 5);
+        helper.addAll(NETHERITE_TOOLS, 9);
 
-    public static void init(Function<Item, Identifier> converter) {
-        SpecialItems.converter = converter;
-        WOODEN_TOOLS.forEach(item -> addItem(item, 1));
-        STONE_TOOLS.forEach(item -> addItem(item, 2));
-        IRON_TOOLS.forEach(item -> addItem(item, 3));
-        GOLDEN_TOOLS.forEach(item -> addItem(item, 2));
-        DIAMOND_TOOLS.forEach(item -> addItem(item, 5));
-        NETHERITE_TOOLS.forEach(item -> addItem(item, 9));
+        helper.addAll(LEATHER_ARMOR, 1);
+        helper.addAll(CHAINMAIL_ARMOR, 2);
+        helper.addAll(IRON_ARMOR, 3);
+        helper.addAll(DIAMOND_ARMOR, 5);
+        helper.addAll(NETHERITE_ARMOR, 9);
 
-        LEATHER_ARMOR.forEach(item -> addItem(item, 1));
-        CHAINMAIL_ARMOR.forEach(item -> addItem(item, 2));
-        IRON_ARMOR.forEach(item -> addItem(item, 3));
-        DIAMOND_ARMOR.forEach(item -> addItem(item, 5));
-        NETHERITE_ARMOR.forEach(item -> addItem(item, 9));
+        helper.addAll(DYED_SHULKER_BOX.map(BlockItemId::item), 6);
+        helper.addItem(SHULKER_BOX, 6);
 
-        SHULKER_BOXES.forEach(item -> addItem(item, 6));
-
-        addItem(Items.POTION, 4);
-        addItem(Items.SPLASH_POTION, 6);
-        addItem(Items.LINGERING_POTION, 6);
-        addItem(Items.TIPPED_ARROW, 6);
-        addItem(Items.SUSPICIOUS_STEW, 4);
-        addItem(Items.ENCHANTED_BOOK, 4);
+        helper.addItem(POTION, 4);
+        helper.addItem(SPLASH_POTION, 6);
+        helper.addItem(LINGERING_POTION, 6);
+        helper.addItem(TIPPED_ARROW, 6);
+        helper.addItem(SUSPICIOUS_STEW, 4);
+        helper.addItem(ENCHANTED_BOOK, 4);
 
         // misc
-        addItem(Items.NETHER_STAR, 15);
-        addItem(Items.CHEST, 3);
-        addItem(Items.TRAPPED_CHEST, 3);
-        addItem(Items.BUNDLE, 6);
-        addItem(Items.WRITTEN_BOOK, 4);
-        addItem(Items.END_PORTAL_FRAME, 7);
-        addItem(Items.MACE, 10);
-        addItem(Items.HEAVY_CORE, 8);
+        helper.addItem(NETHER_STAR, 15);
+        helper.addItem(BUNDLE, 6);
+        helper.addItem(WRITTEN_BOOK, 4);
+        helper.addItem(MACE, 10);
+        helper.addItem(CHEST, 3);
+        helper.addItem(TRAPPED_CHEST, 3);
+        helper.addItem(END_PORTAL_FRAME, 7);
+        helper.addItem(HEAVY_CORE, 8);
 
         // villager stations
-        addItem(Items.GRINDSTONE, 6);
-        addItem(Items.FLETCHING_TABLE, 3);
-        addItem(Items.ANVIL, 6);
-        addItem(Items.CHIPPED_ANVIL, 4);
-        addItem(Items.DAMAGED_ANVIL, 2);
-        addItem(Items.COMPOSTER, 8);
-        addItem(Items.STONECUTTER, 6);
-        addItem(Items.BLAST_FURNACE, 3);
-        addItem(Items.SMOKER, 3);
+        helper.addItem(GRINDSTONE, 6);
+        helper.addItem(FLETCHING_TABLE, 3);
+        helper.addItem(ANVIL, 6);
+        helper.addItem(CHIPPED_ANVIL, 4);
+        helper.addItem(DAMAGED_ANVIL, 2);
+        helper.addItem(COMPOSTER, 8);
+        helper.addItem(STONECUTTER, 6);
+        helper.addItem(BLAST_FURNACE, 3);
+        helper.addItem(SMOKER, 3);
 
-        addItem(Items.CAMPFIRE, 2);
-        addItem(Items.SOUL_CAMPFIRE, 2);
+        helper.addItem(CAMPFIRE, 2);
+        helper.addItem(SOUL_CAMPFIRE, 2);
     }
 
-    private static void addItem(Item item, int value) {
-        CONFIGURED_ITEMS.put(converter.apply(item), value);
-        if (canEnchant(item)) ENCHANTABLE.add(item);
-        if (canHaveEffect(item)) EFFECT_ITEMS.add(item);
+
+    private static boolean canHaveEffect(ResourceKey<Item> item) {
+        return BuiltInRegistries.ITEM.get(item)
+                .filter(Holder.Reference::isBound)
+                .map(ref -> ref.value().components())
+                .map(map -> map.has(DataComponents.POTION_CONTENTS) || map.has(DataComponents.SUSPICIOUS_STEW_EFFECTS))
+                .orElse(false);
     }
 
-    private static boolean canHaveEffect(Item item) {
-        return item.components().has(DataComponents.POTION_CONTENTS) || item.components().has(DataComponents.SUSPICIOUS_STEW_EFFECTS);
+    private static boolean canEnchant(ResourceKey<Item> item) {
+        if (item == ENCHANTED_BOOK) return true;
+        return BuiltInRegistries.ITEM.get(item)
+                .filter(Holder.Reference::isBound)
+                .map(ref -> ref.value().components())
+                .map(map -> map.has(DataComponents.ENCHANTABLE))
+                .orElse(false);
     }
 
-    private static boolean canEnchant(Item item) {
-        if (item == Items.ENCHANTED_BOOK) return true;
-        return item.components().has(DataComponents.MAX_DAMAGE) && item.getDefaultMaxStackSize() == 1;
+    private static class Helper {
+
+        private Helper() {}
+
+        public void addItem(ResourceKey<Item> item, int points) {
+            CONFIGURED_ITEMS.add(new ValueItem(item, points));
+            if (canEnchant(item)) ENCHANTABLE.add(item);
+            if (canHaveEffect(item)) EFFECT_ITEMS.add(item);
+        }
+
+        public void addAll(Collection<ResourceKey<Item>> items, int points) {
+            items.forEach(item -> addItem(item, points));
+        }
+
+        public void addAll(ColorCollection<ResourceKey<Item>> items, int points) {
+            items.forEach(item -> addItem(item, points));
+        }
+
+        public void addItem(BlockItemId id, int points) {
+            addItem(id.item(), points);
+        }
+    }
+
+    public record ValueItem(ResourceKey<Item> item, int value) {
+
+        public static Codec<ValueItem> CODEC = RecordCodecBuilder.create(instance -> instance.group(
+                ResourceKey.codec(Registries.ITEM).fieldOf("item").forGetter(ValueItem::item),
+                Codec.INT.fieldOf("value").forGetter(ValueItem::value)
+        ).apply(instance, ValueItem::new));
+
+        public boolean is(ItemStack stack) {
+            return stack.is(item());
+        }
+
+        public boolean is(Identifier item) {
+            return item().identifier().equals(item);
+        }
+
+        public Optional<? extends Holder<Item>> get(Registry<Item> registry) {
+            return registry.get(this.item());
+        }
     }
 }
