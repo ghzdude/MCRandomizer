@@ -5,13 +5,17 @@ import com.ghzdude.randomizer.special.generators.EnchantmentGenerator;
 import com.ghzdude.randomizer.special.generators.PotionGenerator;
 import com.ghzdude.randomizer.special.item.SpecialItems;
 import com.ghzdude.randomizer.util.RandomizerUtil;
-import com.ghzdude.randomizer.util.TagToken;
+import com.mojang.datafixers.util.Pair;
+import com.mojang.serialization.Codec;
+import com.mojang.serialization.DataResult;
+import com.mojang.serialization.codecs.RecordCodecBuilder;
 import it.unimi.dsi.fastutil.objects.Object2IntMap;
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 import net.minecraft.core.Holder;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.NbtOps;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
@@ -26,6 +30,7 @@ import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.fml.loading.FMLLoader;
 
 import java.util.*;
+import java.util.function.Function;
 import java.util.stream.Stream;
 
 /* Item Randomizer Description
@@ -41,19 +46,13 @@ public class ItemRandomizer {
     private static final List<Identifier> ITEM_LIST = new ArrayList<>();
     private static final Object2IntMap<Identifier> SIMPLE_ITEMS = new Object2IntOpenHashMap<>();
     private static final List<Identifier> BLACKLISTED_ITEMS = new ArrayList<>();
+    public static final String DATA_KEY = "randomizer";
 
     private static RandomizationMapData INSTANCE;
     private static Registry<Item> REGISTRY;
     private static FeatureFlagSet ENABLED;
 
-    private static final TagToken.Int POINTS = TagToken.ofInt("points", 0);
-    private static final TagToken.Int MAX_POINTS = TagToken.ofInt("point_max", 1);
-    private static final TagToken.Int CYCLE = TagToken.ofInt("cycle", 0);
-    private static final TagToken.Int CYCLE_COUNTER = TagToken.ofInt("cycle_counter", () -> RandomizerConfig.cycleBase);
-    private static final TagToken.Int AMOUNT_ITEMS_GIVEN = TagToken.ofInt("amount_items_given", 0);
-
     private static int OFFSET = 0;
-    private static final int COUNTER_MAX = 50;
 
     static void init(MinecraftServer server) {
         ITEM_LIST.clear();
@@ -179,27 +178,13 @@ public class ItemRandomizer {
         if (!shouldTick(event)) return;
 
         var player = (ServerPlayer) event.player();
-        var data = player.getPersistentData();
 
         if (shouldUsePoints(player)) {
-
-            int pointMax = MAX_POINTS.getInt(data);
-
-            int points = RandomizerConfig.pointsCarryover ? POINTS.getInt(data) + pointMax : pointMax;
-
-            int pointsToUse = RandomizerCore.seededRNG.nextInt(points) + 1;
-            int remaining;
-
-            if (RandomizerConfig.generateStructures && RandomizerCore.seededRNG.nextInt(100) < RandomizerConfig.structureProbability) {
-                remaining = StructureRandomizer.tryPlace(pointsToUse, player.level(), player);
-            } else if (RandomizerConfig.giveRandomItems) {
-                remaining = ItemRandomizer.giveRandomItem(pointsToUse, player.getInventory());
-            } else {
-                return;
-            }
-
-            increaseCycle(player, data);
-            POINTS.setInt(data, remaining);
+            player.getPersistentData()
+                    .getCompound(DATA_KEY)
+                    .map(tag -> PlayerRandomizationData.CODEC.decode(NbtOps.INSTANCE, tag))
+                    .flatMap(DataResult::result).map(Pair::getFirst)
+                    .ifPresent(d -> d.execute(player));
         }
     }
 
@@ -216,29 +201,69 @@ public class ItemRandomizer {
         return false;
     }
 
-    private static void increaseCycle(Player player, CompoundTag data) {
-        int pointMax = MAX_POINTS.getInt(data);
-        int cycle = CYCLE.incrementInt(data);
-        int cycleCounter = CYCLE_COUNTER.getInt(data);
-
-        if (cycle % cycleCounter == 0) {
-            cycle = 0;
-            int i = (cycleCounter / 2) + 1;
-            cycleCounter = Math.min(cycleCounter + i, COUNTER_MAX);
-            pointMax++;
-            player.sendSystemMessage(Component.translatable("randomizer.player.point_max.increased", pointMax));
-        }
-
-        POINTS.setInt(data, pointMax);
-        CYCLE.setInt(data, cycle);
-        CYCLE_COUNTER.setInt(data, cycleCounter);
-    }
-
     public static void incrementAmtItemsGiven(Player player) {
         incrementAmtItemsGiven(player.getPersistentData());
     }
 
-    public static void incrementAmtItemsGiven(CompoundTag data) {
-        AMOUNT_ITEMS_GIVEN.incrementInt(data);
+    public static void incrementAmtItemsGiven(CompoundTag tag) {
+        PlayerRandomizationData.CODEC.decode(NbtOps.INSTANCE, tag.getCompoundOrEmpty(DATA_KEY))
+                .map(Pair::getFirst).map(PlayerRandomizationData::incrementGiven)
+                .flatMap(data -> PlayerRandomizationData.CODEC.encodeStart(NbtOps.INSTANCE, data))
+                .ifSuccess(t -> tag.put(DATA_KEY, t));
+    }
+
+    public record PlayerRandomizationData(int points, int maxPoints, int cycle, int cycleCounter, int amountGiven) {
+
+        private static final int COUNTER_MAX = 50;
+
+        public static final Codec<PlayerRandomizationData> CODEC = RecordCodecBuilder.create(instance -> instance.group(
+                Codec.INT.optionalFieldOf("points", 0).forGetter(PlayerRandomizationData::points),
+                Codec.INT.optionalFieldOf("point_max", 1).forGetter(PlayerRandomizationData::maxPoints),
+                Codec.INT.optionalFieldOf("cycle", 0).forGetter(PlayerRandomizationData::cycle),
+                Codec.INT.optionalFieldOf("cycle_counter", -1)
+                        .xmap(result -> result == -1 ? RandomizerConfig.cycleBase : result, Function.identity())
+                        .forGetter(PlayerRandomizationData::cycleCounter),
+                Codec.INT.optionalFieldOf("amount_items_given", 0).forGetter(PlayerRandomizationData::amountGiven)
+        ).apply(instance, PlayerRandomizationData::new));
+        
+        public void execute(ServerPlayer player) {
+            int points = RandomizerConfig.pointsCarryover ? points() + maxPoints() : maxPoints();
+            int pointsToUse = RandomizerCore.seededRNG.nextInt(points) + 1;
+            int remaining;
+
+            if (RandomizerConfig.generateStructures && RandomizerCore.seededRNG.nextInt(100) < RandomizerConfig.structureProbability) {
+                remaining = StructureRandomizer.tryPlace(pointsToUse, player.level(), player);
+            } else if (RandomizerConfig.giveRandomItems) {
+                remaining = ItemRandomizer.giveRandomItem(pointsToUse, player.getInventory());
+            } else {
+                return;
+            }
+            PlayerRandomizationData data = withPoints(remaining).increaseCycle();
+
+            CODEC.encodeStart(NbtOps.INSTANCE, data)
+                    .ifSuccess(result -> player.getPersistentData().put(DATA_KEY, result));
+        }
+
+        public PlayerRandomizationData withPoints(int points) {
+            return new PlayerRandomizationData(points, maxPoints, cycle, cycleCounter, amountGiven);
+        }
+
+        public PlayerRandomizationData incrementGiven() {
+            return new PlayerRandomizationData(points, maxPoints, cycle, cycleCounter, amountGiven + 1);
+        }
+
+        private PlayerRandomizationData increaseCycle() {
+            int pointMax = maxPoints();
+            int cycle = cycle();
+            int cycleCounter = cycleCounter();
+
+            if (cycle % cycleCounter == 0) {
+                cycle = 0;
+                int i = (cycleCounter / 2) + 1;
+                cycleCounter = Math.min(cycleCounter + i, COUNTER_MAX);
+                pointMax++;
+            }
+            return new PlayerRandomizationData(points, pointMax, cycle, cycleCounter, amountGiven);
+        }
     }
 }
