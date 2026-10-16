@@ -63,9 +63,9 @@ public class ItemRandomizer {
         ENABLED = server.getWorldData().enabledFeatures();
         SpecialItems.init();
 
-        ConfigIO.ofList(ResourceKey.codec(Registries.ITEM).listOf())
-                .config("blacklisted_items")
-                .defaults(List.of(
+        ConfigIO.ofList(ResourceKey.codec(Registries.ITEM))
+                .setPath("blacklisted_items", ConfigIO.BLACKLIST_DIR)
+                .read(List.of(
                         BlockItemIds.COMMAND_BLOCK.item(),
                         ItemIds.COMMAND_BLOCK_MINECART,
                         BlockItemIds.CHAIN_COMMAND_BLOCK.item(),
@@ -80,17 +80,17 @@ public class ItemRandomizer {
                         BlockItemIds.TEST_INSTANCE_BLOCK.item(),
                         ItemIds.DEBUG_STICK
                 ))
-                .read()
-                .ifSuccess(BLACKLISTED_ITEMS::addAll);
+                .validateElements(REGISTRY::containsKey)
+                .result().ifSuccess(BLACKLISTED_ITEMS::addAll);
 
         // hard code air blacklist
         BLACKLISTED_ITEMS.add(BlockItemIds.AIR.item());
 
-        ConfigIO.ofList(SpecialItems.ValueItem.CODEC.listOf())
-                .values("items")
-                .defaults(SpecialItems.CONFIGURED_ITEMS)
-                .read()
-                .ifSuccess(list -> list.forEach(ItemRandomizer::putValidItem));
+        ConfigIO.ofList(SpecialItems.ValueItem.CODEC)
+                .setPath("items", ConfigIO.CONFIG_DIR)
+                .read(SpecialItems.CONFIGURED_ITEMS)
+                .validateElements(valueItem -> REGISTRY.containsKey(valueItem.item()))
+                .result().ifSuccess(list -> list.forEach(ItemRandomizer::putValidItem));
 
         for (ResourceKey<Item> loc : REGISTRY.registryKeySet()) {
             putValidItem(loc, 1);

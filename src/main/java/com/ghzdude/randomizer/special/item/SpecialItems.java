@@ -14,10 +14,7 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.ColorCollection;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 
 import static net.minecraft.references.BlockItemIds.*;
 import static net.minecraft.references.ItemIds.*;
@@ -224,6 +221,17 @@ public class SpecialItems {
 
         public Optional<? extends Holder<Item>> get(Registry<Item> registry) {
             return registry.get(this.item());
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (!(o instanceof ValueItem valueItem)) return false;
+            return Objects.equals(item, valueItem.item);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hashCode(item);
         }
     }
 }
