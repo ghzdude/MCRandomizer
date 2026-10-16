@@ -78,6 +78,7 @@ public class RandomizerCore
         RandomizerUtil.dispose();
         LootRandomizer.dispose();
         CompletabilityVerifier.dispose();
+        StructureRandomizer.dispose();
         OPS = null;
         serverStarted = false;
     }

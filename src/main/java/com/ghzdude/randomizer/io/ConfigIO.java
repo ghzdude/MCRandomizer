@@ -1,19 +1,16 @@
 package com.ghzdude.randomizer.io;
 
 import com.ghzdude.randomizer.RandomizerCore;
-import com.google.gson.*;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonElement;
 import com.mojang.datafixers.util.Pair;
 import com.mojang.logging.LogUtils;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.DataResult;
 import com.mojang.serialization.JsonOps;
-import it.unimi.dsi.fastutil.objects.Object2IntArrayMap;
-import it.unimi.dsi.fastutil.objects.Object2IntMap;
-import net.minecraft.core.Registry;
-import net.minecraft.resources.Identifier;
 import net.minecraft.util.GsonHelper;
 import net.minecraftforge.fml.loading.FMLPaths;
-import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 
 import java.io.File;
@@ -21,7 +18,6 @@ import java.io.IOException;
 import java.io.Writer;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -32,24 +28,10 @@ import java.util.stream.Collectors;
 public class ConfigIO {
     public static final Path CONFIG_DIR = FMLPaths.CONFIGDIR.get().resolve(RandomizerCore.MODID);
     public static final Path BLACKLIST_DIR = CONFIG_DIR.resolve("blacklists");
-    private static final Path VALUE_DIR = CONFIG_DIR.resolve("values");
+    public static final Path VALUE_DIR = CONFIG_DIR.resolve("values");
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
     private static final Logger LOGGER = LogUtils.getLogger();
     private static final String JSON_FILE = "%s.json";
-
-    public static void writeListToFile(File file, List<Identifier> list) {
-        JsonArray stringArray = new JsonArray();
-        list.forEach(loc -> stringArray.add(loc.toString()));
-        tryWriteJson(stringArray, file);
-    }
-
-    public static void writeValues(File valueFile, Object2IntMap<Identifier> valueMap) {
-        JsonObject map = new JsonObject();
-        for (var location : valueMap.keySet()) {
-            map.addProperty(location.toString(), valueMap.getInt(location));
-        }
-        tryWriteJson(map, valueFile);
-    }
 
     private static void tryWriteJson(JsonElement toWrite, File file) {
         try (Writer writer = Files.newBufferedWriter(file.toPath())) {
@@ -59,68 +41,6 @@ public class ConfigIO {
         } catch (IOException | NullPointerException e) {
             LOGGER.warn("Failure to write JSON at {}", file);
         }
-    }
-
-    public static <T> Object2IntMap<Identifier> readValues(String file, Object2IntMap<Identifier> defaults, Registry<T> registry) {
-        final Object2IntMap<Identifier> map = new Object2IntArrayMap<>();
-
-        File valueFile = VALUE_DIR.resolve(JSON_FILE.formatted(file)).toFile();
-        if (!valueFile.exists() && (valueFile.getParentFile().exists() || valueFile.getParentFile().mkdirs())) {
-            writeValues(valueFile, defaults);
-            return defaults;
-        }
-        try {
-
-            JsonObject object = JsonParser.parseString(Files.readString(valueFile.toPath())).getAsJsonObject();
-
-            for (String vanilla : object.keySet()) {
-                var loc = Identifier.parse(vanilla);
-                int i = object.get(vanilla).getAsInt();
-                if (registry.containsKey(loc)) {
-                    map.put(loc, i);
-                    continue;
-                }
-
-                LOGGER.warn("Value \"{}\" does not exist in {} or is invalid!", loc, registry.key());
-            }
-        } catch (IOException e) {
-            readFail(valueFile);
-        }
-
-        return map;
-    }
-
-    public static List<Identifier> read(String file, List<Identifier> defaults, @Nullable Registry<?> registry) {
-        List<Identifier> blacklist = new ArrayList<>();
-
-        File blacklistFile = createFileName(file);
-        try {
-            if (blacklistFile.createNewFile()) {
-                // first time, write defaults
-                writeListToFile(blacklistFile, defaults);
-                return defaults;
-            }
-
-            JsonArray elements = JsonParser.parseString(Files.readString(blacklistFile.toPath())).getAsJsonArray();
-
-            for (JsonElement vanilla : elements) {
-                Identifier location = Identifier.parse(vanilla.getAsString());
-                if (registry == null || registry.containsKey(location)) {
-                    blacklist.add(location);
-                } else {
-                    LOGGER.warn("Location {} is not valid!", location);
-                }
-            }
-        } catch (IOException | NullPointerException e) {
-            readFail(blacklistFile);
-            writeListToFile(blacklistFile, defaults);
-            return defaults;
-        }
-        return blacklist;
-    }
-
-    private static File createFileName(String file) {
-        return createFileName(file, BLACKLIST_DIR).toFile();
     }
 
     protected static void readFail(File file) {
@@ -181,6 +101,10 @@ public class ConfigIO {
                 return this;
             }
         }
+
+        public DataResult<T> result() {
+            return this.result;
+        }
     }
 
     public static class ListHelper<E> extends AbstractHelper<List<E>> {
@@ -225,10 +149,6 @@ public class ConfigIO {
                 return DataResult.success(filtered);
             });
             return this;
-        }
-
-        public DataResult<List<E>> result() {
-            return this.result;
         }
     }
 

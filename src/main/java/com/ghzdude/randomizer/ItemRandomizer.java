@@ -87,7 +87,7 @@ public class ItemRandomizer {
         BLACKLISTED_ITEMS.add(BlockItemIds.AIR.item());
 
         ConfigIO.ofList(SpecialItems.ValueItem.CODEC)
-                .setPath("items", ConfigIO.CONFIG_DIR)
+                .setPath("items", ConfigIO.VALUE_DIR)
                 .read(SpecialItems.CONFIGURED_ITEMS)
                 .validateElements(valueItem -> REGISTRY.containsKey(valueItem.item()))
                 .result().ifSuccess(list -> list.forEach(ItemRandomizer::putValidItem));

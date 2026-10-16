@@ -4,6 +4,8 @@ package com.ghzdude.randomizer;
 import com.ghzdude.randomizer.io.ConfigIO;
 import com.ghzdude.randomizer.util.RandomizerUtil;
 import com.mojang.logging.LogUtils;
+import com.mojang.serialization.Codec;
+import com.mojang.serialization.DataResult;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import net.minecraft.core.Holder;
 import net.minecraft.core.Registry;
@@ -62,34 +64,33 @@ public class MobRandomizer {
         ATTRIBUTE_REGISTRY = access.lookupOrThrow(Registries.ATTRIBUTE);
         TYPE_REGISTRY = access.lookupOrThrow(Registries.ENTITY_TYPE);
 
-        if (BLACKLISTED_ENTITIES.isEmpty()) {
-            BLACKLISTED_ENTITIES.addAll(ConfigIO.read("blacklisted_mobs", Stream.of(
-                            EntityTypes.ENDER_DRAGON,
-                            EntityTypes.WITHER,
-                            EntityTypes.WARDEN,
-                            EntityTypes.GIANT)
-                    .map(TYPE_REGISTRY::getKey)
-                    .filter(Objects::nonNull)
-                    .toList(), TYPE_REGISTRY));
-        }
+        ConfigIO.ofList(Identifier.CODEC)
+                .setPath("blacklisted_mobs", ConfigIO.BLACKLIST_DIR)
+                .read(List.of(
+                        EntityTypeIds.ENDER_DRAGON.identifier(),
+                        EntityTypeIds.WITHER.identifier(),
+                        EntityTypeIds.WARDEN.identifier(),
+                        EntityTypeIds.GIANT.identifier()
+                ))
+                .validateElements(TYPE_REGISTRY::containsKey)
+                .result().ifSuccess(BLACKLISTED_ENTITIES::addAll);
 
-        if (BLACKLISTED_ATTRIBUTES.isEmpty()) {
-            BLACKLISTED_ATTRIBUTES.addAll(ConfigIO.read("blacklisted_attributes", Stream.of(
-                    Attributes.SCALE,
-                    Attributes.GRAVITY,
-                    Attributes.LUCK,
-                    Attributes.SWEEPING_DAMAGE_RATIO,
-                    Attributes.WAYPOINT_RECEIVE_RANGE,
-                    Attributes.TEMPT_RANGE,
-                    Attributes.BLOCK_INTERACTION_RANGE,
-                    Attributes.BLOCK_BREAK_SPEED,
-                    Attributes.CAMERA_DISTANCE,
-                    Attributes.BURNING_TIME)
-                    .map(Holder::get)
-                    .map(ATTRIBUTE_REGISTRY::getKey)
-                    .filter(Objects::nonNull)
-                    .toList(), ATTRIBUTE_REGISTRY));
-        }
+        ConfigIO.ofList(Identifier.CODEC)
+                .setPath("blacklisted_attributes", ConfigIO.BLACKLIST_DIR)
+                .read(Stream.of(
+                        Attributes.SCALE,
+                        Attributes.GRAVITY,
+                        Attributes.LUCK,
+                        Attributes.SWEEPING_DAMAGE_RATIO,
+                        Attributes.WAYPOINT_RECEIVE_RANGE,
+                        Attributes.TEMPT_RANGE,
+                        Attributes.BLOCK_INTERACTION_RANGE,
+                        Attributes.BLOCK_BREAK_SPEED,
+                        Attributes.CAMERA_DISTANCE,
+                        Attributes.BURNING_TIME
+                ).map(holder -> holder.unwrapKey().map(ResourceKey::identifier).orElseThrow()).toList())
+                .validateElements(ATTRIBUTE_REGISTRY::containsKey)
+                .result().ifSuccess(BLACKLISTED_ATTRIBUTES::addAll);
 
         // todo add configuration
         for (var type : TYPE_REGISTRY.keySet()) {
@@ -104,19 +105,26 @@ public class MobRandomizer {
             VALID_ATTRIBUTES.add(att);
         }
 
-        // todo make configurable
-        VALID_REASONS.addAll(List.of(
-                EntitySpawnReason.SPAWNER,
-                EntitySpawnReason.BREEDING,
-                EntitySpawnReason.CHUNK_GENERATION,
-                EntitySpawnReason.TRIAL_SPAWNER,
-                EntitySpawnReason.PATROL,
-                EntitySpawnReason.NATURAL,
-                EntitySpawnReason.JOCKEY,
-                EntitySpawnReason.STRUCTURE,
-                EntitySpawnReason.BUCKET,
-                EntitySpawnReason.CONVERSION
-        ));
+        ConfigIO.ofList(Codec.STRING.flatXmap(s -> {
+            try {
+                return DataResult.success(EntitySpawnReason.valueOf(s.trim().toUpperCase()));
+            } catch (IllegalArgumentException e) {
+                return DataResult.error(() -> "Invalid value for EntitySpawnReason: " + s);
+            }}, reason -> DataResult.success(reason.name().toLowerCase())))
+                .setPath("valid_spawn_reasons", ConfigIO.CONFIG_DIR)
+                .read(List.of(
+                        EntitySpawnReason.SPAWNER,
+                        EntitySpawnReason.BREEDING,
+                        EntitySpawnReason.CHUNK_GENERATION,
+                        EntitySpawnReason.TRIAL_SPAWNER,
+                        EntitySpawnReason.PATROL,
+                        EntitySpawnReason.NATURAL,
+                        EntitySpawnReason.JOCKEY,
+                        EntitySpawnReason.STRUCTURE,
+                        EntitySpawnReason.BUCKET,
+                        EntitySpawnReason.CONVERSION
+                ))
+                .result().ifSuccess(VALID_REASONS::addAll);
     }
 
     static boolean randomizeSpawn(MobSpawnEvent.FinalizeSpawn event) {

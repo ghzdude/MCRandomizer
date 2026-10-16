@@ -5,6 +5,7 @@ import com.ghzdude.randomizer.special.SpecialFeatures;
 import com.ghzdude.randomizer.special.structure.SpecialStructures;
 import com.ghzdude.randomizer.util.RandomizerUtil;
 import com.mojang.logging.LogUtils;
+import com.mojang.serialization.Codec;
 import it.unimi.dsi.fastutil.objects.Object2IntMap;
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 import net.minecraft.core.BlockPos;
@@ -25,18 +26,17 @@ import org.slf4j.Logger;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.function.Predicate;
 
 /* Structure Randomizer description
  * every so often, generate a structure at some random x, z coordinate near the player
  */
 public class StructureRandomizer {
-    private static List<Identifier> BLACKLISTED_STRUCTURES = null;
+    private static final List<Identifier> BLACKLISTED_STRUCTURES = new ArrayList<>();
     private static final Object2IntMap<Identifier> VALID_STRUCTURES = new Object2IntOpenHashMap<>();
     private static final List<Identifier> STRUCTURES = new ArrayList<>();
 
-    private static List<Identifier> BLACKLISTED_FEATURES = null;
+    private static final List<Identifier> BLACKLISTED_FEATURES = new ArrayList<>();
     private static final Object2IntMap<Identifier> VALID_FEATURES = new Object2IntOpenHashMap<>();
     private static final List<Identifier> FEATURES = new ArrayList<>();
     private static final Logger LOGGER = LogUtils.getLogger();
@@ -50,16 +50,19 @@ public class StructureRandomizer {
 
         // stronghold is causing log spam
         // Structures
-        if (BLACKLISTED_STRUCTURES == null) {
-            BLACKLISTED_STRUCTURES = ConfigIO.read("blacklisted_structures",
-                List.of(Identifier.parse("namespace:structure_name_here")),
-                STRUCTURE_REGISTRY);
-        }
+        ConfigIO.ofList(Identifier.CODEC)
+                .setPath("blacklisted_structures", ConfigIO.BLACKLIST_DIR)
+                .read(List.of(Identifier.parse("namespace:structure_name_here")))
+                .validateElements(STRUCTURE_REGISTRY::containsKey)
+                .result().ifSuccess(BLACKLISTED_STRUCTURES::addAll);
 
-        if (VALID_STRUCTURES.isEmpty()) {
-            ConfigIO.readValues("structures", SpecialStructures.CONFIGURED_STRUCTURES, STRUCTURE_REGISTRY)
-                .object2IntEntrySet().forEach(StructureRandomizer::putValidStructure);
-        }
+        // configured structures
+        ConfigIO.ofMap(Identifier.CODEC, Codec.INT)
+                .setPath("structures", ConfigIO.VALUE_DIR)
+                .read(SpecialStructures.CONFIGURED_STRUCTURES)
+                .validateElements(e -> STRUCTURE_REGISTRY.containsKey(e.getKey()))
+                .validateElements(e -> !BLACKLISTED_STRUCTURES.contains(e.getKey()))
+                .result().ifSuccess(VALID_STRUCTURES::putAll);
 
         for (var structure : STRUCTURE_REGISTRY.keySet()) {
             putValidStructure(structure, 1);
@@ -68,14 +71,18 @@ public class StructureRandomizer {
         STRUCTURES.addAll(VALID_STRUCTURES.keySet());
 
         // Features
-        if (BLACKLISTED_FEATURES == null) {
-            BLACKLISTED_FEATURES = ConfigIO.read("blacklisted_features", SpecialFeatures.BLACKLISTED_FEATURES, FEATURE_REGISTRY);
-        }
+        ConfigIO.ofList(Identifier.CODEC)
+                .setPath("blacklisted_features", ConfigIO.BLACKLIST_DIR)
+                .read(SpecialFeatures.BLACKLISTED_FEATURES)
+                .validateElements(FEATURE_REGISTRY::containsKey)
+                .result().ifSuccess(BLACKLISTED_FEATURES::addAll);
 
-        if (VALID_FEATURES.isEmpty()) {
-            ConfigIO.readValues("features", SpecialFeatures.DEFAULT_FEATURES, FEATURE_REGISTRY)
-                .object2IntEntrySet().forEach(StructureRandomizer::putValidFeature);
-        }
+        // configured features
+        ConfigIO.ofMap(Identifier.CODEC, Codec.INT)
+                .setPath("features", ConfigIO.VALUE_DIR)
+                .read(SpecialFeatures.DEFAULT_FEATURES)
+                .validateElements(e -> FEATURE_REGISTRY.containsKey(e.getKey()))
+                .result().ifSuccess(VALID_FEATURES::putAll);
 
         for (var loc : FEATURE_REGISTRY.keySet()) {
             putValidFeature(loc, 1);
@@ -84,22 +91,18 @@ public class StructureRandomizer {
         FEATURES.addAll(VALID_FEATURES.keySet());
     }
 
-    private static void putValidStructure(Map.Entry<Identifier, Integer> entry) {
-        if (entry instanceof Object2IntMap.Entry<Identifier> intEntry)
-            putValidStructure(entry.getKey(), intEntry.getIntValue());
-        else putValidStructure(entry.getKey(), entry.getValue());
+    public static void dispose() {
+        BLACKLISTED_STRUCTURES.clear();
+        BLACKLISTED_FEATURES.clear();
+        VALID_STRUCTURES.clear();
+        STRUCTURES.clear();
+        VALID_FEATURES.clear();
     }
 
     private static void putValidStructure(Identifier structure, int value) {
         if (BLACKLISTED_STRUCTURES.contains(structure) || VALID_STRUCTURES.containsKey(structure))
             return;
         VALID_STRUCTURES.put(structure, value);
-    }
-
-    private static void putValidFeature(Map.Entry<Identifier, Integer> entry) {
-        if (entry instanceof Object2IntMap.Entry<Identifier> intEntry)
-            putValidFeature(entry.getKey(), intEntry.getIntValue());
-        else putValidFeature(entry.getKey(), entry.getValue());
     }
 
     private static void putValidFeature(Identifier feature, int value) {
