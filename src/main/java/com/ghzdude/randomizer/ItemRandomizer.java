@@ -31,6 +31,7 @@ import net.minecraftforge.fml.loading.FMLLoader;
 
 import java.util.*;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /* Item Randomizer Description
@@ -86,10 +87,10 @@ public class ItemRandomizer {
         // hard code air blacklist
         BLACKLISTED_ITEMS.add(BlockItemIds.AIR.item());
 
-        ConfigIO.ofList(SpecialItems.ValueItem.CODEC)
+        ConfigIO.ofMap(Identifier.CODEC, Codec.INT)
                 .setPath("items", ConfigIO.VALUE_DIR)
-                .read(SpecialItems.CONFIGURED_ITEMS)
-                .validateElements(valueItem -> REGISTRY.containsKey(valueItem.item()))
+                .read(SpecialItems.CONFIGURED_ITEMS.stream().collect(Collectors.toMap(v -> v.item().identifier(), SpecialItems.ValueItem::value)))
+                .validateElements(e -> REGISTRY.containsKey(e.getKey()))
                 .result().ifSuccess(list -> list.forEach(ItemRandomizer::putValidItem));
 
         for (ResourceKey<Item> loc : REGISTRY.registryKeySet()) {
@@ -109,6 +110,10 @@ public class ItemRandomizer {
                 .forEach(ITEM_LIST::add);
 
         INSTANCE = RandomizationMapData.get(server, "item");
+    }
+
+    private static void putValidItem(Identifier identifier, int integer) {
+        putValidItem(ResourceKey.create(Registries.ITEM, identifier), integer);
     }
 
     private static void putValidItem(ResourceKey<Item> loc, int i) {

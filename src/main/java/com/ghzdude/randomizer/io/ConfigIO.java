@@ -1,15 +1,12 @@
 package com.ghzdude.randomizer.io;
 
 import com.ghzdude.randomizer.RandomizerCore;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.google.gson.JsonElement;
+import com.google.gson.*;
 import com.mojang.datafixers.util.Pair;
 import com.mojang.logging.LogUtils;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.DataResult;
 import com.mojang.serialization.JsonOps;
-import net.minecraft.util.GsonHelper;
 import net.minecraftforge.fml.loading.FMLPaths;
 import org.slf4j.Logger;
 
@@ -86,24 +83,26 @@ public class ConfigIO {
 
         protected abstract DataResult<T> decode(JsonElement value);
 
+        protected JsonElement readPath(Path path) throws IOException {
+            return JsonParser.parseString(Files.readString(path));
+        }
+
         public AbstractHelper<T> read(T defaults) {
             File pathFile = filePath.toFile();
-            try {
-                if (shouldWriteDefaults(pathFile)) {
-                    writeDefaults(defaults, pathFile);
-                } else {
-                    this.result = decode(GsonHelper.parseArray(Files.readString(filePath)));
-                }
-                return this;
-            } catch (IOException e) {
-                readFail(pathFile);
+            if (shouldWriteDefaults(pathFile)) {
                 writeDefaults(defaults, pathFile);
-                return this;
+            } else {
+                try {
+                    this.result = decode(readPath(filePath));
+                } catch (JsonSyntaxException | IOException e) {
+                    this.result = DataResult.error(() -> "Failed to decode: " + e);
+                }
             }
+            return this;
         }
 
         public DataResult<T> result() {
-            return this.result;
+            return this.result.ifError(err -> LOGGER.info(err.message()));
         }
     }
 
@@ -139,13 +138,10 @@ public class ConfigIO {
 
         public ListHelper<E> validateElements(Predicate<E> validator) {
             this.result = this.result.flatMap(list -> {
-                List<E> filtered = list.stream().filter(e -> {
-                    if (!validator.test(e)) {
-                        LOGGER.error("Invalid element in {}: {}", filePath, e);
-                        return false;
-                    }
-                    return true;
-                }).toList();
+                List<E> filtered = list.stream()
+                        .filter(withLogging(validator, filePath))
+                        .toList();
+                if (filtered.isEmpty()) return DataResult.error(() -> "No valid elements in " + filePath);
                 return DataResult.success(filtered);
             });
             return this;
@@ -169,17 +165,15 @@ public class ConfigIO {
 
         @Override
         protected DataResult<JsonElement> encode(Map<K, V> value) {
-            List<Pair<K, V>> list = value.entrySet().stream().map(e -> Pair.of(e.getKey(), e.getValue())).toList();
-            return Codec.compoundList(this.keyCodec, this.valueCodec)
-                    .encodeStart(JsonOps.INSTANCE, list);
+            return Codec.unboundedMap(this.keyCodec, this.valueCodec)
+                    .encodeStart(JsonOps.INSTANCE, value);
         }
 
         @Override
         protected DataResult<Map<K, V>> decode(JsonElement value) {
-            return Codec.compoundList(this.keyCodec, this.valueCodec)
+            return Codec.unboundedMap(this.keyCodec, this.valueCodec)
                     .decode(JsonOps.INSTANCE, value)
-                    .map(Pair::getFirst)
-                    .map(list -> list.stream().collect(Collectors.toMap(Pair::getFirst, Pair::getSecond)));
+                    .map(Pair::getFirst);
         }
 
         public MapHelper<K, V> read(Map<K, V> defaults) {
@@ -189,16 +183,22 @@ public class ConfigIO {
 
         public MapHelper<K, V> validateElements(Predicate<Map.Entry<K, V>> validator) {
             this.result = this.result.flatMap(list -> {
-                Map<K, V> filtered = list.entrySet().stream().filter(e -> {
-                    if (!validator.test(e)) {
-                        LOGGER.error("Invalid element in {}: {}", filePath, e);
-                        return false;
-                    }
-                    return true;
-                }).collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+                Map<K, V> filtered = list.entrySet().stream()
+                        .filter(withLogging(validator, filePath))
+                        .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
                 return DataResult.success(filtered);
             });
             return this;
         }
+    }
+
+    private static <T> Predicate<T> withLogging(Predicate<T> validator, Path filePath) {
+        return e -> {
+            if (!validator.test(e)) {
+                LOGGER.error("Invalid element in {}: {}", filePath, e);
+                return false;
+            }
+            return true;
+        };
     }
 }

@@ -115,9 +115,11 @@ public class LootRandomizer {
 
         for (Block block : BLOCK_REGISTRY) {
             if (block == Blocks.AIR) continue;
-            block.getLootTable().ifPresent(lootTable -> BLOCK_MAP.put(lootTable.identifier(), BLOCK_REGISTRY.getKey(block)));
-            if (RandomizerConfig.enableDebug)
-                LOGGER.info("Block {} has no loot table", block);
+            Optional<ResourceKey<LootTable>> lootTable = block.getLootTable();
+            lootTable.ifPresentOrElse(key -> BLOCK_MAP.put(key.identifier(), BLOCK_REGISTRY.getKey(block)), () -> {
+                if (RandomizerConfig.enableDebug)
+                    LOGGER.info("{} has no loot table", block);
+            });
 
         }
 

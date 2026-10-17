@@ -162,7 +162,7 @@ public class RecipeRandomizer {
 
     private static Optional<RecipeHolder<Recipe<?>>> randomizeRecipe(ResourceKey<Recipe<?>> recipeId, Recipe<?> recipe, DynamicOps<JsonElement> ops) {
         activeRecipe = recipeId;
-        if (RandomizerConfig.enableDebug) {
+        if (RandomizerConfig.enableDebug && false) {
             LOGGER.info("Randomizing \"{}\"!", activeRecipe);
         }
         return Recipe.CODEC.encodeStart(ops, recipe)
