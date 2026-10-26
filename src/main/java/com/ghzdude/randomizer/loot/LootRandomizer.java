@@ -5,7 +5,6 @@ import com.ghzdude.randomizer.RandomizerConfig;
 import com.ghzdude.randomizer.RandomizerCore;
 import com.ghzdude.randomizer.api.RandomizerContext;
 import com.ghzdude.randomizer.special.item.SpecialItems;
-import com.ghzdude.randomizer.util.KeyFactory;
 import com.ghzdude.randomizer.util.RandomizerUtil;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
@@ -47,7 +46,6 @@ import org.slf4j.Logger;
 
 import java.util.*;
 import java.util.function.Predicate;
-import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -366,44 +364,6 @@ public class LootRandomizer {
 
         if (!drops.isEmpty())
             ParsedLootTable.registerRecipe(parsedLootTable.input(), drops, parsedLootTable.lootTable());
-    }
-
-    public static UnaryOperator<ItemStack> functionFromContext(LootContext context) {
-        Optional<Identifier> tables = getKnownTables().stream()
-                .map(identifier -> LOOT_REGISTRY.get(KeyFactory.table(identifier)))
-                .filter(Optional::isPresent).map(Optional::get)
-                .map(Holder::get)
-                .map(LootContext::createVisitedEntry)
-                .filter(context::hasVisitedElement)
-                .map(LootContext.VisitedEntry::value)
-                .map(LootTable::getLootTableId)
-                .filter(SPECIAL_MAP::containsKey)
-                .findFirst();
-        return stack -> {
-            if (tables.isEmpty()) return stack;
-
-            Map<Identifier, Identifier> fixerMap = SPECIAL_MAP.get(tables.get());
-            Identifier vanilla = ITEM_REGISTRY.getKey(stack.getItem());
-            Identifier randomized = getMapData(tables.get()).getItemIdFor(vanilla);
-            Identifier fixed = fixerMap.getOrDefault(randomized, vanilla);
-            return ITEM_REGISTRY.get(fixed).map(ItemStack::new).orElse(stack);
-        };
-    }
-
-    public static UnaryOperator<ItemStack> getSpecialDrop(Identifier table) {
-        if (SPECIAL_MAP.containsKey(table)) {
-            Map<Identifier, Identifier> map = SPECIAL_MAP.get(table);
-            return wrap(id -> map.getOrDefault(id, id));
-        }
-        return null;
-    }
-
-    public static UnaryOperator<ItemStack> wrap(UnaryOperator<Identifier> function) {
-        return stack -> ITEM_REGISTRY.getResourceKey(stack.getItem())
-                .map(k -> function.apply(k.identifier()))
-                .flatMap(ITEM_REGISTRY::get)
-                .map(ItemStack::new)
-                .orElse(stack);
     }
 
     private static void collectFromTag(TagKey<Block> key, Set<Identifier> collection) {
