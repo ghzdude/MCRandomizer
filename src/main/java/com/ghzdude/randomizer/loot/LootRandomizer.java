@@ -136,13 +136,13 @@ public class LootRandomizer {
         DynamicOps<JsonElement> ops = registryOps.get();
 
         LOGGER.info("Iterating through loot tables!");
-        List<Holder.Reference<LootTable>> lootTables = LOOT_REGISTRY.listElements().toList();
+        var lootTables = LOOT_REGISTRY.listElements().toList();
 
         if (RandomizerConfig.enableDebug) {
             LOGGER.info("Found {} loot tables", lootTables.size());
         }
 
-        for (Holder.Reference<LootTable> table : lootTables) {
+        for (Holder<LootTable> table : lootTables) {
             // serialize loot table into JSON for easy lookup
             LootTable.DIRECT_CODEC.encodeStart(ops, table.get())
                     .ifError(e -> LOGGER.error("error encoding table: {}", e.message()))
@@ -181,7 +181,7 @@ public class LootRandomizer {
                 case CHICKEN_LAY -> new ItemStack(Items.EGG);
                 default -> {
                     if (RandomizerConfig.enableDebug)
-                        LOGGER.info("Unhandled Table: '{}'", table);
+                        LOGGER.warn("Unhandled Table: '{}'", table);
                     yield ItemStack.EMPTY;
                 }
             };
@@ -201,8 +201,7 @@ public class LootRandomizer {
                 expandData(data).map(ITEM_REGISTRY::get)
                         .filter(Optional::isPresent)
                         .map(Optional::get)
-                        .map(Holder::get)
-                        .map(Item::getDefaultInstance)
+                        .map(ItemStack::new)
                         .filter(stack -> !stack.isEmpty())
                         .forEach(stack -> {
                             configureOutputStack(table, data, stack, type);
@@ -210,8 +209,7 @@ public class LootRandomizer {
                         });
             }
 
-            if (!drops.isEmpty())
-                ParsedLootTable.registerRecipe(inputStack, drops, table);
+            ParsedLootTable.registerRecipe(inputStack, drops, table);
         }
 
         if (RandomizerConfig.enableDebug) {
@@ -363,8 +361,7 @@ public class LootRandomizer {
                     });
         }
 
-        if (!drops.isEmpty())
-            ParsedLootTable.registerRecipe(parsedLootTable.input(), drops, parsedLootTable.lootTable());
+        ParsedLootTable.registerRecipe(parsedLootTable.input(), drops, parsedLootTable.lootTable());
     }
 
     private static void collectFromTag(TagKey<Block> key, Set<ResourceKey<Block>> collection) {
@@ -892,6 +889,7 @@ public class LootRandomizer {
         public static final ResourceKey<Registry<ParsedLootTable>> REGISTRY_KEY = ResourceKey.createRegistryKey(RandomizerCore.withPath("parsed_loot"));
 
         public static void registerRecipe(ItemStack input, List<ItemStack> drops, Identifier table) {
+            if (drops.isEmpty()) return;
             ParsedLootTable existing = PARSED_REGISTRY.put(ResourceKey.create(REGISTRY_KEY, table),
                     new ParsedLootTable(input, drops, Objects.requireNonNull(table)));
             if (existing != null && RandomizerConfig.enableDebug) {
