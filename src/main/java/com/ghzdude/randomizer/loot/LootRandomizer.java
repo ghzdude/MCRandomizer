@@ -68,7 +68,7 @@ public class LootRandomizer {
     /**
      * Maps a block's loot table to the block
      */
-    private static final Object2ObjectMap<Identifier, Identifier> BLOCK_MAP = new Object2ObjectOpenHashMap<>();
+    private static final Object2ObjectMap<Identifier, ResourceKey<Block>> BLOCK_MAP = new Object2ObjectOpenHashMap<>();
 
     /**
      * Maps a loot table to its drops
@@ -85,11 +85,11 @@ public class LootRandomizer {
 
     public static Identifier activeLocation;
 
-    private static final Set<Identifier> PICKAXE_MINABLE = new ObjectOpenHashSet<>();
-    private static final Set<Identifier> SHOVEL_MINABLE = new ObjectOpenHashSet<>();
-    private static final Set<Identifier> REQUIRES_STONE = new ObjectOpenHashSet<>();
-    private static final Set<Identifier> REQUIRES_IRON = new ObjectOpenHashSet<>();
-    private static final Set<Identifier> REQUIRES_DIAMOND = new ObjectOpenHashSet<>();
+    private static final Set<ResourceKey<Block>> PICKAXE_MINABLE = new ObjectOpenHashSet<>();
+    private static final Set<ResourceKey<Block>> SHOVEL_MINABLE = new ObjectOpenHashSet<>();
+    private static final Set<ResourceKey<Block>> REQUIRES_STONE = new ObjectOpenHashSet<>();
+    private static final Set<ResourceKey<Block>> REQUIRES_IRON = new ObjectOpenHashSet<>();
+    private static final Set<ResourceKey<Block>> REQUIRES_DIAMOND = new ObjectOpenHashSet<>();
     private static RecipeManager RECIPE_MANAGER;
     private static boolean appliesToAll;
     private static boolean requiresPick;
@@ -115,7 +115,8 @@ public class LootRandomizer {
         for (Block block : BLOCK_REGISTRY) {
             if (block == Blocks.AIR) continue;
             Optional<ResourceKey<LootTable>> lootTable = block.getLootTable();
-            lootTable.ifPresentOrElse(key -> BLOCK_MAP.put(key.identifier(), BLOCK_REGISTRY.getKey(block)), () -> {
+            ResourceKey<Block> blockKey = BLOCK_REGISTRY.getResourceKey(block).orElseThrow();
+            lootTable.ifPresentOrElse(key -> BLOCK_MAP.put(key.identifier(), blockKey), () -> {
                 if (RandomizerConfig.enableDebug)
                     LOGGER.info("{} has no loot table", block);
             });
@@ -331,7 +332,7 @@ public class LootRandomizer {
 
     @Nullable
     public static Identifier getBlockFor(Identifier table) {
-        if (BLOCK_MAP.containsKey(table)) return BLOCK_MAP.get(table);
+        if (BLOCK_MAP.containsKey(table)) return BLOCK_MAP.get(table).identifier();
         LOGGER.warn("Table '{}' is not a block table!", table);
         return null;
     }
@@ -366,9 +367,9 @@ public class LootRandomizer {
             ParsedLootTable.registerRecipe(parsedLootTable.input(), drops, parsedLootTable.lootTable());
     }
 
-    private static void collectFromTag(TagKey<Block> key, Set<Identifier> collection) {
+    private static void collectFromTag(TagKey<Block> key, Set<ResourceKey<Block>> collection) {
         BLOCK_REGISTRY.get(key).ifPresent(blocks -> blocks.stream()
-                .map(holder -> BLOCK_REGISTRY.getKey(holder.get()))
+                .map(holder -> extractKey(holder, BLOCK_REGISTRY).orElseThrow())
                 .forEach(collection::add));
     }
 
