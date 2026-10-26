@@ -82,7 +82,7 @@ public class LootRandomizer {
      */
     public static final Map<Identifier, Map<Identifier, Identifier>> SPECIAL_MAP = new Object2ObjectOpenHashMap<>();
 
-    private static final Map<Identifier, Identifier> ENTITY_EGG_MAP = new Object2ObjectOpenHashMap<>();
+    private static final Map<Identifier, ResourceKey<Item>> ENTITY_EGG_MAP = new Object2ObjectOpenHashMap<>();
     private static final Map<ResourceKey<ParsedLootTable>, ParsedLootTable> PARSED_REGISTRY = new Object2ObjectOpenHashMap<>();
 
     public static Identifier activeLocation;
@@ -127,7 +127,7 @@ public class LootRandomizer {
         for (EntityType<?> type : access.lookupOrThrow(Registries.ENTITY_TYPE)) {
             SpawnEggItem.byId(type).ifPresent(egg -> type.getDefaultLootTable()
                     .map(ResourceKey::identifier)
-                    .ifPresent(key -> ENTITY_EGG_MAP.put(key, egg.unwrapKey().map(ResourceKey::identifier).orElseThrow())));
+                    .ifPresent(key -> ENTITY_EGG_MAP.put(key, extractKey(egg, ITEM_REGISTRY).orElseThrow())));
         }
 
         Optional<DynamicOps<JsonElement>> registryOps = RandomizerCore.getOps();
@@ -257,7 +257,11 @@ public class LootRandomizer {
     }
 
     private static Optional<ResourceKey<Item>> extractKey(ItemStack stack) {
-        return stack.typeHolder().unwrap().map(Optional::of, ITEM_REGISTRY::getResourceKey);
+        return extractKey(stack.typeHolder(), ITEM_REGISTRY);
+    }
+
+    private static <T> Optional<ResourceKey<T>> extractKey(Holder<T> holder, Registry<T> registry) {
+        return holder.unwrap().map(Optional::of, registry::getResourceKey);
     }
 
     private static Item getItemFromBlock(Identifier block) {
@@ -304,7 +308,7 @@ public class LootRandomizer {
         if (!ENTITY_EGG_MAP.containsKey(table) && table.getPath().startsWith("entities/sheep/")) {
             return ITEM_REGISTRY.getKey(Items.SHEEP_SPAWN_EGG);
         }
-        return ENTITY_EGG_MAP.get(table);
+        return ENTITY_EGG_MAP.get(table).identifier();
     }
 
     private static Stream<Identifier> expandData(LootData data) {
