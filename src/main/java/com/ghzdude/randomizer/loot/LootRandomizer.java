@@ -7,6 +7,7 @@ import com.ghzdude.randomizer.api.RandomizerContext;
 import com.ghzdude.randomizer.special.item.SpecialItems;
 import com.ghzdude.randomizer.util.KeyFactory;
 import com.ghzdude.randomizer.util.RandomizerUtil;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -191,10 +192,9 @@ public class LootRandomizer {
                 return;
             }
 
-            List<Component> lines = RandomizerUtil.getOrCreateLines(inputStack);
-            lines.add(Component.translatable("randomizer.compat.jei.table.id", table)
-                    .withStyle(ChatFormatting.DARK_GRAY));
-            inputStack.set(DataComponents.LORE, new ItemLore(lines));
+            inputStack.update(DataComponents.LORE, ItemLore.EMPTY, lore ->
+                    lore.withLineAdded(Component.translatable("randomizer.compat.jei.table.id", table)
+                            .withStyle(ChatFormatting.DARK_GRAY)));
 
             List<ItemStack> drops = new ArrayList<>();
             for (LootData data : lootData) {
@@ -228,6 +228,10 @@ public class LootRandomizer {
     }
 
     private static void configureOutputStack(Identifier table, LootData data, ItemStack stack, Type type) {
+        Optional<ResourceKey<Item>> keyOptional = extractKey(stack);
+        if (keyOptional.isEmpty()) return;
+        ResourceKey<Item> key = keyOptional.get();
+
         List<Component> additional = new ArrayList<>();
         if (isBlock(table)) {
             additional.add(type.getTranslationComponent());
@@ -239,17 +243,21 @@ public class LootRandomizer {
         } else if (data.shears()) {
             additional.add(Type.SHEARS.getTranslationComponent());
         }
-        if (SpecialItems.EFFECT_ITEMS.contains(stack.getItem())) {
+        if (SpecialItems.EFFECT_ITEMS.contains(key)) {
             additional.add(Component.literal("May have random effects!"));
         }
-        if (SpecialItems.ENCHANTABLE.contains(stack.getItem())) {
+        if (SpecialItems.ENCHANTABLE.contains(key)) {
             additional.add(Component.literal("May have random enchantments!"));
         }
         if (!additional.isEmpty()) {
-            List<Component> existing = RandomizerUtil.getOrCreateLines(stack);
-            existing.addAll(additional);
-            stack.set(DataComponents.LORE, new ItemLore(existing));
+            stack.update(DataComponents.LORE, ItemLore.EMPTY, lore -> new ItemLore(ImmutableList.<Component>builder()
+                    .addAll(lore.lines()).addAll(additional)
+                    .build()));
         }
+    }
+
+    private static Optional<ResourceKey<Item>> extractKey(ItemStack stack) {
+        return stack.typeHolder().unwrap().map(Optional::of, ITEM_REGISTRY::getResourceKey);
     }
 
     private static Item getItemFromBlock(Identifier block) {
