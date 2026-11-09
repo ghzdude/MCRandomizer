@@ -56,6 +56,7 @@ public class LootRandomizer {
     public static final String MATCH_TOOL = "match_tool";
     public static final String CAN_TOOL_PERFORM_ACTION = "can_tool_perform_action";
     public static final String INVERTED = "inverted";
+    public static final String ANY_OF = "any_of";
     private static RandomizationMapData INSTANCE = null;
     public static HolderLookup.RegistryLookup<LootTable> LOOT_REGISTRY;
     public static Registry<Item> ITEM_REGISTRY;
@@ -160,7 +161,7 @@ public class LootRandomizer {
 
         for (Identifier table : LOOT_MAP.keySet()) {
             Set<LootData> lootData = LOOT_MAP.get(table);
-            ItemStack inputStack = switch (getType(table)) {
+            ItemStack inputStack = switch (LootType.getType(table)) {
                 case ENTITY -> {
                     Optional<Holder.Reference<Item>> egg = ITEM_REGISTRY.get(Objects.requireNonNull(getEggForEntityTable(table)));
                     yield egg.map(ItemStack::new).orElse(ItemStack.EMPTY);
@@ -215,13 +216,6 @@ public class LootRandomizer {
         if (RandomizerConfig.enableDebug) {
             LOGGER.info("Parsed {} loot tables", PARSED_REGISTRY.size());
         }
-    }
-
-    private static LootType getType(Identifier table) {
-        for (LootType type : LootType.LOOT_TYPES) {
-            if (type.test(table)) return type;
-        }
-        return LootType.UNKNOWN;
     }
 
     private static void configureOutputStack(Identifier table, LootData data, ItemStack stack, Type type) {
@@ -398,7 +392,7 @@ public class LootRandomizer {
         ResourceKey<LootTable> key = ResourceKey.create(Registries.LOOT_TABLE, id);
         appliesToAll = false;
 
-        if (!isBlacklisted(id)) TABLES.add(id);
+        if (LootType.isWhitelisted(id)) TABLES.add(id);
 
         Set<LootData> items = LOOT_MAP.computeIfAbsent(id, k -> new ObjectOpenHashSet<>());
 
@@ -430,6 +424,7 @@ public class LootRandomizer {
             if (pool.has("conditions") && !appliesToAll) {
                 requiresSilk = handleConditions(pool, MATCH_TOOL, LootRandomizer::handleMatchTool);
                 requiresShears = handleConditions(pool, CAN_TOOL_PERFORM_ACTION, LootRandomizer::handleShears);
+                // if the pool requires silk or shears, then every entry must also require at least the same things
                 appliesToAll = requiresSilk || requiresShears;
             }
 
@@ -441,12 +436,15 @@ public class LootRandomizer {
 
     private static void handleEntry(JsonObject entry, Set<LootData> items) {
         if (isType(entry, "alternatives")) {
+            // list of entries
             handleAlternatives(entry, items);
         } else if (isType(entry, "item")) {
+            // item entry
             handleItem(entry, items);
         } else if (isType(entry, "empty")) {
             // no-op
         } else if (isType(entry, "loot_table")) {
+            // TODO track this reference for verifier
             JsonElement value = entry.get("value");
             if (value.isJsonObject()) {
                 // table within table
@@ -457,6 +455,7 @@ public class LootRandomizer {
                 addEntry(LootData.table(reference), items);
             }
         } else if (isType(entry, "dynamic")) {
+            // TODO handle this better somehow
             Identifier name = getName(entry);
             List<Identifier> list = ITEM_REGISTRY.getTags()
                     // this isn't really a great solution, but it should work for sherds
@@ -514,6 +513,7 @@ public class LootRandomizer {
         LootData data = LootData.standard(random).pick(requiresPick).shovel(requiresShovel);
 
         if (!appliesToAll) {
+            // TODO move away from static fields
             requiresSilk = handleConditions(entry, MATCH_TOOL, LootRandomizer::handleMatchTool);
             requiresShears = handleConditions(entry, CAN_TOOL_PERFORM_ACTION, LootRandomizer::handleShears);
 
@@ -546,17 +546,6 @@ public class LootRandomizer {
         return vanilla;
     }
 
-    private static boolean hasCondition(JsonObject object, String type) {
-        if (!object.has("conditions")) return false;
-        List<JsonObject> conditions = object.getAsJsonArray("conditions")
-                .asList().stream().map(JsonElement::getAsJsonObject).toList();
-
-        for (JsonObject condition : conditions) {
-            if (isCondition(condition, type)) return true;
-        }
-        return false;
-    }
-
     private static boolean handleConditions(JsonObject object, String type, Predicate<JsonObject> predicate) {
         if (!object.has("conditions")) return false;
         List<JsonObject> conditions = object.getAsJsonArray("conditions")
@@ -571,7 +560,7 @@ public class LootRandomizer {
     private static boolean handleCondition(String type, Predicate<JsonObject> predicate, JsonObject condition) {
         if (isCondition(condition, type) && predicate.test(condition)) {
             return true;
-        } else if (isCondition(condition, "any_of")) {
+        } else if (isCondition(condition, ANY_OF)) {
             return handleTerms(type, predicate, condition.getAsJsonArray("terms"));
         } else if (isCondition(condition, INVERTED)) {
             JsonObject term = condition.getAsJsonObject("term");
@@ -655,12 +644,6 @@ public class LootRandomizer {
         TABLES.clear();
         BLOCK_MAP.clear();
         LOOT_MAP.clear();
-    }
-
-    private static boolean isBlacklisted(Identifier location) {
-        return !RandomizerConfig.randomizeBlockLoot && isBlock(location) ||
-                !RandomizerConfig.randomizeEntityLoot && isEntityDrop(location) ||
-                !RandomizerConfig.randomizeChestLoot && isChestLoot(location);
     }
 
     public static boolean isBlock(Identifier location) {
@@ -757,6 +740,7 @@ public class LootRandomizer {
         CHICKEN_LAY("gameplay/chicken_lay");
 
         public static final LootType[] LOOT_TYPES = values();
+        private static final Map<Identifier, LootType> CACHE = new HashMap<>();
         private final Predicate<Identifier> predicate;
 
         LootType(String regex) {
@@ -770,6 +754,30 @@ public class LootRandomizer {
         @Override
         public boolean test(Identifier identifier) {
             return this.predicate.test(identifier);
+        }
+
+        public static LootType getType(Identifier table) {
+            return CACHE.computeIfAbsent(table, LootType::computeType);
+        }
+
+        private static LootType computeType(Identifier k) {
+            for (LootType lootType : LOOT_TYPES) {
+                if (lootType.test(k)) return lootType;
+            }
+            return UNKNOWN;
+        }
+
+        static boolean isBlacklisted(Identifier id) {
+            return switch (getType(id)) {
+                case BLOCK -> RandomizerConfig.randomizeBlockLoot;
+                case CHEST -> RandomizerConfig.randomizeChestLoot;
+                case ENTITY -> RandomizerConfig.randomizeEntityLoot;
+                default -> false;
+            };
+        }
+
+        static boolean isWhitelisted(Identifier id) {
+            return !isBlacklisted(id);
         }
     }
 
