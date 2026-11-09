@@ -13,6 +13,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.mojang.datafixers.util.Pair;
 import com.mojang.logging.LogUtils;
+import com.mojang.serialization.DataResult;
 import com.mojang.serialization.DynamicOps;
 import com.mojang.serialization.JsonOps;
 import it.unimi.dsi.fastutil.objects.Object2ObjectMap;
@@ -80,6 +81,9 @@ public class LootRandomizer {
      */
     public static final Map<Identifier, Map<Identifier, Identifier>> SPECIAL_MAP = new Object2ObjectOpenHashMap<>();
 
+    /**
+     * Maps entity loot table to their spawn egg
+     */
     private static final Map<Identifier, ResourceKey<Item>> ENTITY_EGG_MAP = new Object2ObjectOpenHashMap<>();
     private static final Map<ResourceKey<ParsedLootTable>, ParsedLootTable> PARSED_REGISTRY = new Object2ObjectOpenHashMap<>();
 
@@ -97,6 +101,8 @@ public class LootRandomizer {
     private static boolean requiresSilk;
     private static boolean requiresShears;
 
+    private static final Set<ResourceKey<LootTable>> BLOCK_TABLES = new HashSet<>();
+
     public static void init(MinecraftServer server) {
         INSTANCE = RandomizationMapData.get(server, "loot");
         RegistryAccess access = server.registryAccess();
@@ -106,21 +112,17 @@ public class LootRandomizer {
         BLOCK_REGISTRY = access.lookupOrThrow(Registries.BLOCK);
         RECIPE_MANAGER = server.getRecipeManager();
 
+        // TODO these tags can determine what type loot table is
         collectFromTag(BlockTags.MINEABLE_WITH_PICKAXE, PICKAXE_MINABLE);
         collectFromTag(BlockTags.MINEABLE_WITH_SHOVEL, SHOVEL_MINABLE);
         collectFromTag(BlockTags.NEEDS_STONE_TOOL, REQUIRES_STONE);
         collectFromTag(BlockTags.NEEDS_IRON_TOOL, REQUIRES_IRON);
         collectFromTag(BlockTags.NEEDS_DIAMOND_TOOL, REQUIRES_DIAMOND);
 
-        for (Block block : BLOCK_REGISTRY) {
-            if (block == Blocks.AIR) continue;
-            Optional<ResourceKey<LootTable>> lootTable = block.getLootTable();
-            ResourceKey<Block> blockKey = BLOCK_REGISTRY.getResourceKey(block).orElseThrow();
-            lootTable.ifPresentOrElse(key -> BLOCK_MAP.put(key.identifier(), blockKey), () -> {
-                if (RandomizerConfig.enableDebug)
-                    LOGGER.info("{} has no loot table", block);
-            });
-
+        for (ResourceKey<Block> block : BLOCK_REGISTRY.registryKeySet()) {
+            BLOCK_REGISTRY.getOptional(block)
+                    .flatMap(Block::getLootTable)
+                    .ifPresent(BLOCK_TABLES::add);
         }
 
         for (EntityType<?> type : access.lookupOrThrow(Registries.ENTITY_TYPE)) {
@@ -145,11 +147,9 @@ public class LootRandomizer {
         for (Holder<LootTable> table : lootTables) {
             // serialize loot table into JSON for easy lookup
             LootTable.DIRECT_CODEC.encodeStart(ops, table.get())
-                    .ifError(e -> LOGGER.error("error encoding table: {}", e.message()))
-                    .result()
-                    .filter(JsonElement::isJsonObject)
-                    .map(JsonElement::getAsJsonObject)
-                    .ifPresent(LootRandomizer::handleJson);
+                    .flatMap(e -> e.isJsonObject() ? DataResult.success(e.getAsJsonObject()) : DataResult.error(() -> "Not a JSON object!"))
+                    .ifError(e -> LOGGER.error("Error encoding table: {}", e.message()))
+                    .ifSuccess(LootRandomizer::handleJson);
         }
 
         activeLocation = null;
@@ -308,11 +308,16 @@ public class LootRandomizer {
         return ENTITY_EGG_MAP.get(table).identifier();
     }
 
+    // TODO can be TagKey<Item> or ResourceKey<LootTable> or ResourceKey<Item>
     private static Stream<Identifier> expandData(LootData data) {
         if (data.tag()) {
-            return ITEM_REGISTRY.get(data.makeTagKey())
-                    .map(holders -> holders.stream().map(Holder::get).map(ITEM_REGISTRY::getKey))
-                    .orElseThrow();
+            TagKey<Item> id = data.makeTagKey();
+            return ITEM_REGISTRY.get(id)
+                    .map(holders -> holders.stream().map(h -> extractKey(h, ITEM_REGISTRY).map(ResourceKey::identifier).orElseThrow()))
+                    .orElseGet(() -> {
+                        RandomizerCore.LOGGER.warn("No items in tag key: {}", id);
+                        return Stream.empty();
+                    });
         } else if (data.reference()) {
             return getItems(data.location()).stream();
         } else {
@@ -370,11 +375,27 @@ public class LootRandomizer {
                 .forEach(collection::add));
     }
 
+    /*
+     * read table id
+     * does it need a pick or shovel
+     * does it need shears or silk touch
+     * go through each pool
+     * handle pool conditions (silk/shears)
+     * handle each entry in the pool
+     * -> alternative
+     * -> item
+     * -> empty (no-op)
+     * -> loot table
+     * -> dynamic
+     * -> tag
+     */
+
     private static void handleJson(JsonObject table) {
         if (!table.has("random_sequence") || !table.has("pools"))
             return;
 
         Identifier id = activeLocation = Identifier.parse(table.get("random_sequence").getAsString());
+        ResourceKey<LootTable> key = ResourceKey.create(Registries.LOOT_TABLE, id);
         appliesToAll = false;
 
         if (!isBlacklisted(id)) TABLES.add(id);
@@ -384,7 +405,7 @@ public class LootRandomizer {
         // todo handling table json needs to be improved
         // certain tables do not have proper output information
         // trying to fix it is a pain in the ass, so im leaving it for now
-        requiresPick = isBlock(id) && PICKAXE_MINABLE.contains(BLOCK_MAP.get(id));
+        requiresPick = BLOCK_TABLES.contains(key);
         requiresShovel = isBlock(id) && SHOVEL_MINABLE.contains(BLOCK_MAP.get(id));
 
         handleJsonRaw(table, items);
