@@ -13,9 +13,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.mojang.datafixers.util.Pair;
 import com.mojang.logging.LogUtils;
-import com.mojang.serialization.DataResult;
-import com.mojang.serialization.DynamicOps;
-import com.mojang.serialization.JsonOps;
+import com.mojang.serialization.*;
 import it.unimi.dsi.fastutil.objects.Object2ObjectMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
@@ -30,6 +28,7 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.tags.TagKey;
+import net.minecraft.util.ExtraCodecs;
 import net.minecraft.util.StringRepresentable;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.item.Item;
@@ -41,6 +40,10 @@ import net.minecraft.world.item.crafting.*;
 import net.minecraft.world.level.block.*;
 import net.minecraft.world.level.storage.loot.LootContext;
 import net.minecraft.world.level.storage.loot.LootTable;
+import net.minecraft.world.level.storage.loot.functions.SmeltItemFunction;
+import net.minecraft.world.level.storage.loot.predicates.LootItemCondition;
+import net.minecraft.world.level.storage.loot.predicates.LootItemConditions;
+import net.minecraft.world.level.storage.loot.predicates.MatchTool;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
@@ -535,6 +538,35 @@ public class LootRandomizer {
         addEntry(data.silk(requiresSilk).shears(requiresShears), items);
     }
 
+    public static class ItemEntry {
+
+        public static final MapCodec<ResourceKey<Item>> NAME = ResourceKey.codec(Registries.ITEM).fieldOf("name");
+        public static final MapCodec<JsonArray> FUNCTIONS = ExtraCodecs.JSON.listOf()
+                .xmap(l -> {
+                    JsonArray array = new JsonArray();
+                    l.forEach(array::add);
+                    return array;
+                }, JsonArray::asList)
+                .fieldOf("functions");
+
+        public final boolean requiresSilk;
+        public final boolean requiresShears;
+        // list of parsed functions
+
+        public ItemEntry(JsonObject entry) {
+            this.requiresSilk = handleConditions(entry, MATCH_TOOL, LootRandomizer::handleMatchTool);
+            this.requiresShears = handleConditions(entry, CAN_TOOL_PERFORM_ACTION, LootRandomizer::handleShears);
+            Dynamic<JsonElement> dynamic = new Dynamic<>(JsonOps.INSTANCE, entry);
+            DataResult<ResourceKey<Item>> name = NAME.decoder().parse(dynamic);
+            FUNCTIONS.decoder().parse(dynamic)
+                    .ifSuccess(this::parseFunctions);
+        }
+
+        public void parseFunctions(JsonArray functions) {
+
+        }
+    }
+
     private static Identifier getRandomized(Identifier vanilla) {
         RandomizationMapData mapData = getMapData(activeLocation);
         if (mapData.getItems().contains(vanilla))
@@ -546,6 +578,7 @@ public class LootRandomizer {
         return vanilla;
     }
 
+    /// see {@link LootItemConditions} and {@link LootItemCondition}
     private static boolean handleConditions(JsonObject object, String type, Predicate<JsonObject> predicate) {
         if (!object.has("conditions")) return false;
         List<JsonObject> conditions = object.getAsJsonArray("conditions")
@@ -581,6 +614,7 @@ public class LootRandomizer {
         return false;
     }
 
+    /// see {@link MatchTool}
     private static boolean handleMatchTool(JsonObject object) {
         if (!object.has("predicate")) return false;
 
@@ -606,6 +640,7 @@ public class LootRandomizer {
         return object.get("action").getAsString().contains("shears");
     }
 
+    /// see {@link SmeltItemFunction}
     private static Optional<Identifier> canSmelt(JsonObject function, Identifier currentItem) {
         if (function.has("function") && function.get("function").getAsString().contains("furnace_smelt")) {
             //noinspection unchecked
