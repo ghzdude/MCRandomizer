@@ -28,7 +28,6 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.tags.TagKey;
-import net.minecraft.util.ExtraCodecs;
 import net.minecraft.util.StringRepresentable;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.item.Item;
@@ -519,6 +518,7 @@ public class LootRandomizer {
             // TODO move away from static fields
             requiresSilk = handleConditions(entry, MATCH_TOOL, LootRandomizer::handleMatchTool);
             requiresShears = handleConditions(entry, CAN_TOOL_PERFORM_ACTION, LootRandomizer::handleShears);
+            new ItemEntry(entry);
 
             if (entry.has("functions")) {
                 List<JsonObject> functions = entry.getAsJsonArray("functions").asList().stream()
@@ -541,29 +541,69 @@ public class LootRandomizer {
     public static class ItemEntry {
 
         public static final MapCodec<ResourceKey<Item>> NAME = ResourceKey.codec(Registries.ITEM).fieldOf("name");
-        public static final MapCodec<JsonArray> FUNCTIONS = ExtraCodecs.JSON.listOf()
-                .xmap(l -> {
-                    JsonArray array = new JsonArray();
-                    l.forEach(array::add);
-                    return array;
-                }, JsonArray::asList)
-                .fieldOf("functions");
 
+        public final ResourceKey<Item> item;
         public final boolean requiresSilk;
         public final boolean requiresShears;
         // list of parsed functions
 
         public ItemEntry(JsonObject entry) {
-            this.requiresSilk = handleConditions(entry, MATCH_TOOL, LootRandomizer::handleMatchTool);
+            this.requiresSilk = handleMatchTool().parse(JsonOps.INSTANCE, entry).result().orElse(false);
             this.requiresShears = handleConditions(entry, CAN_TOOL_PERFORM_ACTION, LootRandomizer::handleShears);
-            Dynamic<JsonElement> dynamic = new Dynamic<>(JsonOps.INSTANCE, entry);
-            DataResult<ResourceKey<Item>> name = NAME.decoder().parse(dynamic);
-            FUNCTIONS.decoder().parse(dynamic)
-                    .ifSuccess(this::parseFunctions);
+            Dynamic<JsonElement> dynamic = dyn(entry);
+            this.item = NAME.decoder().parse(dynamic).getOrThrow(); // this is the item in the entry
+//            ops().get(entry, "functions")
+//                    .flatMap(e -> ops().getStream(e))
+//                    .map(stream -> );
+            parseFunctions(entry.getAsJsonArray("functions"));
+        }
+
+        public static Decoder<Boolean> handleMatchTool() {
+            return new Decoder<>() {
+
+                @Override
+                public <T> DataResult<Pair<Boolean, T>> decode(DynamicOps<T> ops, T input) {
+                    return ops.get(input, "conditions")
+                            .flatMap(ops::getStream)// stream of condition
+                            // find match tool
+                            .flatMap(tStream -> extractFirst(tStream, ops, MATCH_TOOL))
+                            // predicates -> predicate -> enchantments -> silk_touch
+                            .flatMap(t -> ops.get(t, "predicates"))
+                            .flatMap(ops::getStream) // stream of predicate
+                            .flatMap(tStream -> extractFirst(tStream, ops, "minecraft:enchantments"))
+                            .flatMap(ops::getStream) // stream of "enchantment"
+                            // actual enchantments
+                            .flatMap(tStream -> extractFirst(tStream, ops, "enchantments"))
+                            .flatMap(ops::getStream) // stream of actual enchantments
+                            .flatMap(tStream -> extractFirst(tStream, ops, "silk_touch"))
+                            .mapOrElse(
+                                    _ -> DataResult.success(Pair.of(true, input)),
+                                    _ -> DataResult.success(Pair.of(false, input))
+                            );
+                }
+
+                private static <T> DataResult<T> extractFirst(Stream<T> tStream, DynamicOps<T> ops, String key) {
+                    Optional<DataResult<T>> first = tStream.map(t -> ops.get(t, key)).filter(DataResult::isSuccess).findFirst();
+                    return first.orElseGet(() -> DataResult.error(() -> "could not extract " + key + " in stream"));
+                }
+            };
+        }
+
+
+        private DynamicOps<JsonElement> ops() {
+            return JsonOps.INSTANCE;
+        }
+
+        private Dynamic<JsonElement> dyn(JsonElement val) {
+            return new Dynamic<>(ops(), val);
         }
 
         public void parseFunctions(JsonArray functions) {
-
+            if (functions == null) {
+                // log?
+                return;
+            }
+            // checking for smelt function
         }
     }
 
@@ -590,6 +630,7 @@ public class LootRandomizer {
         return false;
     }
 
+    /// see {@link LootItemConditions} and {@link LootItemCondition}
     private static boolean handleCondition(String type, Predicate<JsonObject> predicate, JsonObject condition) {
         if (isCondition(condition, type) && predicate.test(condition)) {
             return true;
@@ -602,6 +643,7 @@ public class LootRandomizer {
         return false;
     }
 
+    /// see {@link LootItemConditions} and {@link LootItemCondition}
     private static boolean handleTerms(String type, Predicate<JsonObject> predicate, JsonArray condition) {
         List<JsonObject> terms = condition.asList().stream()
                 .map(JsonElement::getAsJsonObject).toList();
