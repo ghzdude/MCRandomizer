@@ -43,6 +43,7 @@ import net.minecraft.world.level.storage.loot.functions.SmeltItemFunction;
 import net.minecraft.world.level.storage.loot.predicates.LootItemCondition;
 import net.minecraft.world.level.storage.loot.predicates.LootItemConditions;
 import net.minecraft.world.level.storage.loot.predicates.MatchTool;
+import net.minecraftforge.common.ToolActions;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
@@ -569,9 +570,11 @@ public class LootRandomizer {
                             .flatMap(tStream -> extractFirst(tStream, ops, MATCH_TOOL))
                             // predicates -> predicate -> enchantments -> silk_touch
                             .flatMap(t -> ops.get(t, "predicates"))
-                            .flatMap(ops::getStream) // stream of predicate
+                            // stream of predicate
+                            .flatMap(ops::getStream)
                             .flatMap(tStream -> extractFirst(tStream, ops, "minecraft:enchantments"))
-                            .flatMap(ops::getStream) // stream of "enchantment"
+                            // stream of "enchantment"
+                            .flatMap(ops::getStream)
                             // actual enchantments
                             .flatMap(tStream -> extractFirst(tStream, ops, "enchantments"))
                             .flatMap(ops::getStream) // stream of actual enchantments
@@ -590,11 +593,11 @@ public class LootRandomizer {
         }
 
 
-        private DynamicOps<JsonElement> ops() {
+        private static DynamicOps<JsonElement> ops() {
             return JsonOps.INSTANCE;
         }
 
-        private Dynamic<JsonElement> dyn(JsonElement val) {
+        private static Dynamic<JsonElement> dyn(JsonElement val) {
             return new Dynamic<>(ops(), val);
         }
 
@@ -618,7 +621,9 @@ public class LootRandomizer {
         return vanilla;
     }
 
-    /// see {@link LootItemConditions} and {@link LootItemCondition}
+    /// see {@link LootItemConditions} and {@link LootItemCondition} for silk touch
+    /// <br />
+    /// see {@link ToolActions#SHEARS_DIG} for shears
     private static boolean handleConditions(JsonObject object, String type, Predicate<JsonObject> predicate) {
         if (!object.has("conditions")) return false;
         List<JsonObject> conditions = object.getAsJsonArray("conditions")
