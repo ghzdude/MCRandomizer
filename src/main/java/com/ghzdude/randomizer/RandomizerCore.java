@@ -1,5 +1,6 @@
 package com.ghzdude.randomizer;
 
+import com.ghzdude.randomizer.commands.ModCommands;
 import com.ghzdude.randomizer.loot.LootRandomizer;
 import com.ghzdude.randomizer.util.RandomizerUtil;
 import com.google.gson.JsonElement;
@@ -10,7 +11,9 @@ import net.minecraft.core.Registry;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
+import net.minecraftforge.client.event.RegisterClientCommandsEvent;
 import net.minecraftforge.event.AddReloadListenerEvent;
+import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.entity.living.MobSpawnEvent;
 import net.minecraftforge.event.server.ServerStartedEvent;
@@ -56,6 +59,8 @@ public class RandomizerCore
         ServerStartedEvent.BUS.addListener(RandomizerCore::onStart);
         ServerStoppingEvent.BUS.addListener(RandomizerCore::onStop);
         AddReloadListenerEvent.BUS.addListener(RandomizerCore::addListeners);
+        /// {@link RegisterCommandsEvent} {@link RegisterClientCommandsEvent}
+        RegisterCommandsEvent.BUS.addListener(ModCommands::registerCommands);
     }
 
     static void onStart(ServerStartedEvent event) {

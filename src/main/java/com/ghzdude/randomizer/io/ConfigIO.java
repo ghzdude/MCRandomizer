@@ -26,7 +26,7 @@ public class ConfigIO {
     public static final Path CONFIG_DIR = FMLPaths.CONFIGDIR.get().resolve(RandomizerCore.MODID);
     public static final Path BLACKLIST_DIR = CONFIG_DIR.resolve("blacklists");
     public static final Path VALUE_DIR = CONFIG_DIR.resolve("values");
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
+    public static final Gson GSON = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
     private static final Logger LOGGER = LogUtils.getLogger();
     private static final String JSON_FILE = "%s.json";
 
