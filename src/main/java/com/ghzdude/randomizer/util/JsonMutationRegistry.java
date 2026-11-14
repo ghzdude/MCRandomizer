@@ -11,6 +11,8 @@ import net.minecraft.world.level.storage.loot.LootTable;
 
 import java.util.function.Supplier;
 
+/// TODO look into {@link net.minecraftforge.event.AddPackFindersEvent} and
+///  {@link net.minecraft.server.packs.PackResources}
 public class JsonMutationRegistry {
 
     private static final Reference2ObjectMap<Codec<?>, JsonMutator> registry = new Reference2ObjectOpenHashMap<>();
