@@ -5,6 +5,7 @@
   "compatibilityLevel": "JAVA_8",
   "mixins": [
     "AdvancementManagerMixin",
+    "JsonParseMixin",
     "LootContextMixin",
     "RandomizeLootMixin",
     "VillagerMixin",
