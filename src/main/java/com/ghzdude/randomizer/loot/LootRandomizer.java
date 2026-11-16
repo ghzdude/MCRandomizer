@@ -39,6 +39,7 @@ import net.minecraft.world.item.crafting.*;
 import net.minecraft.world.level.block.*;
 import net.minecraft.world.level.storage.loot.LootContext;
 import net.minecraft.world.level.storage.loot.LootTable;
+import net.minecraft.world.level.storage.loot.entries.LootPoolEntries;
 import net.minecraft.world.level.storage.loot.functions.SmeltItemFunction;
 import net.minecraft.world.level.storage.loot.predicates.LootItemCondition;
 import net.minecraft.world.level.storage.loot.predicates.LootItemConditions;
@@ -148,6 +149,7 @@ public class LootRandomizer {
             LOGGER.info("Found {} loot tables", lootTables.size());
         }
 
+        if (false)
         for (Holder<LootTable> table : lootTables) {
             // serialize loot table into JSON for easy lookup
             LootTable.DIRECT_CODEC.encodeStart(ops, table.get())
@@ -537,6 +539,77 @@ public class LootRandomizer {
         }
 
         addEntry(data.silk(requiresSilk).shears(requiresShears), items);
+    }
+
+    public static JsonElement run(Identifier key, JsonElement original) {
+        Dynamic<JsonElement> dynamic = new Dynamic<>(JsonOps.INSTANCE, original);
+        if (LootType.isWhitelisted(key)) {
+            DataResult<JsonElement> mod = dynamic.get("pools")
+                    .asStreamOpt()
+                    .map(stream -> stream.map(pool -> JsonHandler.handlePool(key, pool)))
+                    .map(stream -> dynamic.set("pools", dynamic.createList(stream)))
+                    .map(Dynamic::getValue);
+
+            if (mod.isSuccess()){
+                return mod.getOrThrow();
+            }
+        }
+        return original;
+    }
+
+    static class JsonHandler {
+
+        public static Dynamic<JsonElement> handlePool(Identifier key, Dynamic<JsonElement> pool) {
+            DataResult<Dynamic<JsonElement>> mapped = pool.get("entries")
+                    .asStreamOpt()
+                    .map(stream -> stream.map(entry -> handleEntry(key, entry, false, false)))
+                    .map(stream -> pool.set("entries", pool.createList(stream)));
+
+            return mapped.isSuccess() ? mapped.getOrThrow() : pool;
+        }
+
+        /// See {@link LootPoolEntries} for entry types
+        public static Dynamic<JsonElement> handleEntry(Identifier key, Dynamic<JsonElement> entry, boolean silk, boolean shears) {
+
+            var decode = entry.get("type").decode(EntryType.CODEC)
+                    .map(pair -> pair.mapSecond(j -> new Dynamic<>(entry.getOps(), j)));
+            decode.map(pair -> switch (pair.getFirst()) {
+                case ITEM -> handleItem(key, pair.getSecond());
+            });
+            if (decode.isSuccess()) {
+                return decode.map(Pair::getSecond).getOrThrow();
+            }
+            return entry;
+        }
+
+        private static Dynamic<JsonElement> handleItem(Identifier key, Dynamic<JsonElement> item) {
+            Codec<ResourceKey<Item>> codec = ResourceKey.codec(Registries.ITEM);
+            DataResult<ResourceKey<Item>> name = item.get("name").read(codec);
+            RandomizationMapData mapData = getMapData(key);
+            return name.map(rk -> Pair.of(rk, mapData.getResourceKeyFor(rk)))
+                    .ifSuccess(pair -> LOGGER.warn("Mapped \"{} -> \"{}\"", pair.getFirst(), pair.getSecond()))
+                    .flatMap(pair -> codec.encodeStart(item.getOps(), pair.getSecond()))
+                    .map(j -> new Dynamic<>(item.getOps(), j))
+                    .map(d -> item.set("name", d))
+                    .result().orElse(item);
+        }
+
+        private enum EntryType implements StringRepresentable {
+            ITEM;
+
+            static final Codec<EntryType> CODEC = StringRepresentable.fromEnum(EntryType::values);
+
+            private final Identifier name;
+
+            EntryType() {
+                this.name = Identifier.parse(name().toLowerCase());
+            }
+
+            @Override
+            public String getSerializedName() {
+                return this.name.toString();
+            }
+        }
     }
 
     public static class ItemEntry {

@@ -1,5 +1,6 @@
 package com.ghzdude.randomizer;
 
+import com.google.gson.JsonElement;
 import com.mojang.logging.LogUtils;
 import net.minecraft.advancements.Advancement;
 import net.minecraft.advancements.AdvancementRewards;
@@ -7,6 +8,7 @@ import net.minecraft.advancements.predicates.ItemPredicate;
 import net.minecraft.advancements.triggers.InventoryChangeTrigger;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.Item;
 import org.slf4j.Logger;
 
@@ -35,5 +37,9 @@ public class AdvancementModifier {
 
         builder.addCriterion("has_item", InventoryChangeTrigger.TriggerInstance.hasItems(predicates.toArray(ItemPredicate[]::new)));
         return builder;
+    }
+
+    public static JsonElement run(Identifier key, JsonElement original) {
+        return original;
     }
 }

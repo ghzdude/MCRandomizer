@@ -280,6 +280,10 @@ public class RecipeRandomizer {
         return RESULT_MAP.get(recipe);
     }
 
+    public static JsonElement run(Identifier key, JsonElement original) {
+        return original;
+    }
+
     public enum ItemType {
         ITEM, TAG;
 

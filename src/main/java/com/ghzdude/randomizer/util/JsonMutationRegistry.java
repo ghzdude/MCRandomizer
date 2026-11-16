@@ -1,5 +1,8 @@
 package com.ghzdude.randomizer.util;
 
+import com.ghzdude.randomizer.AdvancementModifier;
+import com.ghzdude.randomizer.RecipeRandomizer;
+import com.ghzdude.randomizer.loot.LootRandomizer;
 import com.google.gson.JsonElement;
 import com.mojang.serialization.*;
 import it.unimi.dsi.fastutil.objects.Reference2ObjectMap;
@@ -19,20 +22,9 @@ public class JsonMutationRegistry {
 
     static {
         registry.defaultReturnValue(JsonMutator.NO_OP);
-        registry.put(LootTable.CODEC, (key, original) -> {
-            // todo delegate to loot randomizer
-            return original;
-        });
-
-        registry.put(Recipe.CODEC, (key, original) -> {
-            // todo delegate to recipe randomizer
-            return original;
-        });
-
-        registry.put(Advancement.CODEC, (key, original) -> {
-            // todo delegate to advancement modifier
-            return original;
-        });
+        registry.put(LootTable.DIRECT_CODEC, LootRandomizer::run);
+        registry.put(Recipe.CODEC, RecipeRandomizer::run);
+        registry.put(Advancement.CODEC, AdvancementModifier::run);
     }
 
     public static <A, T> DataResult<A> handle(Codec<A> codec, DynamicOps<T> ops,
@@ -42,7 +34,6 @@ public class JsonMutationRegistry {
         return new Dynamic<>(ops, json)
                 .convert(JsonOps.INSTANCE)
                 .map(e -> get(codec).mutate(key, e))
-                .convert(ops)
                 .read(codec);
     }
 
