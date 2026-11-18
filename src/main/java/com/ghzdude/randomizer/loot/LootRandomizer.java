@@ -21,6 +21,7 @@ import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.*;
 import net.minecraft.core.component.DataComponents;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
@@ -47,6 +48,7 @@ import net.minecraft.world.level.storage.loot.predicates.MatchTool;
 import net.minecraftforge.common.ToolActions;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.NonNull;
 import org.slf4j.Logger;
 
 import java.util.*;
@@ -568,41 +570,76 @@ public class LootRandomizer {
             return mapped.isSuccess() ? mapped.getOrThrow() : pool;
         }
 
-        /// See {@link LootPoolEntries} for entry types
+        /// See {@link LootPoolEntries} for entry types <br />
+        /// routes through {@link EntryType}
         public static Dynamic<JsonElement> handleEntry(Identifier key, Dynamic<JsonElement> entry, boolean silk, boolean shears) {
-
-            var decode = entry.get("type").decode(EntryType.CODEC)
-                    .map(pair -> pair.mapSecond(j -> new Dynamic<>(entry.getOps(), j)));
-            decode.map(pair -> switch (pair.getFirst()) {
-                case ITEM -> handleItem(key, pair.getSecond());
-            });
-            if (decode.isSuccess()) {
-                return decode.map(Pair::getSecond).getOrThrow();
-            }
-            return entry;
+            DataResult<EntryType> step1 = entry.get("type").read(EntryType.CODEC);
+            DataResult<Pair<EntryType, OptionalDynamic<JsonElement>>> step2 = step1.map(e -> Pair.of(e, e.extract(entry)));
+            DataResult<Pair<EntryType, DataResult<Dynamic<JsonElement>>>> step3 = step2.map(p -> p.mapSecond(o -> switch (p.getFirst()) {
+                case ITEM -> o.map(item -> handleItem(key, item));
+                default -> DataResult.error(() -> "err");
+            }));
+            Dynamic<JsonElement> step4 = step3.flatMap(Pair::getSecond).result().orElse(entry);
+            return step4;
         }
+
+        private static final Map<Identifier, List<TableMapping>> mappings = new Object2ObjectOpenHashMap<>();
 
         private static Dynamic<JsonElement> handleItem(Identifier key, Dynamic<JsonElement> item) {
             Codec<ResourceKey<Item>> codec = ResourceKey.codec(Registries.ITEM);
-            DataResult<ResourceKey<Item>> name = item.get("name").read(codec);
             RandomizationMapData mapData = getMapData(key);
-            return name.map(rk -> Pair.of(rk, mapData.getResourceKeyFor(rk)))
-                    .ifSuccess(pair -> LOGGER.warn("Mapped \"{} -> \"{}\"", pair.getFirst(), pair.getSecond()))
-                    .flatMap(pair -> codec.encodeStart(item.getOps(), pair.getSecond()))
-                    .map(j -> new Dynamic<>(item.getOps(), j))
-                    .map(d -> item.set("name", d))
-                    .result().orElse(item);
+            DataResult<TableMapping> step1 = item.read(codec).map(rk -> new TableMapping(rk, mapData.getResourceKeyFor(rk)));
+            DataResult<JsonElement> step2 = step1
+                    .ifSuccess(pair -> mappings.computeIfAbsent(key, _ -> new ArrayList<>()).add(pair))
+                    .flatMap(pair -> codec.encodeStart(item.getOps(), pair.to()));
+            return step2.map(j -> item.map(_ -> j)).result().orElse(item);
+        }
+        // item mapping
+        // tag mapping
+        // loot table mapping?
+
+        record TableMapping(ResourceKey<Item> from, ResourceKey<Item> to) {
+
+            @Override
+            public @NonNull String toString() {
+                return "TableMapping[" + from + " -> " + to + "]";
+            }
         }
 
-        private enum EntryType implements StringRepresentable {
-            ITEM;
+        public enum EntryType implements StringRepresentable {
+            ITEM, TAG, LOOT_TABLE,
+            ALTERNATIVES, SEQUENCE, GROUP;
 
             static final Codec<EntryType> CODEC = StringRepresentable.fromEnum(EntryType::values);
+            static final Codec<TagKey<Item>> ITEM_TAG_CODEC = Codec.withAlternative(
+                    TagKey.codec(Registries.ITEM), TagKey.hashedCodec(Registries.ITEM)
+            );
 
             private final Identifier name;
 
             EntryType() {
                 this.name = Identifier.parse(name().toLowerCase());
+            }
+
+            public Stream<OptionalDynamic<JsonElement>> extract(Dynamic<JsonElement> j) {
+                return switch (this) {
+                    case ITEM -> Stream.of(j.get("name"));
+                    case TAG -> {
+                        DataResult<Boolean> expand = j.get("expand").get().flatMap(Dynamic::asBoolean);
+                        if (expand.result().orElse(false)) {
+                            // iterate individually
+                            DataResult<Stream<OptionalDynamic<JsonElement>>> result = j.get("name").get().flatMap(d -> d.read(ITEM_TAG_CODEC))
+                                    .map(BuiltInRegistries.ITEM::get)
+                                    .flatMap(t -> t.map(DataResult::success).orElse(DataResult.error(() -> "fuck")))
+                                    .map(n -> n.stream().map(h -> Item.CODEC.encodeStart(j.getOps(), h)))
+                                    .map(s -> s.map(r -> new OptionalDynamic<>(j.getOps(), r.map(e -> new Dynamic<>(j.getOps(), e)))));
+                            yield result.result().orElse(Stream.empty());
+                        } else {
+                            yield Stream.of(j.get("name"));
+                        }
+                    }
+                    default -> Stream.empty();
+                };
             }
 
             @Override
